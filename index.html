@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>ครูฝึกคาลิมบา & เปียโน</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Prompt:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Sarabun', -apple-system, sans-serif; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
+    h1, h2, h3, .font-heading { font-family: 'Prompt', sans-serif; }
+    .kalimba-body { background: radial-gradient(circle at 50% 120%, #4a2c11 0%, #2e1705 60%, #1a0c02 100%); }
+    .sound-hole { background: radial-gradient(circle, #0a0502 60%, #2b1708 100%); }
+    .kalimba-tine { background: linear-gradient(90deg, #cbd5e1 0%, #f8fafc 35%, #94a3b8 70%, #64748b 100%); transform-origin: top center; }
+    .kalimba-tine.active { transform: scaleY(0.97) translateY(2px); background: linear-gradient(90deg, #38bdf8 0%, #bae6fd 40%, #0284c7 80%, #0369a1 100%); }
+    .piano-white-key { background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 90%, #cbd5e1 100%); }
+    .piano-white-key.active { background: linear-gradient(180deg, #bae6fd 0%, #7dd3fc 90%, #38bdf8 100%); }
+    .piano-black-key { background: linear-gradient(180deg, #334155 0%, #1e293b 80%, #0f172a 100%); }
+    .piano-black-key.active { background: linear-gradient(180deg, #0284c7 0%, #0369a1 80%, #075985 100%); }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between overflow-x-hidden">
+  <audio id="ios-silent-audio" playsinline loop preload="auto" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=" class="hidden"></audio>
+  <header class="bg-slate-900/90 backdrop-blur border-b border-slate-800 sticky top-0 z-30 px-3 py-2.5">
+    <div class="max-w-xl mx-auto flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-lg bg-amber-600 flex items-center justify-center text-lg">🎵</div>
+        <div>
+          <h1 class="text-sm font-semibold font-heading text-amber-300">ครูฝึกคาลิมบา & เปียโน</h1>
+          <p class="text-[10px] text-slate-400">ระบบฝึกร่วม (Universal Music Engine) • M1</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <button id="btn-audio-status" class="px-2.5 py-1 text-xs rounded-full bg-amber-500 text-slate-950 font-medium flex items-center gap-1">
+          <span id="audio-indicator" class="inline-block w-2 h-2 rounded-full bg-red-600 animate-pulse"></span>
+          <span id="audio-status-text">แตะเปิดเสียง</span>
+        </button>
+        <button id="btn-open-settings" class="p-1.5 text-slate-300 rounded-lg bg-slate-800">⚙️</button>
+      </div>
+    </div>
+  </header>
+  <section class="max-w-xl mx-auto w-full px-3 py-2 space-y-2">
+    <div class="bg-slate-900 p-1 rounded-xl border border-slate-800 flex items-center gap-1 text-xs">
+      <button id="tab-profile-kalimba13" class="flex-1 py-1.5 px-2 rounded-lg font-medium bg-amber-600 text-white text-center">คาลิมบา 13 คีย์ (ของคุณ)</button>
+      <button id="tab-profile-kalimba17" class="flex-1 py-1.5 px-2 rounded-lg font-medium text-slate-400 text-center">คาลิมบา 17 คีย์</button>
+      <button id="tab-profile-piano" class="flex-1 py-1.5 px-2 rounded-lg font-medium text-slate-400 text-center">เปียโน 2 ออคเทฟ</button>
+    </div>
+    <div class="grid grid-cols-2 gap-2 text-xs">
+      <div class="bg-slate-900/80 p-1.5 rounded-lg border border-slate-800 flex items-center justify-between">
+        <span class="text-[11px] text-slate-400">ป้ายคีย์:</span>
+        <select id="select-label-mode" class="bg-slate-800 text-slate-200 text-xs rounded px-2 py-1 border border-slate-700">
+          <option value="both">เลข + โน้ต</option>
+          <option value="number">เฉพาะเลข</option>
+          <option value="note">เฉพาะโน้ต</option>
+          <option value="none">ซ่อนป้าย</option>
+        </select>
+      </div>
+      <div class="bg-slate-900/80 p-1.5 rounded-lg border border-slate-800 flex items-center justify-between">
+        <span class="text-[11px] text-slate-400">ระบบชื่อ:</span>
+        <select id="select-note-system" class="bg-slate-800 text-slate-200 text-xs rounded px-2 py-1 border border-slate-700">
+          <option value="thai">ด ร ม ฟ ซ ล ท</option>
+          <option value="number">1-7</option>
+          <option value="western">C D E F G A B</option>
+        </select>
+      </div>
+    </div>
+    <div class="bg-slate-900/60 border border-slate-800/80 rounded-lg px-3 py-1.5 flex items-center justify-between text-xs">
+      <div class="flex items-center gap-1.5 truncate">
+        <span class="text-slate-400 text-[11px]">โน้ตที่กำลังดีด:</span>
+        <span id="active-note-display" class="font-bold text-amber-400 text-sm">-</span>
+      </div>
+      <div id="two-hand-badge" class="hidden px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-medium flex items-center gap-1">
+        <span>✨ สองมือพร้อมกัน</span>
+        <span id="two-hand-ms" class="text-[9px] text-emerald-300"></span>
+      </div>
+      <div id="kalimba-tuning-badge" class="text-[11px] text-slate-400">
+        <span>จูนคีย์:</span> <span id="current-tuning-name" class="text-amber-300 font-medium">Bb4</span>
+      </div>
+    </div>
+  </section>
+  <main class="flex-1 flex flex-col justify-center items-center px-2 py-2 w-full max-w-xl mx-auto overflow-hidden">
+    <div id="view-kalimba" class="w-full relative flex flex-col items-center">
+      <div class="kalimba-body w-full rounded-3xl p-3 relative border-4 border-amber-950 flex flex-col items-center">
+        <div class="w-full h-4 bg-slate-700 rounded-sm mb-1 flex items-center justify-around px-2">
+          <div class="w-2 h-2 rounded-full bg-slate-400"></div>
+          <div class="w-2 h-2 rounded-full bg-slate-400"></div>
+          <div class="w-2 h-2 rounded-full bg-slate-400"></div>
+          <div class="w-2 h-2 rounded-full bg-slate-400"></div>
+        </div>
+        <div id="kalimba-tines-wrapper" class="w-full flex justify-center items-start gap-1 pt-1 pb-4 min-h-[260px]"></div>
+        <div class="w-16 h-16 rounded-full sound-hole border-2 border-amber
