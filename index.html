@@ -153,4 +153,418 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding
+      padding: 20px;
+      text-align: center;
+      z-index: 50;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="title">Kalimba 13 Keys (PWA)</div>
+    <div class="controls-top">
+      <button id="btnMode" class="btn">โหมด: รอ (Wait)</button>
+      <button id="btnPlay" class="btn" style="background: var(--gold); color: #000; font-weight: bold;">เริ่มเล่น</button>
+      <button id="btnCalib" class="btn">Calibrate ไมค์</button>
+    </div>
+  </header>
+
+  <!-- Waterfall Canvas Section -->
+  <div id="waterfall-wrapper">
+    <canvas id="waterfallCanvas"></canvas>
+
+    <div id="calibration-overlay">
+      <h3 style="margin-bottom: 8px; color: var(--gold);">ปรับเทียบความหน่วงเสียง</h3>
+      <p style="font-size: 13px; color: #94a3b8; max-width: 320px;">เมื่อได้ยินเสียงบี๊บ ให้เคาะคีย์ C4 ทันทีทั้งหมด 4 ครั้ง</p>
+      <div id="calib-step" style="font-size: 20px; font-weight: bold; margin: 16px 0; color: #fff;">พร้อมแล้วกดเริ่ม</div>
+      <button id="btnStartCalib" class="btn" style="padding: 8px 24px;">เริ่มทดสอบ</button>
+    </div>
+  </div>
+
+  <!-- Kalimba 13 Tines Interface -->
+  <div id="kalimba-container"></div>
+
+  <div class="dashboard">
+    <span id="speedDisplay">ความเร็ว: 100%</span>
+    <span id="streakDisplay">สตรีค: 0 รอบ</span>
+    <span id="latencyDisplay">ชดเชยไมค์: 80 ms</span>
+  </div>
+
+  <script>
+    // ==========================================
+    // 1. DATA & COLOR-SHAPE DESIGN SYSTEM
+    // ==========================================
+    const NOTE_DETAILS = {
+      'C': { shape: 'circle',  color: '#2A7B9B', symbol: '●' }, // ฟ้าหม่น
+      'D': { shape: 'square',  color: '#4A9B80', symbol: '■' }, // เขียวหยก
+      'E': { shape: 'triUp',   color: '#C88A35', symbol: '▲' }, // เหลืองอำพัน
+      'F': { shape: 'diamond', color: '#B05353', symbol: '◆' }, // แดงอิฐ
+      'G': { shape: 'hexagon', color: '#5865A8', symbol: '⬢' }, // คราม
+      'A': { shape: 'star',    color: '#7D538C', symbol: '✦' }, // ม่วงพลัม
+      'B': { shape: 'triDown', color: '#5D7052', symbol: '▼' }  // มะกอก
+    };
+
+    // ความถี่ของโน้ตดนตรีมาตรฐาน (Hz)
+    const FREQUENCIES = {
+      'C4': 261.63, 'D4': 293.66, 'E4': 329.63, 'F4': 349.23, 'G4': 392.00,
+      'A4': 440.00, 'B4': 493.88, 'C5': 523.25, 'D5': 587.33, 'E5': 659.25,
+      'F5': 698.46, 'G5': 783.99, 'A5': 880.00
+    };
+
+    // ผัง 13 คีย์คาลิมบาเรียงจากซ้ายไปขวา (C4 ตรงกลาง ลิ้นยาวสุด)
+    const KALIMBA_LAYOUT = [
+      { note: 'G5', length: 160 },
+      { note: 'E5', length: 175 },
+      { note: 'C5', length: 190 },
+      { note: 'A4', length: 205 },
+      { note: 'F4', length: 220 },
+      { note: 'D4', length: 235 },
+      { note: 'C4', length: 250 }, // ก้านกลาง
+      { note: 'E4', length: 235 },
+      { note: 'G4', length: 220 },
+      { note: 'B4', length: 205 },
+      { note: 'D5', length: 190 },
+      { note: 'F5', length: 175 },
+      { note: 'A5', length: 160 }
+    ];
+
+    // ==========================================
+    // 2. WEB AUDIO SYNTHESIZER
+    // ==========================================
+    let audioCtx = null;
+
+    function getAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    function triggerSound(noteName) {
+      const ctx = getAudioContext();
+      const freq = FREQUENCIES[noteName];
+      if (!freq) return;
+
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+
+      // Overtones เพื่อโทนเสียงกังวานแบบแท่งเหล็กคาลิมบา
+      gain.gain.setValueAtTime(0.6, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 1.2);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start();
+      osc.stop(ctx.currentTime + 1.2);
+    }
+
+    // ==========================================
+    // 3. WATERFALL NOTE ENGINE (CANVAS 60 FPS)
+    // ==========================================
+    class WaterfallEngine {
+      constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.notes = [];
+        this.mode = 'wait';
+        this.speed = 160;
+        this.hitLineY = 240;
+        this.micLatencyOffset = 0.08;
+        this.isPlaying = false;
+        this.waitingNote = null;
+        this.playbackStartTime = 0;
+
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+      }
+
+      resize() {
+        this.canvas.width = this.canvas.parentElement.clientWidth * window.devicePixelRatio;
+        this.canvas.height = 280 * window.devicePixelRatio;
+        this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        this.width = this.canvas.parentElement.clientWidth;
+        this.height = 280;
+        this.laneWidth = this.width / KALIMBA_LAYOUT.length;
+      }
+
+      loadScore(score) {
+        this.notes = score.map(s => ({
+          ...s,
+          keyIndex: KALIMBA_LAYOUT.findIndex(k => k.note === s.note),
+          root: s.note.charAt(0),
+          hit: false
+        })).filter(s => s.keyIndex !== -1);
+      }
+
+      start() {
+        const ctx = getAudioContext();
+        this.isPlaying = true;
+        this.playbackStartTime = ctx.currentTime;
+        this.waitingNote = null;
+        this.render();
+      }
+
+      render() {
+        if (!this.isPlaying) return;
+
+        const ctx = this.ctx;
+        const now = audioCtx.currentTime - this.playbackStartTime - this.micLatencyOffset;
+
+        ctx.clearRect(0, 0, this.width, this.height);
+
+        // เลน 13 ช่อง
+        for (let i = 0; i < KALIMBA_LAYOUT.length; i++) {
+          ctx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.04)';
+          ctx.fillRect(i * this.laneWidth, 0, this.laneWidth, this.height);
+          ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+          ctx.strokeRect(i * this.laneWidth, 0, this.laneWidth, this.height);
+        }
+
+        // เส้นเป้าหมาย Hit Line
+        ctx.beginPath();
+        ctx.moveTo(0, this.hitLineY);
+        ctx.lineTo(this.width, this.hitLineY);
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#E8A33D';
+        ctx.stroke();
+
+        // ตรวจสอบ Wait Mode
+        if (this.mode === 'wait') {
+          const pending = this.notes.find(n => !n.hit);
+          if (pending) {
+            const noteY = this.hitLineY - (pending.time - now) * this.speed;
+            if (noteY >= this.hitLineY) {
+              this.waitingNote = pending;
+            }
+          }
+        }
+
+        // เรนเดอร์แท่งโน้ต
+        this.notes.forEach(note => {
+          if (note.hit && this.mode === 'flow') return;
+
+          const timeDelta = note.time - now;
+          let y = this.hitLineY - (timeDelta * this.speed);
+          const noteH = Math.max(note.duration * this.speed, 22);
+
+          if (this.mode === 'wait' && this.waitingNote === note && y >= this.hitLineY) {
+            y = this.hitLineY;
+          }
+
+          if (y + noteH > 0 && y < this.height + 60) {
+            const x = note.keyIndex * this.laneWidth + 3;
+            const w = this.laneWidth - 6;
+            const style = NOTE_DETAILS[note.root] || { color: '#888', shape: 'circle' };
+
+            ctx.fillStyle = style.color;
+            ctx.beginPath();
+            ctx.roundRect(x, y - noteH, w, noteH, 6);
+            ctx.fill();
+
+            this.drawShape(ctx, style.shape, x + w / 2, y - 11, 7, '#FFFFFF');
+          }
+        });
+
+        requestAnimationFrame(() => this.render());
+      }
+
+      drawShape(ctx, shape, cx, cy, size, color) {
+        ctx.save();
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        if (shape === 'circle') {
+          ctx.arc(cx, cy, size, 0, Math.PI * 2);
+        } else if (shape === 'square') {
+          ctx.rect(cx - size, cy - size, size * 2, size * 2);
+        } else if (shape === 'triUp') {
+          ctx.moveTo(cx, cy - size);
+          ctx.lineTo(cx + size, cy + size);
+          ctx.lineTo(cx - size, cy + size);
+        } else if (shape === 'triDown') {
+          ctx.moveTo(cx, cy + size);
+          ctx.lineTo(cx + size, cy - size);
+          ctx.lineTo(cx - size, cy - size);
+        } else if (shape === 'diamond') {
+          ctx.moveTo(cx, cy - size);
+          ctx.lineTo(cx + size, cy);
+          ctx.lineTo(cx, cy + size);
+          ctx.lineTo(cx - size, cy);
+        } else if (shape === 'star') {
+          for (let i = 0; i < 4; i++) {
+            ctx.lineTo(Math.cos((18 + i * 90) * Math.PI / 180) * size + cx, -Math.sin((18 + i * 90) * Math.PI / 180) * size + cy);
+            ctx.lineTo(Math.cos((54 + i * 90) * Math.PI / 180) * (size / 2) + cx, -Math.sin((54 + i * 90) * Math.PI / 180) * (size / 2) + cy);
+          }
+        } else {
+          ctx.arc(cx, cy, size, 0, Math.PI * 2);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+
+      registerKeyHit(noteName) {
+        if (this.mode === 'wait' && this.waitingNote) {
+          if (this.waitingNote.note === noteName) {
+            this.waitingNote.hit = true;
+            this.waitingNote = null;
+            const next = this.notes.find(n => !n.hit);
+            if (next) {
+              this.playbackStartTime = audioCtx.currentTime - next.time;
+            }
+          }
+        } else {
+          const now = audioCtx.currentTime - this.playbackStartTime - this.micLatencyOffset;
+          const target = this.notes.find(n => !n.hit && Math.abs(n.time - now) < 0.2 && n.note === noteName);
+          if (target) target.hit = true;
+        }
+      }
+    }
+
+    // ==========================================
+    // 4. LATENCY CALIBRATION LOGIC
+    // ==========================================
+    class LatencyCalibrator {
+      constructor(ctx, onDone) {
+        this.ctx = ctx;
+        this.onDone = onDone;
+        this.hits = [];
+        this.timer = null;
+      }
+
+      start() {
+        this.hits = [];
+        let count = 0;
+        const stepEl = document.getElementById('calib-step');
+
+        this.timer = setInterval(() => {
+          if (count >= 4) {
+            clearInterval(this.timer);
+            const avg = this.hits.length ? (this.hits.reduce((a, b) => a + b) / this.hits.length) : 0.08;
+            this.onDone(avg);
+            return;
+          }
+          this.beep();
+          stepEl.innerText = `เคาะ C4 ตอนนี้! (${count + 1}/4)`;
+          count++;
+        }, 1200);
+      }
+
+      beep() {
+        const osc = this.ctx.createOscillator();
+        const g = this.ctx.createGain();
+        osc.frequency.setValueAtTime(880, this.ctx.currentTime);
+        g.gain.setValueAtTime(0.3, this.ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.08);
+        osc.connect(g);
+        g.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.08);
+        this.lastBeep = this.ctx.currentTime;
+      }
+
+      tap() {
+        if (!this.lastBeep) return;
+        const diff = this.ctx.currentTime - this.lastBeep;
+        if (diff > 0 && diff < 0.8) {
+          this.hits.push(diff);
+        }
+      }
+    }
+
+    // ==========================================
+    // 5. INITIALIZATION & UI WIRING
+    // ==========================================
+    const canvas = document.getElementById('waterfallCanvas');
+    const engine = new WaterfallEngine(canvas);
+    let calibrator = null;
+
+    // สร้างลิ้นคาลิมบา 13 แฉก
+    const container = document.getElementById('kalimba-container');
+    KALIMBA_LAYOUT.forEach(item => {
+      const tine = document.createElement('div');
+      tine.className = 'tine';
+      tine.style.height = `${item.length}px`;
+      tine.dataset.note = item.note;
+
+      const root = item.note.charAt(0);
+      const symbol = NOTE_DETAILS[root]?.symbol || '';
+
+      tine.innerHTML = `
+        <div class="tine-label">${item.note}</div>
+        <div class="tine-shape">${symbol}</div>
+      `;
+
+      // Multitouch รองรับแตะพร้อมกัน
+      const handlePress = (e) => {
+        e.preventDefault();
+        tine.classList.add('active');
+        triggerSound(item.note);
+        engine.registerKeyHit(item.note);
+
+        if (calibrator && item.note === 'C4') {
+          calibrator.tap();
+        }
+      };
+
+      const handleRelease = () => tine.classList.remove('active');
+
+      tine.addEventListener('touchstart', handlePress, { passive: false });
+      tine.addEventListener('touchend', handleRelease);
+      tine.addEventListener('mousedown', handlePress);
+      tine.addEventListener('mouseup', handleRelease);
+      tine.addEventListener('mouseleave', handleRelease);
+
+      container.appendChild(tine);
+    });
+
+    // ปุ่มสลับโหมด Wait / Flow
+    const btnMode = document.getElementById('btnMode');
+    btnMode.addEventListener('click', () => {
+      engine.mode = engine.mode === 'wait' ? 'flow' : 'wait';
+      btnMode.innerText = `โหมด: ${engine.mode === 'wait' ? 'รอ (Wait)' : 'ไหล (Flow)'}`;
+    });
+
+    // เพลงตัวอย่าง
+    const demoSong = [
+      { note: 'C4', time: 1.0, duration: 0.6 },
+      { note: 'D4', time: 2.0, duration: 0.6 },
+      { note: 'E4', time: 3.0, duration: 0.6 },
+      { note: 'C4', time: 4.0, duration: 0.6 },
+      { note: 'E4', time: 5.0, duration: 0.6 },
+      { note: 'F4', time: 6.0, duration: 0.6 },
+      { note: 'G4', time: 7.0, duration: 0.8 }
+    ];
+
+    document.getElementById('btnPlay').addEventListener('click', () => {
+      getAudioContext();
+      engine.loadScore(demoSong);
+      engine.start();
+    });
+
+    // ระบบ Calibrate
+    const calibOverlay = document.getElementById('calibration-overlay');
+    document.getElementById('btnCalib').addEventListener('click', () => {
+      calibOverlay.style.display = 'flex';
+    });
+
+    document.getElementById('btnStartCalib').addEventListener('click', () => {
+      const ctx = getAudioContext();
+      calibrator = new LatencyCalibrator(ctx, (avgOffset) => {
+        engine.micLatencyOffset = avgOffset;
+        document.getElementById('latencyDisplay').innerText = `ชดเชยไมค์: ${(avgOffset * 1000).toFixed(0)} ms`;
+        calibOverlay.style.display = 'none';
+        calibrator = null;
+      });
+      calibrator.start();
+    });
+  </script>
+</body>
+</html>
