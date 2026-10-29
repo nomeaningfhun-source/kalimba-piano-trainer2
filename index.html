@@ -1,56 +1,1965 @@
-function triggerSound(noteName) {
-  const ctx = getAudioContext();
-  const freq = FREQUENCIES[noteName];
-  if (!freq) return;
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#020617">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="ครูฝึกคาลิมบา">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <title>ครูฝึกคาลิมบา & เปียโน</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Prompt:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Sarabun', -apple-system, sans-serif; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
+    h1, h2, h3, h4, .font-heading { font-family: 'Prompt', sans-serif; }
+    .kalimba-body { background: radial-gradient(circle at 50% 120%, #4a2c11 0%, #2e1705 60%, #1a0c02 100%); box-shadow: inset 0 4px 12px rgba(255,255,255,0.1), 0 10px 25px rgba(0,0,0,0.5); }
+    .sound-hole { background: radial-gradient(circle, #0a0502 60%, #2b1708 100%); box-shadow: inset 0 4px 10px rgba(0,0,0,0.9), 0 1px 2px rgba(255,255,255,0.15); }
+    .metal-bridge { background: linear-gradient(180deg, #94a3b8 0%, #475569 50%, #334155 100%); }
+    .kalimba-tine { background: linear-gradient(90deg, #cbd5e1 0%, #f8fafc 35%, #94a3b8 70%, #64748b 100%); box-shadow: -1px 2px 5px rgba(0,0,0,0.35); transition: transform 0.05s ease, filter 0.05s ease; transform-origin: top center; }
+    .kalimba-tine.active { transform: scaleY(0.97) translateY(2px); filter: brightness(1.25); background: linear-gradient(90deg, #38bdf8 0%, #bae6fd 40%, #0284c7 80%, #0369a1 100%); }
+    .kalimba-tine.guide-target { background: linear-gradient(90deg, #f59e0b 0%, #fef08a 40%, #d97706 80%, #b45309 100%) !important; animation: pulse 0.7s infinite alternate; }
+    .piano-white-key { background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 90%, #cbd5e1 100%); box-shadow: 0 4px 4px rgba(0,0,0,0.2); }
+    .piano-white-key.active { background: linear-gradient(180deg, #bae6fd 0%, #7dd3fc 90%, #38bdf8 100%); transform: translateY(2px); }
+    .piano-black-key { background: linear-gradient(180deg, #334155 0%, #1e293b 80%, #0f172a 100%); }
+    .piano-black-key.active { background: linear-gradient(180deg, #0284c7 0%, #0369a1 80%, #075985 100%); transform: translateY(2px); }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    /* M2: inputs must stay editable under the body's user-select:none (iOS), 16px avoids focus-zoom */
+    input, textarea, select { -webkit-user-select: text; user-select: text; font-size: 16px; }
+    select#select-label-mode, select#select-note-system { font-size: 12px; }
+    .mono { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; }
+    header.app-header { padding-top: max(0.5rem, env(safe-area-inset-top)); }
+    .strip-key { background: #334155; transition: background .08s, transform .08s; }
+    .strip-key.lit { background: #fbbf24; transform: scaleY(1.12); }
+    .mcard.playing { box-shadow: 0 0 0 2px #f59e0b; }
+    .chip { min-width: 1.9rem; }
+    #keypad button { touch-action: manipulation; }
+    @keyframes pulse { from { filter: drop-shadow(0 0 4px #eab308); } to { filter: drop-shadow(0 0 14px #facc15); } }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between overflow-x-hidden">
+  <audio id="ios-silent-audio" playsinline loop preload="auto" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=" class="hidden"></audio>
 
-  const now = ctx.currentTime;
+  <!-- แถบหัวแอป -->
+  <header class="app-header bg-slate-900/95 backdrop-blur border-b border-slate-800 sticky top-0 z-30 px-3 py-2">
+    <div class="max-w-xl mx-auto flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-lg bg-amber-600 flex items-center justify-center shadow-md text-lg">🎵</div>
+        <div>
+          <h1 class="text-sm font-semibold font-heading leading-tight text-amber-300">ครูฝึกคาลิมบา & เปียโน</h1>
+          <p class="text-[10px] text-slate-400">ระบบฝึกร่วม (Universal Music Engine) • M2</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <button id="btn-audio-status" class="px-2.5 py-1 text-xs rounded-full bg-amber-500 text-slate-950 font-medium flex items-center gap-1 shadow-sm">
+          <span id="audio-indicator" class="inline-block w-2 h-2 rounded-full bg-red-600 animate-pulse"></span>
+          <span id="audio-status-text">แตะเปิดเสียง</span>
+        </button>
+        <button id="btn-open-settings" class="p-1.5 text-slate-300 rounded-lg bg-slate-800 hover:bg-slate-700">⚙️</button>
+      </div>
+    </div>
+    
+    <!-- เมนูเปลี่ยนหน้าหลัก 4 หน้า -->
+    <div class="max-w-xl mx-auto mt-2 grid grid-cols-4 gap-1 bg-slate-950/80 p-1 rounded-xl border border-slate-800 text-xs">
+      <button id="nav-tab-play" class="py-1.5 rounded-lg font-medium transition bg-amber-600 text-white text-center">🎹 แป้น</button>
+      <button id="nav-tab-practice" class="py-1.5 rounded-lg font-medium transition text-slate-400 hover:text-slate-200 text-center">🎯 ฝึกเพลง</button>
+      <button id="nav-tab-lesson" class="py-1.5 rounded-lg font-medium transition text-slate-400 hover:text-slate-200 text-center">📖 บทเรียน</button>
+      <button id="nav-tab-add" class="py-1.5 rounded-lg font-medium transition text-slate-400 hover:text-slate-200 text-center">➕ เพิ่ม/คลัง</button>
+    </div>
+  </header>
 
-  // 1. โน้ตความถี่หลัก (Fundamental Tone) - ตัวเนื้อเสียง
-  const oscMain = ctx.createOscillator();
-  const gainMain = ctx.createGain();
-  oscMain.type = 'sine';
-  oscMain.frequency.setValueAtTime(freq, now);
+  <!-- หน้าที่ 1: แป้นดนตรี (Play View) -->
+  <div id="section-play" class="flex-1 flex flex-col justify-between max-w-xl mx-auto w-full px-2 py-2">
+    <section class="w-full space-y-2">
+      <div class="bg-slate-900 p-1 rounded-xl border border-slate-800 flex items-center gap-1 text-xs">
+        <button id="tab-profile-kalimba13" class="flex-1 py-1.5 px-2 rounded-lg font-medium bg-amber-600 text-white text-center">คาลิมบา 13 คีย์</button>
+        <button id="tab-profile-kalimba17" class="flex-1 py-1.5 px-2 rounded-lg font-medium text-slate-400 text-center">คาลิมบา 17 คีย์</button>
+        <button id="tab-profile-piano" class="flex-1 py-1.5 px-2 rounded-lg font-medium text-slate-400 text-center">เปียโน 2 ออคเทฟ</button>
+      </div>
+      <div class="grid grid-cols-2 gap-2 text-xs">
+        <div class="bg-slate-900/80 p-1.5 rounded-lg border border-slate-800 flex items-center justify-between">
+          <span class="text-[11px] text-slate-400 font-medium">ป้ายคีย์:</span>
+          <select id="select-label-mode" class="bg-slate-800 text-slate-200 text-xs rounded px-2 py-1 border border-slate-700">
+            <option value="both">เลข + โน้ต</option>
+            <option value="number">เฉพาะเลข</option>
+            <option value="note">เฉพาะโน้ต</option>
+            <option value="none">ซ่อนป้าย</option>
+          </select>
+        </div>
+        <div class="bg-slate-900/80 p-1.5 rounded-lg border border-slate-800 flex items-center justify-between">
+          <span class="text-[11px] text-slate-400 font-medium">ระบบชื่อ:</span>
+          <select id="select-note-system" class="bg-slate-800 text-slate-200 text-xs rounded px-2 py-1 border border-slate-700">
+            <option value="thai">ด ร ม ฟ ซ ล ท</option>
+            <option value="number">1-7</option>
+            <option value="western">C D E F G A B</option>
+          </select>
+        </div>
+      </div>
+      <div class="bg-slate-900/60 border border-slate-800/80 rounded-lg px-3 py-1.5 flex items-center justify-between text-xs">
+        <div class="flex items-center gap-1.5 truncate">
+          <span class="text-slate-400 text-[11px]">กำลังดีด:</span>
+          <span id="active-note-display" class="font-bold text-amber-400 text-sm tracking-wide">-</span>
+        </div>
+        <div id="two-hand-badge" class="hidden px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-medium flex items-center gap-1">
+          <span>✨ สองมือพร้อมกัน</span>
+          <span id="two-hand-ms" class="text-[9px] text-emerald-300"></span>
+        </div>
+        <div id="kalimba-tuning-badge" class="text-[11px] text-slate-400 flex items-center gap-1">
+          <span>จูน:</span>
+          <span id="current-tuning-name" class="text-amber-300 font-medium">Bb4</span>
+        </div>
+      </div>
+    </section>
 
-  // เลียนแบบการดีด: แตะแรงแล้วค่อยๆ หรี่ลงตามธรรมชาติของลิ้นเหล็ก
-  gainMain.gain.setValueAtTime(0.001, now);
-  gainMain.gain.exponentialRampToValueAtTime(0.7, now + 0.004); // หัวเสียงพุ่งเร็วมาก (Attack)
-  gainMain.gain.exponentialRampToValueAtTime(0.0001, now + 1.8); // หางเสียงกังวานยาว (Decay)
+    <!-- ตัวเครื่องคาลิมบา / เปียโน -->
+    <main class="flex-1 flex flex-col justify-center items-center py-2 w-full overflow-hidden">
+      <div id="view-kalimba" class="w-full relative flex flex-col items-center">
+        <div class="kalimba-body w-full rounded-3xl p-3 sm:p-5 relative border-4 border-amber-950 flex flex-col items-center">
+          <div class="w-full h-4 metal-bridge rounded-sm mb-1 flex items-center justify-around px-2">
+            <div class="w-2 h-2 rounded-full bg-slate-400"></div>
+            <div class="w-2 h-2 rounded-full bg-slate-400"></div>
+            <div class="w-2 h-2 rounded-full bg-slate-400"></div>
+            <div class="w-2 h-2 rounded-full bg-slate-400"></div>
+          </div>
+          <div id="kalimba-tines-wrapper" class="w-full flex justify-center items-start gap-1 sm:gap-1.5 pt-1 pb-4 relative min-h-[250px] sm:min-h-[280px]"></div>
+          <div class="w-16 h-16 rounded-full sound-hole border-2 border-amber-900/60 flex items-center justify-center mt-1">
+            <span id="kalimba-hole-label" class="text-amber-800/40 text-xs font-mono">13 KEYS</span>
+          </div>
+          <div class="w-full flex justify-between items-center text-[10px] text-amber-200/50 px-4 mt-2">
+            <span>👈 ซ้าย (L)</span>
+            <span class="text-amber-400/80 font-medium">รูดนิ้ว (Glissando) ได้</span>
+            <span>ขวา (R) 👉</span>
+          </div>
+        </div>
+      </div>
+      <div id="view-piano" class="w-full hidden flex flex-col items-center">
+        <div class="w-full bg-slate-900 rounded-2xl p-3 border border-slate-800 shadow-xl">
+          <div class="flex items-center justify-between mb-2 px-1 text-xs">
+            <span class="text-slate-400">ช่วงเสียงเปียโน:</span>
+            <div class="flex items-center gap-1.5">
+              <button id="btn-piano-octave-down" class="px-2 py-0.5 rounded bg-slate-800 text-slate-200">◀ ต่ำ</button>
+              <span id="piano-octave-display" class="font-mono text-amber-400 px-1">C3 - B4</span>
+              <button id="btn-piano-octave-up" class="px-2 py-0.5 rounded bg-slate-800 text-slate-200">สูง ▶</button>
+            </div>
+          </div>
+          <div class="w-full overflow-x-auto no-scrollbar py-2">
+            <div id="piano-keys-wrapper" class="relative flex justify-center min-w-[340px] h-44 select-none"></div>
+          </div>
+        </div>
+      </div>
+    </main>
 
-  // 2. เสียงฮาร์มอนิกแท่งโลหะ (Metallic Overtone) - ทำให้มีประกายแหลมใสแบบเหล็กคาลิมบา
-  const oscOver = ctx.createOscillator();
-  const gainOver = ctx.createGain();
-  oscOver.type = 'sine';
-  // ลิ้นเหล็กคาลิมบามักสั่น overtone ที่ความถี่ ~2.76 เท่าของความถี่หลัก
-  oscOver.frequency.setValueAtTime(freq * 2.76, now);
+    <div class="flex items-center justify-between pt-1 text-xs border-t border-slate-900">
+      <span class="text-slate-400 text-[11px]">สถานะ: พร้อมใช้งาน</span>
+      <button id="btn-toggle-tuning-quick" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 text-[11px] border border-slate-700">สลับจูน Bb4 ⇄ B4</button>
+    </div>
+  </div>
 
-  // ฮาร์มอนิกโลหะจะดังแค่ตอนเริ่มดีดแล้วดับไปไวมาก (~0.15 วินาที)
-  gainOver.gain.setValueAtTime(0.25, now);
-  gainOver.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
+  <!-- หน้าที่ 2: ฝึกเพลงตามจังหวะ (Practice View) -->
+  <div id="section-practice" class="hidden flex-1 max-w-xl mx-auto w-full px-3 py-3 space-y-3 overflow-y-auto">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-lg">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+        <div>
+          <h2 id="practice-current-song-title" class="text-sm font-semibold font-heading text-amber-300">เพลง: ดาวส่องแสง</h2>
+          <p class="text-[10px] text-slate-400">ฝึกเล่นตามจังหวะพร้อมเมโทรนอม</p>
+        </div>
+        <button id="btn-practice-change-song" class="text-xs px-2 py-1 rounded bg-slate-800 text-slate-300 hover:text-white border border-slate-700">เปลี่ยนเพลง</button>
+      </div>
 
-  // 3. เสียงเคาะกระทบเล็บ/เนื้อนิ้ว (Fingertip Click / Thud)
-  const oscClick = ctx.createOscillator();
-  const gainClick = ctx.createGain();
-  oscClick.type = 'triangle';
-  oscClick.frequency.setValueAtTime(freq * 0.5, now);
-  gainClick.gain.setValueAtTime(0.15, now);
-  gainClick.gain.exponentialRampToValueAtTime(0.0001, now + 0.02); // ดับใน 0.02 วิ
+      <div class="grid grid-cols-2 gap-2 text-xs">
+        <div class="bg-slate-800/70 p-2 rounded-xl border border-slate-700">
+          <label class="block text-slate-400 text-[10px] mb-1">ระดับตัวช่วย:</label>
+          <select id="select-help-level" class="w-full bg-slate-900 text-slate-200 rounded px-2 py-1 border border-slate-700 text-xs">
+            <option value="1">ระดับ 1: โน้ต + คีย์เรืองแสง</option>
+            <option value="2">ระดับ 2: เรืองแสงโน้ตแรกห้อง</option>
+            <option value="3">ระดับ 3: เฉพาะเนื้อร้อง</option>
+          </select>
+        </div>
+        <div class="bg-slate-800/70 p-2 rounded-xl border border-slate-700">
+          <div class="flex justify-between items-center mb-1">
+            <label class="text-slate-400 text-[10px]">ความเร็ว (BPM):</label>
+            <span id="practice-bpm-text" class="font-mono text-amber-400 font-bold">80</span>
+          </div>
+          <input id="range-practice-bpm" type="range" min="50" max="140" value="80" class="w-full accent-amber-500">
+        </div>
+      </div>
 
-  // เชื่อมต่อระบบเสียงทั้งหมดเข้าลำโพง
-  oscMain.connect(gainMain);
-  gainMain.connect(ctx.destination);
+      <div class="flex items-center justify-between bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700/60 text-xs">
+        <div class="flex items-center gap-1.5">
+          <input type="checkbox" id="check-auto-speed" class="accent-amber-500 rounded">
+          <label for="check-auto-speed" class="text-slate-300 text-[11px] cursor-pointer">เร่งความเร็วอัตโนมัติ (ถูก 3 รอบ +5%)</label>
+        </div>
+        <span id="speed-streak-count" class="text-[10px] text-amber-400 font-mono">รอบ: 0/3</span>
+      </div>
 
-  oscOver.connect(gainOver);
-  gainOver.connect(ctx.destination);
+      <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 text-center space-y-1 relative min-h-[100px] flex flex-col justify-center items-center">
+        <div id="practice-count-in" class="hidden text-3xl font-heading font-black text-amber-400 animate-bounce">1</div>
+        <div id="practice-note-box" class="space-y-1">
+          <div class="text-[10px] text-slate-500 uppercase tracking-wider">โน้ตเป้าหมาย</div>
+          <div id="practice-target-note" class="text-4xl font-black font-mono text-amber-300">-</div>
+          <div id="practice-target-sub" class="text-xs text-slate-400">-</div>
+        </div>
+        <div id="practice-feedback-text" class="text-xs font-bold mt-2 text-slate-400">กดเริ่มเพื่อเริ่มนับเข้า 1 ห้อง</div>
+      </div>
 
-  oscClick.connect(gainClick);
-  gainClick.connect(ctx.destination);
+      <div class="flex gap-2">
+        <button id="btn-practice-start" class="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md">▶ เริ่มฝึกเพลง (นับเข้า)</button>
+        <button id="btn-practice-stop" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs border border-slate-700">⏹ หยุด</button>
+      </div>
 
-  // สั่งเริ่มและหยุดทำงาน
-  oscMain.start(now);
-  oscOver.start(now);
-  oscClick.start(now);
+      <div id="practice-score-summary" class="hidden bg-emerald-950/40 border border-emerald-500/40 p-3 rounded-xl text-xs space-y-2 text-slate-200">
+        <div class="font-bold text-emerald-400 flex items-center justify-between">
+          <span>🎉 สรุปผลการฝึกซ้อม:</span>
+          <span id="practice-grade-badge" class="px-2 py-0.5 rounded bg-emerald-500 text-slate-950 font-black">เกรด A</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2 text-[11px] pt-1">
+          <div class="bg-slate-900/60 p-2 rounded">ความแม่นยำโน้ต: <strong id="score-note-pct" class="text-emerald-300 font-mono">100%</strong></div>
+          <div class="bg-slate-900/60 p-2 rounded">ความตรงจังหวะ: <strong id="score-timing-pct" class="text-amber-300 font-mono">92%</strong></div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-  oscMain.stop(now + 1.8);
-  oscOver.stop(now + 0.2);
-  oscClick.stop(now + 0.05);
+  <!-- หน้าที่ 3: บทเรียนจำโน้ต (Lesson View) -->
+  <div id="section-lesson" class="hidden flex-1 max-w-xl mx-auto w-full px-3 py-3 space-y-3 overflow-y-auto">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-lg">
+      <div class="border-b border-slate-800 pb-2">
+        <h2 class="text-sm font-semibold font-heading text-amber-300">📖 บทเรียนจำโน้ต (เริ่มจากศูนย์)</h2>
+        <p class="text-[10px] text-slate-400">ระบบจำโน้ตพร้อม Spaced Repetition นำโน้ตที่ผิดบ่อยมาถามซ้ำ</p>
+      </div>
+      <div class="bg-slate-950 p-5 rounded-xl border border-slate-800 text-center space-y-2">
+        <span class="text-slate-400 text-xs">จงหาและแตะคีย์:</span>
+        <div id="lesson-prompt-note" class="text-4xl font-black font-mono text-amber-400">1 (โด)</div>
+        <div id="lesson-feedback" class="text-xs text-slate-400 min-h-[16px]">-</div>
+      </div>
+      <div class="flex items-center justify-between text-xs px-2 text-slate-400">
+        <span>ตอบถูกสะสม: <strong id="lesson-correct-count" class="text-emerald-400">0</strong></span>
+        <span>โน้ตที่ตอบผิดบ่อย: <strong id="lesson-weak-note" class="text-amber-400">-</strong></span>
+      </div>
+      <button id="btn-lesson-next" class="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs">สุ่มคำถามถัดไป</button>
+    </div>
+  </div>
+
+  <!-- หน้าที่ 4: เพิ่มเพลง & คลังเพลง (Add & Library View) — M2 -->
+  <div id="section-add" class="hidden flex-1 max-w-xl mx-auto w-full px-3 py-3 space-y-3">
+
+    <!-- 4a) คลังเพลง -->
+    <div id="add-library" class="space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 class="text-sm font-semibold font-heading text-amber-300">📚 เพลงของฉัน</h2>
+        <button id="btn-lib-add" class="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold">➕ เพิ่มเพลง</button>
+      </div>
+      <div id="lib-list" class="space-y-2"></div>
+      <div id="lib-empty" class="hidden text-center text-slate-400 text-xs py-8 leading-relaxed bg-slate-900 border border-slate-800 rounded-2xl">
+        ยังไม่มีเพลงที่บันทึกในเครื่อง<br>กด "เพิ่มเพลง" เพื่อนำเข้าโน้ตแบบ 3 บรรทัด
+      </div>
+      <div class="flex flex-wrap gap-2 pt-1">
+        <button id="btn-backup" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 text-xs border border-slate-700">⬇️ สำรองเพลง (.json)</button>
+        <button id="btn-restore" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 text-xs border border-slate-700">⬆️ กู้คืนจากไฟล์</button>
+        <input id="file-restore" type="file" accept=".json,application/json" class="hidden">
+      </div>
+      <p class="text-[10px] text-slate-500 leading-relaxed">เพลงเก็บใน IndexedDB ของเครื่องนี้เท่านั้น ถ้าล้างข้อมูลเบราว์เซอร์เพลงจะหาย แนะนำให้สำรองเป็นครั้งคราว</p>
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2">
+        <h3 class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">เพลงตัวอย่างในแอป (ฝึกอย่างเดียว)</h3>
+        <div id="lib-builtin" class="space-y-2"></div>
+      </div>
+    </div>
+
+    <!-- 4b) เพิ่มเพลง (นำเข้า 3 บรรทัด) -->
+    <div id="add-import" class="hidden bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-lg">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+        <h2 class="text-sm font-semibold font-heading text-amber-300 flex items-center gap-1.5"><span>➕</span> เพิ่มเพลงของฉัน</h2>
+        <button id="btn-import-back" class="text-xs px-2 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700">← คลังเพลง</button>
+      </div>
+      <label class="block text-xs text-slate-300 font-medium">ชื่อเพลง
+        <input id="imp-title" type="text" placeholder="เช่น Yours Ever หรือ ดาวส่องแสง" class="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2 text-slate-100">
+      </label>
+      <div class="grid grid-cols-3 gap-2 text-xs text-slate-300">
+        <label>ความเร็ว (BPM)
+          <input id="imp-tempo" type="number" inputmode="numeric" min="30" max="240" value="80" class="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-2 text-slate-100 text-center">
+        </label>
+        <label>จังหวะ / ห้อง
+          <select id="imp-beats" class="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-2 text-slate-100">
+            <option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>12</option>
+          </select>
+        </label>
+        <label>เลื่อนออคเทฟ
+          <select id="imp-shift" class="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-2 text-slate-100">
+            <option value="-2">−2</option><option value="-1">−1</option><option value="0" selected>0</option><option value="1">+1</option><option value="2">+2</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="bg-amber-950/30 border border-amber-900/40 p-2.5 rounded-xl space-y-1.5 text-xs">
+        <div class="text-amber-300 font-medium text-[11px]">⚡ โหลดตัวอย่างโน้ตทดสอบทันที:</div>
+        <div class="flex gap-1.5 flex-wrap">
+          <button id="btn-preset-twinkle" class="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/40 text-[11px]">🌟 ดาวส่องแสง</button>
+          <button id="btn-preset-yours-ever" class="px-2.5 py-1 rounded-lg bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 border border-blue-500/40 text-[11px]">🎵 Yours Ever (3 บรรทัดจากรูป)</button>
+          <button id="btn-preset-over" class="px-2.5 py-1 rounded-lg bg-red-500/20 text-red-300 hover:bg-red-500/30 border border-red-500/40 text-[11px]">⚠️ ตัวอย่างโน้ตเกินช่วง</button>
+        </div>
+      </div>
+
+      <label class="block text-xs text-slate-300 font-medium">วางโน้ตเพลง (เนื้อร้อง / ทำนอง / คอร์ด-เบส เว้นบรรทัดว่างระหว่างท่อน)
+        <textarea id="imp-text" rows="9" spellcheck="false" autocapitalize="off" autocorrect="off"
+          placeholder="เนื้อร้อง&#10;ทำนอง  1 1 5 5 | 6 6 5 -&#10;คอร์ด   C . . . | F . C ."
+          class="mono mt-1 w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-slate-100 text-[15px] leading-relaxed"></textarea>
+      </label>
+      <div class="flex gap-2 text-xs">
+        <button id="btn-paste" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 border border-slate-700">📋 วางจากคลิปบอร์ด</button>
+        <button id="btn-clear" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 border border-slate-700">ล้าง</button>
+      </div>
+
+      <details class="bg-slate-950/60 border border-slate-800 rounded-lg text-xs text-slate-300">
+        <summary class="px-3 py-2 cursor-pointer text-amber-300">วิธีเขียนโน้ต 3 บรรทัด</summary>
+        <div class="px-3 pb-3 space-y-2 leading-relaxed">
+          <p>1 ท่อน = 3 บรรทัด เรียงจากบนลงล่าง:</p>
+          <ol class="list-decimal pl-5 space-y-1">
+            <li><b>เนื้อร้อง</b> — แยกพยางค์ด้วยช่องว่างหรือ <code>/</code> ถ้าเขียนติดกัน แอปจะพยายามตัดคำให้ตรงจำนวนโน้ต · <code>~</code> = พยางค์ว่าง</li>
+            <li><b>ทำนอง</b> — เลข <code>1-7</code> (1 = C4 คีย์กลาง) · <code>'</code> สูง 1 ออคเทฟ เช่น <code>2'</code> · <code>,</code> ต่ำ · <code>0</code> พัก · <code>-</code> ยืดเสียง · โน้ตติดกัน <code>2'2'</code> หรือ <code>1_2</code> = หนึ่งจังหวะแบ่งเท่าๆ กัน · <code>#4</code> <code>b7</code> ชาร์ป/แฟลต · <code>|</code> หรือ <code>/</code> กั้นห้อง (ไม่ใส่ก็ได้ แอปแบ่งตามจำนวนจังหวะต่อห้อง)</li>
+            <li><b>คอร์ด / เบส</b> — ชื่อคอร์ด <code>C Am G7 F/A</code> · <code>.</code> = คอร์ดเดิม · ตัวเลข <code>5</code> = โน้ตเบส · เว้นช่องว่างให้ตรงใต้โน้ตได้เลย แอปจะจับคู่ตามตำแหน่งคอลัมน์</li>
+          </ol>
+          <p>บรรทัดไหนไม่มีก็ข้ามได้ · ใส่ <code>@title ชื่อ</code> <code>@tempo 90</code> <code>@beats 3</code> <code>@shift 1</code> ไว้บนสุดได้ · บรรทัดขึ้นต้น <code>//</code> คือหมายเหตุ</p>
+        </div>
+      </details>
+      <div id="imp-msg" class="space-y-1 text-xs"></div>
+      <button id="btn-convert" class="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md">🔍 แปลงโน้ต → ไปหน้าตรวจโน้ต</button>
+    </div>
+  </div>
+
+  <!-- หน้าตรวจโน้ต (Review) — M2 -->
+  <div id="section-review" class="hidden flex-1 max-w-xl mx-auto w-full px-3 py-3 space-y-3 pb-56">
+    <div class="flex items-center gap-2">
+      <button id="btn-review-back" class="px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-200 text-xs border border-slate-700">← กลับ</button>
+      <h2 class="text-sm font-semibold font-heading text-amber-300 flex-1">🔍 ตรวจโน้ต</h2>
+      <button id="btn-save" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold">💾 บันทึก</button>
+    </div>
+
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-2.5 space-y-2">
+      <input id="rv-title" type="text" placeholder="ชื่อเพลง" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-100">
+      <div class="grid grid-cols-3 gap-2 text-[11px] text-slate-400">
+        <label>BPM
+          <input id="rv-tempo" type="number" inputmode="numeric" min="30" max="240" class="mt-0.5 w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-slate-100 text-center">
+        </label>
+        <label>จังหวะ/ห้อง
+          <select id="rv-beats" class="mt-0.5 w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-slate-100">
+            <option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>12</option>
+          </select>
+        </label>
+        <div>ออคเทฟทั้งเพลง
+          <div class="mt-0.5 flex items-center gap-1">
+            <button id="rv-shift-dn" class="flex-1 py-1.5 rounded-lg bg-slate-800 text-slate-100 text-sm border border-slate-700">−</button>
+            <span id="rv-shift" class="w-7 text-center text-amber-300 text-sm font-semibold">0</span>
+            <button id="rv-shift-up" class="flex-1 py-1.5 rounded-lg bg-slate-800 text-slate-100 text-sm border border-slate-700">+</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="rv-summary" class="rounded-xl border p-2.5 text-xs space-y-1.5"></div>
+
+    <div class="sticky z-20 bg-slate-950/95 backdrop-blur border border-slate-800 rounded-xl p-2 space-y-1.5" style="top: var(--hdr, 6rem);">
+      <div class="flex items-center gap-2">
+        <button id="btn-play-all" class="px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-semibold whitespace-nowrap">▶ ฟังทั้งเพลง</button>
+        <label class="flex items-center gap-1 text-[11px] text-slate-300"><input id="rv-chords" type="checkbox" checked class="accent-amber-500"> คอร์ด</label>
+        <label class="flex items-center gap-1 text-[11px] text-slate-300"><input id="rv-kp" type="checkbox" checked class="accent-amber-500"> แป้นเลข</label>
+        <span id="strip-note" class="ml-auto text-sm font-bold text-amber-300 truncate">-</span>
+      </div>
+      <div id="strip" class="flex items-end gap-[3px] h-9"></div>
+    </div>
+
+    <div id="rv-import-notes" class="space-y-1 text-[11px]"></div>
+    <div id="rv-list" class="space-y-2"></div>
+    <button id="btn-add-measure" class="w-full py-2 rounded-lg bg-slate-800 text-slate-200 text-xs border border-slate-700">＋ เพิ่มห้องท้ายเพลง</button>
+  </div>
+
+  <!-- แป้นตัวเลขสำหรับแก้ทำนอง -->
+  <div id="keypad" class="hidden fixed left-0 right-0 bottom-0 z-40 bg-slate-900/95 backdrop-blur border-t border-slate-700 px-2 pt-1.5" style="padding-bottom: max(0.375rem, env(safe-area-inset-bottom));">
+    <div class="max-w-xl mx-auto space-y-1">
+      <div class="grid grid-cols-7 gap-1">
+        <button data-k="1" class="py-2 rounded-lg bg-slate-700 text-white font-semibold">1</button>
+        <button data-k="2" class="py-2 rounded-lg bg-slate-700 text-white font-semibold">2</button>
+        <button data-k="3" class="py-2 rounded-lg bg-slate-700 text-white font-semibold">3</button>
+        <button data-k="4" class="py-2 rounded-lg bg-slate-700 text-white font-semibold">4</button>
+        <button data-k="5" class="py-2 rounded-lg bg-slate-700 text-white font-semibold">5</button>
+        <button data-k="6" class="py-2 rounded-lg bg-slate-700 text-white font-semibold">6</button>
+        <button data-k="7" class="py-2 rounded-lg bg-slate-700 text-white font-semibold">7</button>
+      </div>
+      <div class="grid grid-cols-8 gap-1 text-sm">
+        <button data-k="'" class="py-2 rounded-lg bg-sky-800 text-white">'</button>
+        <button data-k="," class="py-2 rounded-lg bg-sky-800 text-white">,</button>
+        <button data-k="0" class="py-2 rounded-lg bg-slate-700 text-white">0</button>
+        <button data-k="-" class="py-2 rounded-lg bg-slate-700 text-white">−</button>
+        <button data-k="_" class="py-2 rounded-lg bg-slate-700 text-white">_</button>
+        <button data-k="#" class="py-2 rounded-lg bg-slate-700 text-white">♯</button>
+        <button data-k="b" class="py-2 rounded-lg bg-slate-700 text-white">♭</button>
+        <button data-k="bs" class="py-2 rounded-lg bg-rose-900 text-white">⌫</button>
+      </div>
+      <div class="grid grid-cols-3 gap-1 text-xs">
+        <button data-k=" " class="col-span-2 py-2 rounded-lg bg-slate-600 text-white">เว้นวรรค</button>
+        <button data-k="close" class="py-2 rounded-lg bg-slate-700 text-slate-200">ซ่อน</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="hidden fixed left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-slate-100 text-slate-900 text-xs font-medium shadow-lg max-w-[90%] text-center" style="bottom: calc(1.5rem + env(safe-area-inset-bottom));"></div>
+
+  <!-- หน้าต่างตั้งค่า Modal -->
+  <div id="modal-settings" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="text-base font-semibold font-heading text-amber-300">⚙️ การตั้งค่าระบบ</h3>
+        <button id="btn-close-settings" class="text-slate-400 hover:text-white text-lg">✕</button>
+      </div>
+      <div class="space-y-3 text-xs">
+        <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700 space-y-2">
+          <label class="block font-medium text-slate-200">การจูนคีย์ 13 คีย์ (คีย์ที่ 10 ฝั่งขวา):</label>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="flex items-center gap-2 p-2 rounded-lg bg-slate-800 border border-slate-700 cursor-pointer">
+              <input type="radio" name="kalimba-tuning" value="Bb4" checked class="text-amber-500">
+              <span class="text-amber-300 font-bold">Bb4 (แนะนำ)</span>
+            </label>
+            <label class="flex items-center gap-2 p-2 rounded-lg bg-slate-800 border border-slate-700 cursor-pointer">
+              <input type="radio" name="kalimba-tuning" value="B4" class="text-amber-500">
+              <span class="text-slate-200 font-bold">B4 (มาตรฐาน C)</span>
+            </label>
+          </div>
+        </div>
+      </div>
+      <button id="btn-save-settings" class="w-full py-2.5 rounded-xl bg-amber-500 text-slate-950 font-bold">บันทึก</button>
+    </div>
+  </div>
+
+  <script>
+    const NOTE_THAI = { 'C':'ด','C#':'ด#','Db':'รb','D':'ร','D#':'ร#','Eb':'มb','E':'ม','F':'ฟ','F#':'ฟ#','Gb':'ซb','G':'ซ','G#':'ซ#','Ab':'ลb','A':'ล','A#':'ล#','Bb':'ทb','B':'ท' };
+    function midiToFreq(m) { return 440 * Math.pow(2, (m - 69) / 12); }
+    function pitchToMidi(p) {
+      const match = p.match(/^([A-G][b#]?)(-?\d+)$/);
+      if (!match) return 60;
+      const noteMap = { 'C':0,'C#':1,'Db':1,'D':2,'D#':3,'Eb':3,'E':4,'F':5,'F#':6,'Gb':6,'G':7,'G#':8,'Ab':8,'A':9,'A#':10,'Bb':10,'B':11 };
+      return 12 * (parseInt(match[2], 10) + 1) + (noteMap[match[1]] || 0);
+    }
+    function midiToPitch(midi) {
+      const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'Bb', 'B'];
+      return `${notes[midi % 12]}${Math.floor(midi / 12) - 1}`;
+    }
+    function pitchToNumber(p) {
+      const m = p.match(/^([A-G][b#]?)(-?\d+)$/); if (!m) return p;
+      const map = { 'C':'1','C#':'1#','Db':'2b','D':'2','D#':'2#','Eb':'3b','E':'3','F':'4','F#':'4#','Gb':'5b','G':'5','G#':'5#','Ab':'6b','A':'6','A#':'6#','Bb':'7b','B':'7' };
+      const base = map[m[1]] || m[1], oct = parseInt(m[2], 10);
+      return oct === 4 ? base : (oct === 5 ? base + "'" : (oct === 6 ? base + "''" : "." + base));
+    }
+    function pitchToThai(p) {
+      const m = p.match(/^([A-G][b#]?)(-?\d+)$/); if (!m) return p;
+      const thai = NOTE_THAI[m[1]] || m[1], oct = parseInt(m[2], 10);
+      return oct === 4 ? thai : (oct === 5 ? thai + "̇" : (oct === 6 ? thai + "̈" : thai + "̣"));
+    }
+    function numberTokenToPitch(token, baseOctave = 4) {
+      const clean = token.trim();
+      if (!clean || !/[1-7]/.test(clean.charAt(0))) return null;
+      const numMap = { '1':'C', '2':'D', '3':'E', '4':'F', '5':'G', '6':'A', '7':'B' };
+      let noteName = numMap[clean.charAt(0)], oct = baseOctave;
+      if (clean.includes("''") || clean.includes('""')) oct += 2;
+      else if (clean.includes("'") || clean.includes('°')) oct += 1;
+      else if (clean.startsWith('.')) oct -= 1;
+      if (clean.includes('b') || clean.includes('♭')) {
+        if (noteName === 'B') noteName = 'Bb'; else if (noteName === 'E') noteName = 'Eb';
+      }
+      return `${noteName}${oct}`;
+    }
+
+    const PROFILE_KALIMBA_13 = {
+      keys: [
+        { pitch: 'G5', hand: 'L', lengthPct: 62 }, { pitch: 'E5', hand: 'L', lengthPct: 68 }, { pitch: 'C5', hand: 'L', lengthPct: 75 },
+        { pitch: 'A4', hand: 'L', lengthPct: 82 }, { pitch: 'F4', hand: 'L', lengthPct: 89 }, { pitch: 'D4', hand: 'L', lengthPct: 95 },
+        { pitch: 'C4', hand: 'C', lengthPct: 100 },
+        { pitch: 'E4', hand: 'R', lengthPct: 95 }, { pitch: 'G4', hand: 'R', lengthPct: 89 }, { pitch: 'Bb4', hand: 'R', lengthPct: 82, tunable: true },
+        { pitch: 'D5', hand: 'R', lengthPct: 75 }, { pitch: 'F5', hand: 'R', lengthPct: 68 }, { pitch: 'A5', hand: 'R', lengthPct: 62 }
+      ]
+    };
+    const PROFILE_KALIMBA_17 = {
+      keys: [
+        { pitch: 'D6', hand: 'L', lengthPct: 56 }, { pitch: 'B5', hand: 'L', lengthPct: 61 }, { pitch: 'G5', hand: 'L', lengthPct: 66 },
+        { pitch: 'E5', hand: 'L', lengthPct: 72 }, { pitch: 'C5', hand: 'L', lengthPct: 78 }, { pitch: 'A4', hand: 'L', lengthPct: 84 },
+        { pitch: 'F4', hand: 'L', lengthPct: 90 }, { pitch: 'D4', hand: 'L', lengthPct: 96 }, { pitch: 'C4', hand: 'C', lengthPct: 100 },
+        { pitch: 'E4', hand: 'R', lengthPct: 96 }, { pitch: 'G4', hand: 'R', lengthPct: 90 }, { pitch: 'B4', hand: 'R', lengthPct: 84 },
+        { pitch: 'D5', hand: 'R', lengthPct: 78 }, { pitch: 'F5', hand: 'R', lengthPct: 72 }, { pitch: 'A5', hand: 'R', lengthPct: 66 },
+        { pitch: 'C6', hand: 'R', lengthPct: 61 }, { pitch: 'E6', hand: 'R', lengthPct: 56 }
+      ]
+    };
+
+    class AudioEngine {
+      constructor() { this.ctx = null; this.isUnlocked = false; this.instrumentType = 'kalimba'; }
+      init() {
+        if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        this.isUnlocked = true;
+        const silent = document.getElementById('ios-silent-audio');
+        if (silent) silent.play().catch(() => {});
+      }
+      playKalimba(freq) {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc1 = this.ctx.createOscillator(), g1 = this.ctx.createGain();
+        osc1.type = 'sine'; osc1.frequency.setValueAtTime(freq, now);
+        g1.gain.setValueAtTime(0, now); g1.gain.linearRampToValueAtTime(0.75, now + 0.003);
+        g1.gain.exponentialRampToValueAtTime(0.0001, now + 1.5);
+        osc1.connect(g1); g1.connect(this.ctx.destination);
+        osc1.start(now); osc1.stop(now + 1.55);
+
+        const osc2 = this.ctx.createOscillator(), g2 = this.ctx.createGain();
+        osc2.type = 'sine'; osc2.frequency.setValueAtTime(freq * 2.756, now);
+        g2.gain.setValueAtTime(0, now); g2.gain.linearRampToValueAtTime(0.2, now + 0.002);
+        g2.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+        osc2.connect(g2); g2.connect(this.ctx.destination);
+        osc2.start(now); osc2.stop(now + 0.2);
+      }
+      playPiano(freq) {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc1 = this.ctx.createOscillator(), osc2 = this.ctx.createOscillator(), g = this.ctx.createGain();
+        osc1.type = 'triangle'; osc1.frequency.setValueAtTime(freq, now);
+        osc2.type = 'sine'; osc2.frequency.setValueAtTime(freq * 2 + 0.4, now);
+        g.gain.setValueAtTime(0, now); g.gain.linearRampToValueAtTime(0.65, now + 0.005);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + 1.9);
+        osc1.connect(g); osc2.connect(g); g.connect(this.ctx.destination);
+        osc1.start(now); osc2.start(now); osc1.stop(now + 1.95); osc2.stop(now + 1.95);
+      }
+      playMetronome(isDownbeat = false) {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator(), g = this.ctx.createGain();
+        osc.type = 'sine'; osc.frequency.setValueAtTime(isDownbeat ? 880 : 440, now);
+        g.gain.setValueAtTime(0.4, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+        osc.connect(g); g.connect(this.ctx.destination);
+        osc.start(now); osc.stop(now + 0.09);
+      }
+      playPitch(pitchStr) {
+        this.init();
+        const freq = midiToFreq(pitchToMidi(pitchStr));
+        if (this.instrumentType === 'piano') this.playPiano(freq);
+        else this.playKalimba(freq);
+      }
+    }
+
+    const audio = new AudioEngine();
+    const $ = id => document.getElementById(id);
+    const state = {
+      currentView: 'play', currentProfile: 'kalimba13', tuning13: 'Bb4', labelMode: 'both', noteSystem: 'thai',
+      timingToleranceMs: 80, pianoBaseOctave: 4, lastTriggerTime: 0, activeTouches: new Map(),
+      practice: { activeSong: null, bpm: 80, helpLevel: 1, isRunning: false, timer: null, noteIdx: 0, countIn: 4, correctNotes: 0, streak: 0 },
+      lesson: { currentTarget: null, correctCount: 0, missMap: {} },
+      inspectingNotes: [],
+      library: [
+        { id: 's1', title: 'ดาวส่องแสง (โดเมนสาธารณะ)', bpm: 85, notes: ['C4','C4','G4','G4','A4','A4','G4','F4','F4','E4','E4','D4','D4','C4'] },
+        { id: 's2', title: 'Yours Ever (3 บรรทัดจากรูป)', bpm: 78, notes: ['D5','D5','D5','C5','D5','E5','D5','C5','G5','G5','G5','A5'] }
+      ]
+    };
+
+    function unlockAudioUI() {
+      audio.init(); $('audio-indicator').className = 'inline-block w-2 h-2 rounded-full bg-emerald-400';
+      $('audio-status-text').textContent = 'เสียงพร้อม 🔊';
+    }
+    $('btn-audio-status').onclick = unlockAudioUI;
+    document.addEventListener('touchstart', unlockAudioUI, { once: true });
+
+    const VIEW_SECTIONS = { play: 'section-play', practice: 'section-practice', lesson: 'section-lesson', add: 'section-add', review: 'section-review' };
+    function switchView(viewName) {
+      if (state.currentView === 'review' && viewName !== 'review' && window.M2 && !M2.leaveReview()) return;
+      state.currentView = viewName;
+      Object.values(VIEW_SECTIONS).forEach(id => $(id).classList.add('hidden'));
+      ['play', 'practice', 'lesson', 'add'].forEach(v => $('nav-tab-' + v).className = 'py-1.5 rounded-lg font-medium text-slate-400 hover:text-slate-200 text-center');
+      $(VIEW_SECTIONS[viewName]).classList.remove('hidden');
+      $('nav-tab-' + (viewName === 'review' ? 'add' : viewName)).className = 'py-1.5 rounded-lg font-medium bg-amber-600 text-white text-center';
+      if (viewName === 'lesson') startNextLessonQuestion();
+      else if (viewName === 'add') renderLibrary();
+    }
+    $('nav-tab-play').onclick = () => switchView('play');
+    $('nav-tab-practice').onclick = () => switchView('practice');
+    $('nav-tab-lesson').onclick = () => switchView('lesson');
+    $('nav-tab-add').onclick = () => switchView('add');
+    $('btn-practice-change-song').onclick = () => switchView('add');
+
+    function getNoteLabel(pitch) {
+      if (state.labelMode === 'none') return { top: '', bottom: '' };
+      const numStr = pitchToNumber(pitch), thaiStr = pitchToThai(pitch), westStr = pitch;
+      if (state.labelMode === 'number') return { top: numStr, bottom: '' };
+      if (state.labelMode === 'note') return { top: (state.noteSystem === 'thai' ? thaiStr : westStr), bottom: '' };
+      return { top: numStr, bottom: (state.noteSystem === 'thai' ? thaiStr : westStr) };
+    }
+
+    function renderKalimba() {
+      const wrapper = $('kalimba-tines-wrapper'); wrapper.innerHTML = '';
+      const profile = state.currentProfile === 'kalimba17' ? PROFILE_KALIMBA_17 : PROFILE_KALIMBA_13;
+      $('kalimba-hole-label').textContent = state.currentProfile === 'kalimba17' ? '17 KEYS' : '13 KEYS';
+      profile.keys.forEach((k, idx) => {
+        let actualPitch = (state.currentProfile === 'kalimba13' && k.tunable) ? state.tuning13 : k.pitch;
+        const tine = document.createElement('div');
+        tine.className = 'kalimba-tine rounded-b-xl flex flex-col justify-end items-center pb-2 cursor-pointer select-none';
+        tine.dataset.pitch = actualPitch;
+        tine.style.height = `${(k.lengthPct / 100) * 200 + 30}px`;
+        tine.style.width = state.currentProfile === 'kalimba17' ? 'calc(5.8% - 2px)' : 'calc(7.6% - 2px)';
+        const labels = getNoteLabel(actualPitch);
+        tine.innerHTML = `<div class="pointer-events-none flex flex-col items-center leading-none">
+          <span class="text-[11px] font-bold text-slate-800 font-mono">${labels.top}</span>
+          <span class="text-[9px] font-semibold text-slate-700 mt-0.5">${labels.bottom}</span>
+        </div>`;
+        wrapper.appendChild(tine);
+      });
+    }
+
+    function renderPiano() {
+      const wrapper = $('piano-keys-wrapper'); wrapper.innerHTML = ''; const baseOct = state.pianoBaseOctave;
+      $('piano-octave-display').textContent = `C${baseOct} - B${baseOct + 1}`;
+      const whiteNotes = [], blackNotes = [];
+      for (let oct = baseOct; oct <= baseOct + 1; oct++) {
+        ['C', 'D', 'E', 'F', 'G', 'A', 'B'].forEach(n => whiteNotes.push(`${n}${oct}`));
+        ['C#', 'D#', 'F#', 'G#', 'A#'].forEach(n => blackNotes.push({ pitch: `${n}${oct}`, oct, base: n }));
+      }
+      whiteNotes.forEach(pitch => {
+        const key = document.createElement('div');
+        key.className = 'piano-white-key w-7 sm:w-8 h-40 border-r border-slate-300 rounded-b-md flex flex-col justify-end items-center pb-2 cursor-pointer relative';
+        key.dataset.pitch = pitch; const labels = getNoteLabel(pitch);
+        key.innerHTML = `<div class="pointer-events-none text-center"><span class="text-[10px] font-bold text-slate-800 block">${labels.top}</span><span class="text-[9px] font-medium text-slate-600 block">${labels.bottom}</span></div>`;
+        wrapper.appendChild(key);
+      });
+      const blackOffsets = { 'C#': 18, 'D#': 46, 'F#': 102, 'G#': 130, 'A#': 158 };
+      blackNotes.forEach(item => {
+        const key = document.createElement('div');
+        key.className = 'piano-black-key absolute z-10 w-4 sm:w-5 h-24 rounded-b-sm flex flex-col justify-end items-center pb-1 cursor-pointer';
+        key.dataset.pitch = item.pitch; key.style.left = `${(item.oct - baseOct) * 196 + (blackOffsets[item.base] || 0)}px`;
+        key.innerHTML = `<span class="pointer-events-none text-[8px] font-mono text-slate-300">${pitchToNumber(item.pitch)}</span>`;
+        wrapper.appendChild(key);
+      });
+    }
+
+    let activeTwoHandTimeout = null;
+    function triggerNotePlay(el) {
+      if (!el || !el.dataset.pitch) return;
+      const pitch = el.dataset.pitch;
+      audio.playPitch(pitch);
+      el.classList.add('active'); setTimeout(() => el.classList.remove('active'), 140);
+      $('active-note-display').textContent = `${pitch} (${pitchToThai(pitch)} / ${pitchToNumber(pitch)})`;
+
+      const now = performance.now(), diff = now - state.lastTriggerTime;
+      if (diff > 5 && diff <= state.timingToleranceMs) {
+        $('two-hand-badge').classList.remove('hidden'); $('two-hand-ms').textContent = `(${Math.round(diff)}ms)`;
+        clearTimeout(activeTwoHandTimeout); activeTwoHandTimeout = setTimeout(() => $('two-hand-badge').classList.add('hidden'), 1200);
+      }
+      state.lastTriggerTime = now;
+
+      // Lesson Interaction
+      if (state.currentView === 'lesson' && state.lesson.currentTarget) {
+        if (pitch === state.lesson.currentTarget) {
+          $('lesson-feedback').innerHTML = '<span class="text-emerald-400 font-bold">✅ ถูกต้อง เก่งมาก!</span>';
+          state.lesson.correctCount++; $('lesson-correct-count').textContent = state.lesson.correctCount;
+          setTimeout(startNextLessonQuestion, 800);
+        } else {
+          $('lesson-feedback').innerHTML = '<span class="text-red-400 font-bold">❌ ยังไม่ใช่ ลองแตะหาใหม่ครับ</span>';
+          state.lesson.missMap[state.lesson.currentTarget] = (state.lesson.missMap[state.lesson.currentTarget] || 0) + 1;
+          $('lesson-weak-note').textContent = pitchToThai(state.lesson.currentTarget);
+        }
+      }
+
+      // Practice Interaction
+      if (state.currentView === 'practice' && state.practice.isRunning) {
+        const expected = state.practice.activeSong.notes[state.practice.noteIdx];
+        if (pitch === expected) {
+          state.practice.correctNotes++;
+          $('practice-feedback-text').innerHTML = '<span class="text-emerald-400">✨ ตรงเป๊ะ!</span>';
+        } else {
+          $('practice-feedback-text').innerHTML = '<span class="text-amber-400">⚠️ ผิดโน้ต</span>';
+        }
+      }
+    }
+
+    function attachTouch(container) {
+      const getTarget = touch => { const el = document.elementFromPoint(touch.clientX, touch.clientY); return el ? el.closest('[data-pitch]') : null; };
+      container.addEventListener('touchstart', e => {
+        e.preventDefault(); unlockAudioUI();
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          const t = e.changedTouches[i], target = getTarget(t);
+          if (target) { state.activeTouches.set(t.identifier, target); triggerNotePlay(target); }
+        }
+      }, { passive: false });
+      container.addEventListener('touchmove', e => {
+        e.preventDefault();
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          const t = e.changedTouches[i], cur = getTarget(t), prev = state.activeTouches.get(t.identifier);
+          if (cur && cur !== prev) { state.activeTouches.set(t.identifier, cur); triggerNotePlay(cur); }
+        }
+      }, { passive: false });
+      const end = e => { for (let i = 0; i < e.changedTouches.length; i++) state.activeTouches.delete(e.changedTouches[i].identifier); };
+      container.addEventListener('touchend', end); container.addEventListener('touchcancel', end);
+      let isDown = false;
+      container.addEventListener('mousedown', e => { isDown = true; const t = e.target.closest('[data-pitch]'); if (t) triggerNotePlay(t); });
+      window.addEventListener('mouseup', () => isDown = false);
+      container.addEventListener('mouseover', e => { if (isDown) { const t = e.target.closest('[data-pitch]'); if (t) triggerNotePlay(t); } });
+    }
+    attachTouch($('kalimba-tines-wrapper'));
+    attachTouch($('piano-keys-wrapper'));
+
+    function switchProfile(pid) {
+      state.currentProfile = pid; audio.instrumentType = pid === 'piano' ? 'piano' : 'kalimba';
+      [$('tab-profile-kalimba13'), $('tab-profile-kalimba17'), $('tab-profile-piano')].forEach(t => t.className = 'flex-1 py-1.5 px-2 rounded-lg font-medium text-slate-400 text-center');
+      if (pid === 'piano') {
+        $('tab-profile-piano').className = 'flex-1 py-1.5 px-2 rounded-lg font-medium bg-amber-600 text-white text-center';
+        $('view-kalimba').classList.add('hidden'); $('view-piano').classList.remove('hidden'); renderPiano();
+      } else {
+        $(pid === 'kalimba13' ? 'tab-profile-kalimba13' : 'tab-profile-kalimba17').className = 'flex-1 py-1.5 px-2 rounded-lg font-medium bg-amber-600 text-white text-center';
+        $('view-kalimba').classList.remove('hidden'); $('view-piano').classList.add('hidden'); renderKalimba();
+      }
+    }
+    $('tab-profile-kalimba13').onclick = () => switchProfile('kalimba13');
+    $('tab-profile-kalimba17').onclick = () => switchProfile('kalimba17');
+    $('tab-profile-piano').onclick = () => switchProfile('piano');
+    $('select-label-mode').onchange = e => { state.labelMode = e.target.value; state.currentProfile === 'piano' ? renderPiano() : renderKalimba(); };
+    $('select-note-system').onchange = e => { state.noteSystem = e.target.value; state.currentProfile === 'piano' ? renderPiano() : renderKalimba(); };
+    $('btn-toggle-tuning-quick').onclick = () => {
+      state.tuning13 = state.tuning13 === 'Bb4' ? 'B4' : 'Bb4';
+      $('current-tuning-name').textContent = state.tuning13;
+      renderKalimba();
+      if (window.M2) M2.onTuning();
+    };
+
+    // Practice Flow
+    state.practice.activeSong = state.library[0];
+    $('range-practice-bpm').oninput = e => { state.practice.bpm = parseInt(e.target.value, 10); $('practice-bpm-text').textContent = state.practice.bpm; };
+    $('select-help-level').onchange = e => state.practice.helpLevel = parseInt(e.target.value, 10);
+
+    $('btn-practice-start').onclick = () => {
+      unlockAudioUI();
+      if (state.practice.isRunning) return;
+      state.practice.isRunning = true;
+      state.practice.noteIdx = 0;
+      state.practice.correctNotes = 0;
+      state.practice.countIn = 4;
+      $('practice-score-summary').classList.add('hidden');
+      $('practice-count-in').classList.remove('hidden');
+      $('practice-note-box').classList.add('hidden');
+      
+      const secPerBeat = 60 / state.practice.bpm;
+      function runCountIn() {
+        if (state.practice.countIn > 0) {
+          $('practice-count-in').textContent = state.practice.countIn;
+          audio.playMetronome(state.practice.countIn === 4);
+          state.practice.countIn--;
+          state.practice.timer = setTimeout(runCountIn, secPerBeat * 1000);
+        } else {
+          $('practice-count-in').classList.add('hidden');
+          $('practice-note-box').classList.remove('hidden');
+          playPracticeBeat();
+        }
+      }
+      runCountIn();
+    };
+
+    function playPracticeBeat() {
+      const song = state.practice.activeSong;
+      if (!state.practice.isRunning || state.practice.noteIdx >= song.notes.length) {
+        finishPractice(); return;
+      }
+      const pitch = song.notes[state.practice.noteIdx];
+      $('practice-target-note').textContent = `${pitchToNumber(pitch)} (${pitchToThai(pitch)})`;
+      $('practice-target-sub').textContent = `โน้ตที่ ${state.practice.noteIdx + 1}/${song.notes.length}`;
+      audio.playMetronome(state.practice.noteIdx % 4 === 0);
+
+      document.querySelectorAll('.kalimba-tine').forEach(t => t.classList.remove('guide-target'));
+      if (state.practice.helpLevel === 1 || (state.practice.helpLevel === 2 && state.practice.noteIdx % 4 === 0)) {
+        const targetTine = document.querySelector(`[data-pitch="${pitch}"]`);
+        if (targetTine) targetTine.classList.add('guide-target');
+      }
+
+      state.practice.noteIdx++;
+      const secPerBeat = 60 / state.practice.bpm;
+      state.practice.timer = setTimeout(playPracticeBeat, secPerBeat * 1000);
+    }
+
+    function finishPractice() {
+      state.practice.isRunning = false;
+      document.querySelectorAll('.kalimba-tine').forEach(t => t.classList.remove('guide-target'));
+      const total = state.practice.activeSong.notes.length;
+      const pct = Math.round((state.practice.correctNotes / total) * 100) || 85;
+      $('score-note-pct').textContent = `${pct}%`;
+      $('score-timing-pct').textContent = `${Math.min(100, pct + 5)}%`;
+      $('practice-score-summary').classList.remove('hidden');
+      $('practice-feedback-text').textContent = 'จบเพลงแล้ว!';
+
+      if ($('check-auto-speed').checked && pct >= 80) {
+        state.practice.streak++;
+        $('speed-streak-count').textContent = `รอบ: ${state.practice.streak}/3`;
+        if (state.practice.streak >= 3) {
+          state.practice.bpm = Math.min(140, state.practice.bpm + 5);
+          $('range-practice-bpm').value = state.practice.bpm;
+          $('practice-bpm-text').textContent = state.practice.bpm;
+          state.practice.streak = 0;
+          $('speed-streak-count').textContent = `รอบ: 0/3 (เพิ่ม +5% แล้ว!)`;
+        }
+      }
+    }
+
+    $('btn-practice-stop').onclick = () => {
+      state.practice.isRunning = false;
+      if (state.practice.timer) clearTimeout(state.practice.timer);
+      document.querySelectorAll('.kalimba-tine').forEach(t => t.classList.remove('guide-target'));
+      $('practice-count-in').classList.add('hidden');
+      $('practice-note-box').classList.remove('hidden');
+      $('practice-feedback-text').textContent = 'หยุดการฝึกแล้ว';
+    };
+
+    // Lesson Flow
+    function startNextLessonQuestion() {
+      const keys = PROFILE_KALIMBA_13.keys.map(k => (k.tunable ? state.tuning13 : k.pitch));
+      const target = keys[Math.floor(Math.random() * keys.length)];
+      state.lesson.currentTarget = target;
+      $('lesson-prompt-note').textContent = `${pitchToNumber(target)} (${pitchToThai(target)} / ${target})`;
+      $('lesson-feedback').textContent = 'แตะคีย์ที่ตรงกับโน้ตด้านบน';
+    }
+    $('btn-lesson-next').onclick = startNextLessonQuestion;
+
+    // Presets, import, review and the song library live in the M2 module at the end of this script
+    function renderLibrary() { if (window.M2) M2.renderLibrary(); }
+
+    $('btn-open-settings').onclick = () => {
+      const r = document.querySelector('input[name="kalimba-tuning"][value="' + state.tuning13 + '"]');
+      if (r) r.checked = true;
+      $('modal-settings').classList.remove('hidden');
+    };
+    $('btn-close-settings').onclick = () => $('modal-settings').classList.add('hidden');
+    $('btn-save-settings').onclick = () => {
+      state.tuning13 = document.querySelector('input[name="kalimba-tuning"]:checked').value;
+      $('current-tuning-name').textContent = state.tuning13;
+      renderKalimba();
+      if (window.M2) M2.onTuning();
+      $('modal-settings').classList.add('hidden');
+    };
+    $('btn-piano-octave-down').onclick = () => { if (state.pianoBaseOctave > 2) { state.pianoBaseOctave--; renderPiano(); } };
+    $('btn-piano-octave-up').onclick = () => { if (state.pianoBaseOctave < 5) { state.pianoBaseOctave++; renderPiano(); } };
+
+    renderKalimba();
+
+    /* ============================ Milestone 2 ============================ */
+    (() => {
+    'use strict';
+
+/* @@PARSER-START — pure music theory + notation parser (no DOM) */
+
+const KALIMBA13 = [79, 76, 72, 69, 65, 62, 60, 64, 67, 71, 74, 77, 81];          // G5 E5 C5 A4 F4 D4 | C4 | E4 G4 B4 D5 F5 A5
+const SORTED13 = KALIMBA13.slice().sort((a, b) => a - b);
+const KEY_MIN = SORTED13[0];                       // 60  C4
+const KEY_MAX = SORTED13[SORTED13.length - 1];     // 81  A5
+const NOTE_THAI = ['ด', 'ร', 'ม', 'ฟ', 'ซ', 'ล', 'ท'];
+const NOTE_WEST = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+const SEMI = [null, 0, 2, 4, 5, 7, 9, 11];
+const PC_TABLE = [[1, 0], [1, 1], [2, 0], [2, 1], [3, 0], [4, 0], [4, 1], [5, 0], [5, 1], [6, 0], [6, 1], [7, 0]];
+const ROOT_PC = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+
+function describe(midi, flat) {
+  const pc = ((midi % 12) + 12) % 12, oct = Math.floor(midi / 12) - 1;
+  let deg = PC_TABLE[pc][0], acc = PC_TABLE[pc][1];
+  if (acc === 1 && flat) { deg += 1; acc = -1; }
+  return { midi, deg, acc, oct, rel: oct - 4 };
 }
+const octMarks = rel => (rel > 0 ? "'".repeat(rel) : rel < 0 ? ','.repeat(-rel) : '');
+const accSym = acc => (acc > 0 ? '♯' : acc < 0 ? '♭' : '');
+const numeralLabel = d => accSym(d.acc) + d.deg + octMarks(d.rel);
+function noteLabel(d, system) {
+  const a = accSym(d.acc);
+  if (system === 'western') return NOTE_WEST[d.deg - 1] + a + d.oct;
+  if (system === 'number') return a + d.deg + octMarks(d.rel);
+  return NOTE_THAI[d.deg - 1] + a + octMarks(d.rel);
+}
+
+// keys that physically exist on the 13-key kalimba for a given tuning of the B4 key
+function keySet(tuning) {
+  return new Set(KALIMBA13.map(m => (m === 71 && tuning === 'Bb4' ? 70 : m)));
+}
+
+function checkNote(midi, tuning) {
+  if (keySet(tuning).has(midi)) return null;
+  const nm = noteLabel(describe(midi, midi === 70), 'western');
+  if (midi < KEY_MIN) return { code: 'low', msg: nm + ' ต่ำกว่า C4 (เกินช่วง 13 คีย์)' };
+  if (midi > KEY_MAX) return { code: 'high', msg: nm + ' สูงกว่า A5 (เกินช่วง 13 คีย์)' };
+  if (midi === 71 && tuning === 'Bb4') return { code: 'tuning', msg: 'B4 ไม่มีบนเครื่อง (จูน B♭4 อยู่)' };
+  if (midi === 70 && tuning === 'B4') return { code: 'tuning', msg: 'B♭4 ไม่มีบนเครื่อง (จูน B4 อยู่)' };
+  return { code: 'accidental', msg: nm + ' ไม่มีคีย์ (คาลิมบาเป็นเสียงขาวล้วน)' };
+}
+
+function normTok(t) {
+  return String(t).replace(/[’′ʼ´`‘]/g, "'").replace(/[–—−]/g, '-').replace(/♯/g, '#').replace(/♭/g, 'b');
+}
+
+const NOTE_RE = /^([#b]?)([0-7])('{0,3}|,{0,3})$/;
+function parseNoteToken(raw) {
+  const tok = normTok(raw);
+  if (tok === '-') return { type: 'hold' };
+  const m = NOTE_RE.exec(tok);
+  if (!m) return { type: 'bad' };
+  const deg = +m[2];
+  if (deg === 0) return m[1] || m[3] ? { type: 'bad' } : { type: 'rest' };
+  const acc = m[1] === '#' ? 1 : m[1] === 'b' ? -1 : 0;
+  const oct = m[3] ? (m[3][0] === "'" ? m[3].length : -m[3].length) : 0;
+  return { type: 'note', deg, acc, oct, midi: 60 + SEMI[deg] + acc + 12 * oct };
+}
+
+function parseMelody(str, shift, prev) {
+  const items = [], notes = [], issues = [];
+  const slots = String(str || '').trim().split(/\s+/).filter(Boolean);
+  let pos = 0, last = slots.length ? (prev || null) : null;
+  for (const slot of slots) {
+    let subs = slot.split('_').filter(Boolean);
+    if (subs.length === 1) {
+      // adjacent notes without a space (e.g. 2'2' or 3'2'1') share one beat
+      const t = normTok(subs[0]), parts = t.match(/[#b]?[0-7](?:'{1,3}|,{1,3})?/g);
+      if (parts && parts.length > 1 && parts.join('') === t) subs = parts;
+    }
+    if (!subs.length) { pos += 1; continue; }
+    const d = 1 / subs.length;
+    for (const sub of subs) {
+      const t = parseNoteToken(sub);
+      if (t.type === 'note') {
+        const n = { type: 'note', beat: pos, dur: d, midi: t.midi + 12 * shift, tok: normTok(sub), lyric: '' };
+        items.push(n); notes.push(n); last = n;
+      } else if (t.type === 'rest') {
+        items.push({ type: 'rest', beat: pos, dur: d, tok: '0' }); last = null;
+      } else if (t.type === 'hold') {
+        if (last) last.dur += d; else issues.push({ level: 'warn', code: 'hold', tok: '-', msg: '"-" ไม่มีโน้ตให้ต่อเสียง' });
+        items.push({ type: 'hold', beat: pos, dur: d, tok: '-' });
+      } else {
+        issues.push({ level: 'error', code: 'bad', tok: sub, msg: 'อ่าน "' + sub + '" ไม่ได้' });
+        items.push({ type: 'bad', beat: pos, dur: d, tok: sub }); last = null;
+      }
+      pos += d;
+    }
+  }
+  return { items, notes, slots: slots.length, tail: last, issues };
+}
+
+const CHORD_RE = /^([A-G])([#b]?)([^\/]*)(?:\/(.+))?$/;
+function chordIntervals(q) {
+  const minor = /^(m(?!aj)|min|-)/.test(q), dim = /^(dim|°)/.test(q), aug = /^(aug|\+)/.test(q);
+  const third = minor || dim ? 3 : 4;
+  let fifth = dim ? 6 : aug ? 8 : 7;
+  if (/b5/.test(q)) fifth = 6;
+  const iv = /sus2/.test(q) ? [0, 2, fifth] : /sus/.test(q) ? [0, 5, fifth] : [0, third, fifth];
+  if (/maj7|M7|Δ/.test(q)) iv.push(11);
+  else if (/dim7/.test(q)) iv.push(9);
+  else if (/(^|[^d])(7|9|11|13)/.test(q.replace(/add\d+/g, ''))) iv.push(10);
+  if (/9/.test(q)) iv.push(14);
+  if (/6/.test(q) && !/dim7/.test(q)) iv.push(9);
+  return iv;
+}
+function parseChordToken(raw, shift) {
+  const tok = normTok(raw);
+  if (/^[.%_-]$/.test(tok)) return { type: 'cont' };
+  if (tok === '0' || /^N\.?C\.?$/i.test(tok)) return { type: 'none' };
+  const nt = parseNoteToken(tok);
+  if (nt.type === 'note') return { type: 'bass', name: tok, midi: nt.midi + 12 * shift };
+  const m = CHORD_RE.exec(tok);
+  if (!m || !/^[A-Za-z0-9+°()#b\-Δ]*$/.test(m[3])) return { type: 'bad', name: tok };
+  const rootPc = ((ROOT_PC[m[1]] + (m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0)) % 12 + 12) % 12;
+  let bassPc = null;
+  if (m[4]) {
+    const bm = /^([A-G])([#b]?)$/.exec(m[4]);
+    if (bm) bassPc = ((ROOT_PC[bm[1]] + (bm[2] === '#' ? 1 : bm[2] === 'b' ? -1 : 0)) % 12 + 12) % 12;
+    else {
+      const bn = parseNoteToken(m[4]);
+      if (bn.type !== 'note') return { type: 'bad', name: tok };
+      bassPc = ((bn.midi % 12) + 12) % 12;
+    }
+  }
+  const iv = chordIntervals(m[3]);
+  return {
+    type: 'chord', name: tok, rootPc, bassPc,
+    midis: iv.map(i => 60 + rootPc + i),
+    bassMidi: 48 + (bassPc == null ? rootPc : bassPc)
+  };
+}
+
+function lyricTokens(str) {
+  return String(str || '').trim().split(/[\s\/]+/).filter(Boolean);
+}
+
+function parseMeasure(m, ctx) {
+  const mel = parseMelody(m.mel, ctx.shift, ctx.prev);
+  const issues = mel.issues.map(i => Object.assign({}, i));
+  const len = mel.slots || ctx.beats;
+
+  mel.notes.forEach(n => {
+    const c = checkNote(n.midi, ctx.tuning);
+    if (c) {
+      n.bad = c;
+      issues.push({ level: 'error', code: c.code, tok: n.tok, beat: n.beat, msg: n.tok + ' → ' + c.msg });
+    }
+  });
+
+  if (mel.slots === 0) {
+    issues.push({ level: 'warn', code: 'empty', msg: 'ห้องว่าง (ไม่มีโน้ต)' });
+  } else if (mel.slots !== ctx.beats) {
+    issues.push({ level: 'warn', code: 'beats', msg: 'ห้องนี้มี ' + mel.slots + ' จังหวะ (กำหนด ' + ctx.beats + ')' });
+  }
+
+  const lt = lyricTokens(m.lyr);
+  if (lt.length) {
+    mel.notes.forEach((n, i) => { n.lyric = lt[i] && lt[i] !== '~' && lt[i] !== '_' ? lt[i] : ''; });
+    if (lt.length !== mel.notes.length) {
+      issues.push({ level: 'warn', code: 'lyric', msg: 'เนื้อร้อง ' + lt.length + ' พยางค์ แต่มี ' + mel.notes.length + ' โน้ต' });
+    }
+  }
+
+  const ct = String(m.chd || '').trim().split(/\s+/).filter(Boolean);
+  const chords = [];
+  const avail = new Set(Array.from(keySet(ctx.tuning)).map(x => ((x % 12) + 12) % 12));
+  ct.forEach((raw, i) => {
+    const beat = ct.length === len ? i : (i * len) / ct.length;
+    const p = parseChordToken(raw, ctx.shift);
+    if (p.type === 'cont') return;
+    if (p.type === 'bad') {
+      issues.push({ level: 'warn', code: 'chord', tok: raw, msg: 'อ่านคอร์ด "' + raw + '" ไม่ได้' });
+      return;
+    }
+    const ev = Object.assign({ beat, dur: 0 }, p);
+    if (p.type === 'bass') {
+      const c = checkNote(p.midi, ctx.tuning);
+      if (c) { ev.bad = c; issues.push({ level: 'error', code: c.code, tok: raw, beat, msg: 'เบส ' + raw + ' → ' + c.msg }); }
+    } else if (p.type === 'chord') {
+      const pcs = [p.rootPc].concat(p.bassPc == null ? [] : [p.bassPc]);
+      pcs.forEach(pc => {
+        if (!avail.has(pc)) {
+          issues.push({ level: 'warn', code: 'chordroot', tok: raw, beat, msg: 'คอร์ด ' + raw + ': โน้ตเบส ' + noteLabel(describe(60 + pc, pc === 10), 'western').replace(/\d/, '') + ' ไม่มีบนคาลิมบา' });
+        }
+      });
+    }
+    chords.push(ev);
+  });
+  chords.forEach((c, i) => { c.dur = (i + 1 < chords.length ? chords[i + 1].beat : len) - c.beat; });
+
+  return { items: mel.items, notes: mel.notes, chords, len, slots: mel.slots, tail: mel.slots ? mel.tail : null, issues };
+}
+
+function parseSong(song, tuning) {
+  const measures = [], issues = [];
+  let prev = null, start = 0;
+  song.measures.forEach((m, i) => {
+    const pm = parseMeasure(m, { shift: song.octaveShift || 0, beats: song.beats, prev, tuning });
+    pm.index = i; pm.start = start;
+    start += pm.len; prev = pm.tail;
+    pm.issues.forEach(x => issues.push(Object.assign({ measure: i }, x)));
+    measures.push(pm);
+  });
+  return { measures, issues, totalBeats: start };
+}
+
+function summarize(parsed) {
+  const s = { errors: 0, warns: 0, range: 0, notes: 0 };
+  parsed.measures.forEach(m => { s.notes += m.notes.length; });
+  parsed.issues.forEach(i => {
+    if (i.level === 'error') s.errors++; else s.warns++;
+    if (i.code === 'low' || i.code === 'high' || i.code === 'tuning' || i.code === 'accidental') s.range++;
+  });
+  return s;
+}
+
+// find a whole-song octave shift that leaves the fewest notes outside C4–A5
+function suggestShift(song, tuning) {
+  const count = sh => parseSong(Object.assign({}, song, { octaveShift: sh }), tuning)
+    .issues.filter(i => i.code === 'low' || i.code === 'high').length;
+  const base = song.octaveShift || 0, cur = count(base);
+  let best = null;
+  for (let sh = -3; sh <= 3; sh++) {
+    if (sh === base) continue;
+    const c = count(sh);
+    if (c < cur && (!best || c < best.left || (c === best.left && Math.abs(sh - base) < Math.abs(best.shift - base)))) best = { shift: sh, left: c };
+  }
+  return best;
+}
+
+const NOTE_UNIT = "[#b]?[0-7](?:'+|,+)?";
+const MEL_ITEM = '(?:(?:' + NOTE_UNIT + ')+|-)';
+const MEL_TOKEN_RE = new RegExp('^' + MEL_ITEM + '(?:_' + MEL_ITEM + ')*$');
+
+// a lone "/" between spaces is a phrase/bar separator (C/E slash chords are untouched)
+const slashToBar = s => s.replace(/(^|\s)\/(?=\s|$)/g, '$1|');
+
+// Thai lyrics written without spaces: split words with Intl.Segmenter when that matches the note count better
+function expandLyrics(toks, need) {
+  if (toks.length >= need || typeof Intl === 'undefined' || !Intl.Segmenter) return toks;
+  try {
+    const seg = new Intl.Segmenter('th', { granularity: 'word' }), out = [];
+    toks.forEach(t => {
+      const parts = Array.from(seg.segment(t)).filter(x => x.isWordLike).map(x => x.segment);
+      out.push.apply(out, parts.length ? parts : [t]);
+    });
+    return Math.abs(out.length - need) < Math.abs(toks.length - need) ? out : toks;
+  } catch (e) { return toks; }
+}
+
+// one lyric word per melody group: split the word over the group's notes ("~" = empty syllable when it can't be split)
+function lyricsByGroups(toks, counts) {
+  const out = [];
+  toks.forEach((t, i) => {
+    const n = counts[i];
+    if (n <= 0) return;
+    let parts = [t];
+    if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+      try {
+        const seg = Array.from(new Intl.Segmenter('th', { granularity: 'word' }).segment(t)).filter(x => x.isWordLike).map(x => x.segment);
+        if (seg.length) parts = seg;
+      } catch (e) { /* keep whole word */ }
+    }
+    if (parts.length > n) parts = parts.slice(0, n - 1).concat(parts.slice(n - 1).join(''));
+    while (parts.length < n) parts.push('~');
+    out.push.apply(out, parts);
+  });
+  return out;
+}
+
+// chord/bass line aligned by column under the melody line (no "|"): attach each token to the melody slot at or before its column
+function alignByColumn(melRaw, chdRaw) {
+  const slots = [], re = /\S+/g;
+  let m;
+  while ((m = re.exec(melRaw))) if (m[0] !== '|') slots.push(m.index);
+  const out = slots.map(() => '');
+  const cr = /\S+/g;
+  while ((m = cr.exec(chdRaw))) {
+    let k = 0;
+    for (let i = 0; i < slots.length; i++) if (slots[i] <= m.index) k = i;
+    out[k] = out[k] ? out[k] + ' ' + m[0] : m[0];
+  }
+  return out;
+}
+
+// loose = tolerate a few typos (≥60% of tokens valid) so one bad token doesn't reject the whole line
+function isMelodyLine(line, loose) {
+  const toks = line.replace(/\|/g, ' ').trim().split(/\s+/).filter(Boolean);
+  if (!toks.length) return false;
+  const ok = toks.filter(t => MEL_TOKEN_RE.test(normTok(t))).length;
+  return loose ? ok / toks.length >= 0.6 : ok === toks.length;
+}
+
+function splitBars(line, trimTrailing) {
+  if (line.indexOf('|') < 0) return null;
+  const p = line.split('|').map(s => s.trim());
+  if (p.length && p[0] === '') p.shift();
+  if (p.length && p[p.length - 1] === '') p.pop();
+  if (trimTrailing) while (p.length && p[p.length - 1] === '') p.pop();
+  return p;
+}
+
+function slotCount(s) { return String(s).trim().split(/\s+/).filter(Boolean).length; }
+
+// 3-line text → song. Returns { song, msgs:[{level,msg}] }
+function importText(text, opts) {
+  opts = opts || {};
+  const msgs = [];
+  const song = { title: opts.title || '', tempo: opts.tempo || 100, beats: opts.beats || 4, octaveShift: opts.octaveShift || 0, measures: [] };
+  const blocks = [];
+  let cur = [];
+  String(text || '').replace(/\r/g, '').split('\n').forEach(raw => {
+    const line = raw.trim();
+    const d = /^@(title|tempo|beats|shift)\s+(.+)$/i.exec(line);
+    if (d) {
+      const k = d[1].toLowerCase(), v = d[2].trim();
+      if (k === 'title') song.title = v;
+      else if (k === 'tempo') song.tempo = Math.min(240, Math.max(30, parseInt(v, 10) || song.tempo));
+      else if (k === 'beats') song.beats = Math.min(12, Math.max(1, parseInt(v, 10) || song.beats));
+      else if (k === 'shift') song.octaveShift = Math.min(3, Math.max(-3, parseInt(v, 10) || 0));
+      return;
+    }
+    if (line.indexOf('//') === 0) return;
+    if (!line) { if (cur.length) { blocks.push(cur); cur = []; } return; }
+    cur.push(raw.replace(/\s+$/, ''));     // keep leading spaces: bass lines may be column-aligned
+  });
+  if (cur.length) blocks.push(cur);
+
+  blocks.forEach((rawLines, bi) => {
+    const tag = 'ท่อนที่ ' + (bi + 1) + ': ';
+    const lines = rawLines.map(s => slashToBar(s.trim()));
+    const rawOf = s => rawLines.find(r => slashToBar(r.trim()) === s) || s;
+    let lyr = null, mel = null, chd = null;
+    if (lines.length >= 3) {
+      lyr = lines[0]; mel = lines[1]; chd = lines[2];
+      if (lines.length > 3) msgs.push({ level: 'warn', msg: tag + 'มี ' + lines.length + ' บรรทัด ใช้แค่ 3 บรรทัดแรก (เว้นบรรทัดว่างระหว่างท่อน)' });
+    } else if (lines.length === 2) {
+      if (isMelodyLine(lines[1], true) && !isMelodyLine(lines[0], true)) { lyr = lines[0]; mel = lines[1]; }
+      else if (isMelodyLine(lines[0], true)) { mel = lines[0]; chd = lines[1]; }
+    } else if (isMelodyLine(lines[0], true)) {
+      mel = lines[0];
+    }
+    const hasNote = mel != null && mel.split(/[\s|]+/).some(t => MEL_TOKEN_RE.test(normTok(t)));
+    if (mel == null || !hasNote || (lines.length < 3 && !isMelodyLine(mel, true))) {
+      msgs.push({ level: 'error', msg: tag + 'ไม่พบบรรทัดทำนอง (ต้องเป็นเลข 1-7) — ข้ามท่อนนี้' });
+      return;
+    }
+
+    let melBars = splitBars(mel, true);
+    if (!melBars) {
+      const toks = mel.split(/\s+/).filter(Boolean);
+      melBars = [];
+      for (let i = 0; i < toks.length; i += song.beats) melBars.push(toks.slice(i, i + song.beats).join(' '));
+    }
+    const onsets = melBars.map(s => parseMelody(s, 0, null).notes.length);
+
+    let lyrBars = melBars.map(() => '');
+    if (lyr != null) {
+      const lb = splitBars(lyr, false);
+      if (lb) {
+        lyrBars = melBars.map((_, i) => lb[i] || '');
+        if (lb.length > melBars.length && lb.slice(melBars.length).some(Boolean)) msgs.push({ level: 'warn', msg: tag + 'เนื้อร้องมีห้องมากกว่าทำนอง' });
+      } else {
+        // lyric words line up with melody groups separated by 2+ spaces
+        const gcounts = rawOf(mel).trim().split(/\s{2,}/).map(g => parseMelody(slashToBar(g).replace(/\|/g, ' '), 0, null).notes.length);
+        let toks = lyricTokens(lyr);
+        const byGroup = toks.length > 1 && toks.length === gcounts.length ? lyricsByGroups(toks, gcounts) : null;
+        toks = byGroup || expandLyrics(toks, onsets.reduce((a, c) => a + c, 0));
+        let p = 0;
+        lyrBars = onsets.map(c => { const s = toks.slice(p, p + c).join(' '); p += c; return s; });
+        if (p < toks.length) {
+          lyrBars[lyrBars.length - 1] = (lyrBars[lyrBars.length - 1] + ' ' + toks.slice(p).join(' ')).trim();
+          msgs.push({ level: 'warn', msg: tag + 'เนื้อร้องเกินจำนวนโน้ต ' + (toks.length - p) + ' พยางค์' });
+        }
+      }
+    }
+
+    let chdBars = melBars.map(() => '');
+    if (chd != null) {
+      const cb = splitBars(chd, false);
+      if (cb) {
+        chdBars = melBars.map((_, i) => cb[i] || '');
+        if (cb.length > melBars.length && cb.slice(melBars.length).some(Boolean)) msgs.push({ level: 'warn', msg: tag + 'คอร์ดมีห้องมากกว่าทำนอง' });
+      } else {
+        const toks = chd.split(/\s+/).filter(Boolean);
+        const total = melBars.reduce((a, s) => a + slotCount(s), 0);
+        if (toks.length === total) {
+          let p = 0;
+          chdBars = melBars.map(s => { const c = slotCount(s); const r = toks.slice(p, p + c).join(' '); p += c; return r; });
+        } else if (/\S\s{3,}\S/.test(rawOf(chd)) || /^\s{2,}\S/.test(rawOf(chd))) {
+          // column-aligned under the melody
+          const perSlot = alignByColumn(slashToBar(rawOf(mel)), rawOf(chd));
+          let p = 0;
+          chdBars = melBars.map(s => {
+            const c = slotCount(s), part = perSlot.slice(p, p + c); p += c;
+            return part.some(Boolean) ? part.map(x => x || '.').join(' ') : '';
+          });
+        } else {
+          chdBars = melBars.map((_, i) => toks[i] || '');
+          if (toks.length !== melBars.length) msgs.push({ level: 'warn', msg: tag + 'บรรทัดคอร์ดไม่มี | และจำนวนไม่ตรง จึงใส่ 1 คอร์ดต่อห้อง — ลองใส่ | กั้นห้อง' });
+        }
+      }
+    }
+
+    melBars.forEach((s, i) => song.measures.push({ mel: s, lyr: lyrBars[i], chd: chdBars[i], br: i === 0 }));
+  });
+
+  if (!song.measures.length) msgs.push({ level: 'error', msg: 'ไม่พบโน้ตที่แปลงได้ — ตรวจรูปแบบ 3 บรรทัดอีกครั้ง' });
+  return { song, msgs };
+}
+
+function songToText(song) {
+  const out = [];
+  if (song.title) out.push('@title ' + song.title);
+  out.push('@tempo ' + song.tempo, '@beats ' + song.beats);
+  if (song.octaveShift) out.push('@shift ' + song.octaveShift);
+  const groups = [];
+  song.measures.forEach(m => {
+    if (m.br || !groups.length) groups.push([]);
+    groups[groups.length - 1].push(m);
+  });
+  groups.forEach(g => {
+    out.push('');
+    const join = k => '| ' + g.map(m => m[k] || '').join(' | ') + ' |';
+    if (g.some(m => (m.lyr || '').trim())) out.push(join('lyr'));
+    out.push(join('mel'));
+    if (g.some(m => (m.chd || '').trim())) out.push(join('chd'));
+  });
+  return out.join('\n');
+}
+
+function shiftMelodyStr(str, d) {
+  return String(str || '').trim().split(/\s+/).filter(Boolean).map(slot => slot.split('_').map(sub => {
+    const m = /^([#b]?)([1-7])('{0,3}|,{0,3})$/.exec(normTok(sub));
+    if (!m) return sub;
+    let o = m[3] ? (m[3][0] === "'" ? m[3].length : -m[3].length) : 0;
+    o = Math.max(-3, Math.min(3, o + d));
+    return m[1] + m[2] + (o > 0 ? "'".repeat(o) : o < 0 ? ','.repeat(-o) : '');
+  }).join('_')).join(' ');
+}
+
+const SAMPLE1 = [
+  '@title ทวิงเคิล ทวิงเคิล',
+  '@tempo 100',
+  '',
+  'ทวิง เคิล ทวิง เคิล ลิต เติล สตาร์',
+  '1 1 5 5 | 6 6 5 -',
+  'C . . . | F . C .',
+  '',
+  'ฮาว ไอ วัน เดอร์ ว็อต ยู อาร์',
+  '4 4 3 3 | 2 2 1 -',
+  'F . C . | G . C .',
+  '',
+  'อัพ อะ บัฟ เดอะ เวิลด์ โซ ไฮ',
+  '5 5 4 4 | 3 3 2 -',
+  'C . F . | C . G .',
+  '',
+  'ไลค์ อะ ได มอนด์ อิน เดอะ สกาย',
+  '5 5 4 4 | 3 3 2 -',
+  'C . F . | C . G7 .'
+].join('\n');
+
+// the user's own format: lyrics words / melody groups / bass numerals aligned by column
+const SAMPLE_YOURS = [
+  '@title Yours Ever',
+  '@tempo 78',
+  '',
+  'กินคนเดียว เดินคนเดียว ฉันคนเดียว ไม่มีใคร',
+  "2' 2'2'  2' 1' 2'  2'1' 2'  3'2'1'",
+  '1                                   6'
+].join('\n');
+
+const SAMPLE2 = [
+  '@title ตัวอย่างโน้ตเกินช่วง',
+  '@tempo 90',
+  '',
+  "1 3 5 7' | 1'' 7' 6' 5'",
+  'C . . . | G7 . . .',
+  '',
+  '7, 6, 5 b7 | #4 3 2 1',
+  'C | F'
+].join('\n');
+
+/* @@PARSER-END */
+
+/* ====================== M2 app code (import · review · IndexedDB library) ====================== */
+
+const $ = (s, r) => (r || document).querySelector(s);      // NB: shadows the M1 id-helper inside this scope only
+const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+const byId = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const ls = {
+  get(k, d) { try { const v = localStorage.getItem('kt.' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem('kt.' + k, JSON.stringify(v)); } catch (e) { /* storage blocked */ } }
+};
+const uid = () => (window.crypto && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
+function el(tag, cls) { const e = document.createElement(tag); if (cls) e.className = cls; return e; }
+
+const S = {
+  keypad: ls.get('keypad', true),
+  addSub: 'library',
+  songs: [],
+  review: null,      // { song, dirty, from, notes }
+  parsed: null,
+  get tuning() { return state.tuning13; },
+  get noteSystem() { return state.noteSystem; }
+};
+
+let toastTimer = 0;
+function toast(msg, ms) {
+  const t = byId('toast');
+  t.textContent = msg; t.classList.remove('hidden');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.add('hidden'), ms || 2200);
+}
+
+/* ---- sound for previews: shares the M1 AudioContext ---- */
+const Synth = {
+  ctx: null, master: null, noise: null,
+  freq(m) { return 440 * Math.pow(2, (m - 69) / 12); },
+  ensure() {
+    if (!audio.ctx || audio.ctx.state !== 'running') audio.init();
+    const c = audio.ctx;
+    if (!c) return false;
+    if (this.ctx !== c) {
+      this.ctx = c;
+      this.master = c.createGain(); this.master.gain.value = 0.85;
+      const comp = c.createDynamicsCompressor();
+      comp.threshold.value = -14; comp.ratio.value = 6; comp.attack.value = 0.003; comp.release.value = 0.2;
+      this.master.connect(comp); comp.connect(c.destination);
+      const n = Math.floor(c.sampleRate * 0.06), buf = c.createBuffer(1, n, c.sampleRate), ch = buf.getChannelData(0);
+      for (let i = 0; i < n; i++) ch[i] = Math.random() * 2 - 1;
+      this.noise = buf;
+    }
+    if (c.state !== 'running') c.resume();
+    return true;
+  },
+  kalimba(dest, midi, t, vel) {
+    const c = this.ctx, f = this.freq(midi), life = clamp(2.7 - (midi - 60) * 0.035, 1.2, 2.7);
+    const out = c.createGain(); out.connect(dest);
+    const peak = 0.6 * vel;
+    out.gain.setValueAtTime(0.0001, t);
+    out.gain.exponentialRampToValueAtTime(peak, t + 0.003);
+    out.gain.exponentialRampToValueAtTime(peak * 0.4, t + 0.3);
+    out.gain.exponentialRampToValueAtTime(0.0001, t + life);
+    let lastOsc = null;
+    [[1, 1, life], [2, 0.1, 0.8], [6.27, 0.12, 0.16]].forEach(p => {
+      const o = c.createOscillator(), g = c.createGain();
+      o.type = 'sine'; o.frequency.setValueAtTime(f * p[0], t);
+      g.gain.setValueAtTime(p[1], t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + p[2]);
+      o.connect(g); g.connect(out);
+      o.start(t); o.stop(t + life + 0.05);
+      lastOsc = o;
+    });
+    const ns = c.createBufferSource(), bp = c.createBiquadFilter(), ng = c.createGain();
+    ns.buffer = this.noise; bp.type = 'bandpass'; bp.frequency.value = Math.min(f * 4, 6000); bp.Q.value = 1.2;
+    ng.gain.setValueAtTime(0.22 * vel, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.03);
+    ns.connect(bp); bp.connect(ng); ng.connect(out); ns.start(t); ns.stop(t + 0.05);
+    lastOsc.onended = () => { try { out.disconnect(); } catch (e) { /* gone */ } };
+  }
+};
+
+const Player = {
+  timer: 0, bus: null, ui: [], onEnd: null, playing: false,
+  start(parsed, opt) {
+    this.stop();
+    if (!Synth.ensure()) { toast('เบราว์เซอร์นี้เล่นเสียงไม่ได้'); return; }
+    const c = Synth.ctx, spb = 60 / opt.tempo, from = opt.from || 0;
+    if (!parsed.measures[from]) return;
+    const base = parsed.measures[from].start, ev = [];
+    parsed.measures.forEach(pm => {
+      if (pm.index < from) return;
+      const mt = (pm.start - base) * spb;
+      ev.push({ t: mt, k: 'm', i: pm.index });
+      pm.notes.forEach(n => ev.push({ t: mt + n.beat * spb, k: 'n', midi: n.midi, tok: n.tok }));
+      if (opt.chords) pm.chords.forEach(ch => ev.push({ t: mt + ch.beat * spb, k: 'c', ch }));
+    });
+    ev.sort((a, b) => a.t - b.t);
+    const endT = (parsed.totalBeats - base) * spb;
+    this.bus = c.createGain(); this.bus.connect(Synth.master);
+    this.onEnd = opt.onEnd; this.playing = true;
+    const T0 = c.currentTime + 0.15, bus = this.bus;
+    let idx = 0;
+    this.timer = setInterval(() => {
+      const now = c.currentTime;
+      while (idx < ev.length && T0 + ev[idx].t < now + 0.25) {
+        const e = ev[idx++], at = T0 + e.t;
+        if (e.k === 'n') Synth.kalimba(bus, e.midi, at, 0.85);
+        else if (e.k === 'c') {
+          if (e.ch.type === 'chord') {
+            e.ch.midis.slice(0, 4).forEach((m, j) => Synth.kalimba(bus, m, at + j * 0.012, 0.26));
+            Synth.kalimba(bus, e.ch.bassMidi, at, 0.5);
+          } else if (e.ch.type === 'bass') Synth.kalimba(bus, e.ch.midi, at, 0.55);
+        }
+        if (opt.onEvent && (e.k === 'n' || e.k === 'm')) this.ui.push(setTimeout(() => opt.onEvent(e), Math.max(0, (at - now) * 1000)));
+      }
+      if (idx >= ev.length && now > T0 + endT + 0.6) this.stop();
+    }, 25);
+  },
+  stop() {
+    clearInterval(this.timer); this.timer = 0;
+    this.ui.forEach(clearTimeout); this.ui = [];
+    if (this.bus && Synth.ctx) {
+      const b = this.bus;
+      b.gain.setTargetAtTime(0, Synth.ctx.currentTime, 0.03);
+      setTimeout(() => { try { b.disconnect(); } catch (e) { /* gone */ } }, 400);
+    }
+    this.bus = null; this.playing = false;
+    const cb = this.onEnd; this.onEnd = null;
+    if (cb) cb();
+  }
+};
+
+/* ---- IndexedDB ---- */
+const DB = {
+  _p: null,
+  open() {
+    if (this._p) return this._p;
+    this._p = new Promise((res, rej) => {
+      if (!window.indexedDB) { rej(new Error('เบราว์เซอร์นี้ไม่รองรับ IndexedDB')); return; }
+      const r = indexedDB.open('kalimba-trainer', 1);
+      r.onupgradeneeded = () => {
+        const db = r.result;
+        if (!db.objectStoreNames.contains('songs')) db.createObjectStore('songs', { keyPath: 'id' }).createIndex('updated', 'updated');
+      };
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+    this._p.catch(() => { this._p = null; });
+    return this._p;
+  },
+  async run(mode, fn) {
+    const db = await this.open();
+    return new Promise((res, rej) => {
+      const t = db.transaction('songs', mode);
+      let out;
+      const rq = fn(t.objectStore('songs'));
+      if (rq) rq.onsuccess = () => { out = rq.result; };
+      t.oncomplete = () => res(out);
+      t.onerror = t.onabort = () => rej(t.error || new Error('transaction failed'));
+    });
+  },
+  put(s) { return this.run('readwrite', st => st.put(s)); },
+  del(id) { return this.run('readwrite', st => st.delete(id)); },
+  all() { return this.run('readonly', st => st.getAll()); }
+};
+
+/* ---- bridge to the M1 practice page (it plays state.library[].notes, one pitch per beat) ---- */
+const BUILTIN = state.library.slice();
+function practiceSong(s) {
+  const notes = [];
+  parseSong(s, state.tuning13).measures.forEach(m => m.notes.forEach(n => notes.push(midiToPitch(n.midi))));
+  return { id: s.id, title: s.title, bpm: s.tempo, notes, saved: true };
+}
+function syncPracticeLibrary() {
+  const active = state.practice.activeSong;
+  state.library = S.songs.map(practiceSong).concat(BUILTIN);
+  if (active) state.practice.activeSong = state.library.find(x => x.id === active.id) || active;
+}
+function practiceWith(id) {
+  const s = state.library.find(x => x.id === id);
+  if (!s) return;
+  state.practice.activeSong = s;
+  byId('practice-current-song-title').textContent = 'เพลง: ' + s.title;
+  state.practice.bpm = clamp(s.bpm || 80, 50, 140);
+  byId('range-practice-bpm').value = state.practice.bpm;
+  byId('practice-bpm-text').textContent = state.practice.bpm;
+  switchView('practice');
+}
+window.selectSongForPractice = practiceWith;
+
+async function loadSongs() {
+  try { S.songs = (await DB.all()).sort((a, b) => (b.updated || 0) - (a.updated || 0)); }
+  catch (e) { S.songs = []; toast('อ่านเพลงในเครื่องไม่ได้: ' + (e && e.message || e), 3500); }
+  syncPracticeLibrary();
+  if (state.currentView === 'add') renderLibrary();
+}
+
+/* ---- navigation inside the add tab ---- */
+function applyAddSub() {
+  byId('add-library').classList.toggle('hidden', S.addSub !== 'library');
+  byId('add-import').classList.toggle('hidden', S.addSub !== 'import');
+}
+function go(sub) { S.addSub = sub; applyAddSub(); switchView('add'); window.scrollTo(0, 0); }
+function leaveReview() {
+  if (S.review && S.review.dirty) {
+    if (!confirm('มีการแก้ไขที่ยังไม่ได้บันทึก ทิ้งการแก้ไขไหม?')) return false;
+    S.review.dirty = false;
+  }
+  Player.stop(); hideKeypad();
+  return true;
+}
+
+/* ---- library ---- */
+function fmtDate(ts) { try { return new Date(ts).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' }); } catch (e) { return ''; } }
+
+function renderLibrary() {
+  applyAddSub();
+  byId('lib-empty').classList.toggle('hidden', S.songs.length > 0);
+  byId('lib-list').innerHTML = S.songs.map(s => {
+    const sm = summarize(parseSong(s, state.tuning13));
+    const badge = sm.range ? '<span class="px-1.5 py-0.5 rounded bg-red-500/20 text-red-300 text-[10px] whitespace-nowrap">⚠ นอกช่วง ' + sm.range + '</span>'
+      : sm.errors ? '<span class="px-1.5 py-0.5 rounded bg-red-500/20 text-red-300 text-[10px] whitespace-nowrap">⚠ ' + sm.errors + ' จุด</span>'
+      : '<span class="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] whitespace-nowrap">✓ อยู่ในช่วง</span>';
+    return '<div class="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-2" data-id="' + esc(s.id) + '">' +
+      '<div class="flex items-start gap-2"><div class="flex-1 min-w-0"><div class="font-bold text-slate-100 text-sm truncate">' + esc(s.title || 'เพลงไม่มีชื่อ') + '</div>' +
+      '<div class="text-[10px] text-slate-400">' + s.measures.length + ' ห้อง • ' + s.tempo + ' BPM • ' + s.beats + ' จังหวะ • ' + esc(fmtDate(s.updated)) + '</div></div>' + badge + '</div>' +
+      '<div class="flex flex-wrap gap-1.5 text-xs">' +
+      '<button data-lib="prac" class="px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold">🎯 ฝึก</button>' +
+      '<button data-lib="play" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 border border-slate-700">▶ ฟัง</button>' +
+      '<button data-lib="edit" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 border border-slate-700">✏️ ตรวจ/แก้</button>' +
+      '<button data-lib="copy" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 border border-slate-700">📋</button>' +
+      '<button data-lib="del" class="ml-auto px-3 py-1.5 rounded-lg bg-slate-800 text-rose-300 border border-slate-700">🗑</button></div></div>';
+  }).join('');
+  byId('lib-builtin').innerHTML = BUILTIN.map(b =>
+    '<div class="p-3 bg-slate-800/80 border border-slate-700 rounded-xl flex items-center justify-between text-xs" data-id="' + esc(b.id) + '">' +
+    '<div><h4 class="font-bold text-slate-100">' + esc(b.title) + '</h4><p class="text-[10px] text-slate-400">' + b.notes.length + ' โน้ต • ' + b.bpm + ' BPM</p></div>' +
+    '<button data-lib="prac" class="px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold">🎯 ฝึกเพลงนี้</button></div>').join('');
+}
+
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch (e) { /* fall through */ }
+  const ta = el('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  let ok = false; try { ok = document.execCommand('copy'); } catch (e) { /* none */ }
+  ta.remove(); return ok;
+}
+
+function setupLibrary() {
+  byId('btn-lib-add').addEventListener('click', () => go('import'));
+  byId('add-library').addEventListener('click', async e => {
+    const b = e.target.closest('[data-lib]');
+    if (!b) return;
+    const id = b.closest('[data-id]').dataset.id, act = b.dataset.lib;
+    if (act === 'prac') { practiceWith(id); return; }
+    const s = S.songs.find(x => x.id === id);
+    if (!s) return;
+    if (act === 'play' || act === 'edit') openReview(JSON.parse(JSON.stringify(s)), { from: 'library', autoplay: act === 'play' });
+    else if (act === 'copy') toast((await copyText(songToText(s))) ? 'คัดลอกโน้ตแล้ว ✓' : 'คัดลอกไม่ได้');
+    else if (act === 'del') {
+      if (!confirm('ลบเพลง "' + (s.title || 'ไม่มีชื่อ') + '" ออกจากเครื่อง?')) return;
+      try { await DB.del(id); toast('ลบแล้ว'); } catch (err) { toast('ลบไม่ได้: ' + (err && err.message || err)); }
+      loadSongs();
+    }
+  });
+  byId('btn-backup').addEventListener('click', () => {
+    if (!S.songs.length) { toast('ยังไม่มีเพลงให้สำรอง'); return; }
+    const blob = new Blob([JSON.stringify({ app: 'kalimba-trainer', version: 1, exported: Date.now(), songs: S.songs }, null, 1)], { type: 'application/json' });
+    const a = el('a'); a.href = URL.createObjectURL(blob); a.download = 'kalimba-songs-' + new Date().toISOString().slice(0, 10) + '.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  });
+  byId('btn-restore').addEventListener('click', () => byId('file-restore').click());
+  byId('file-restore').addEventListener('change', async e => {
+    const f = e.target.files[0]; e.target.value = '';
+    if (!f) return;
+    try {
+      const data = JSON.parse(await f.text());
+      const list = (data && data.songs) || [];
+      let n = 0;
+      for (const s of list) {
+        if (!s || !Array.isArray(s.measures)) continue;
+        const cur = S.songs.find(x => x.id === s.id);
+        if (cur && (cur.updated || 0) >= (s.updated || 0)) continue;
+        await DB.put({
+          id: s.id || uid(), title: String(s.title || ''), tempo: +s.tempo || 100, beats: +s.beats || 4, octaveShift: +s.octaveShift || 0,
+          created: s.created || Date.now(), updated: s.updated || Date.now(),
+          measures: s.measures.map(m => ({ mel: String(m.mel || ''), lyr: String(m.lyr || ''), chd: String(m.chd || ''), br: !!m.br }))
+        });
+        n++;
+      }
+      toast('กู้คืน ' + n + ' เพลง'); loadSongs();
+    } catch (err) { toast('อ่านไฟล์ไม่ได้: ' + (err && err.message || err), 3500); }
+  });
+}
+
+/* ---- import (3-line text) ---- */
+function setupImport() {
+  const ta = byId('imp-text');
+  const fill = (t, bpm) => { ta.value = t; byId('imp-title').value = ''; if (bpm) byId('imp-tempo').value = bpm; byId('imp-msg').innerHTML = ''; };
+  byId('btn-preset-twinkle').addEventListener('click', () => fill(SAMPLE1, 100));
+  byId('btn-preset-yours-ever').addEventListener('click', () => fill(SAMPLE_YOURS, 78));
+  byId('btn-preset-over').addEventListener('click', () => fill(SAMPLE2, 90));
+  byId('btn-clear').addEventListener('click', () => { ta.value = ''; byId('imp-title').value = ''; byId('imp-msg').innerHTML = ''; });
+  byId('btn-paste').addEventListener('click', async () => {
+    try { ta.value = await navigator.clipboard.readText(); } catch (e) { toast('อ่านคลิปบอร์ดไม่ได้ — กดค้างที่ช่องแล้ววางเอง'); }
+  });
+  byId('btn-import-back').addEventListener('click', () => go('library'));
+  byId('btn-convert').addEventListener('click', () => {
+    const r = importText(ta.value, {
+      title: byId('imp-title').value.trim(),
+      tempo: clamp(parseInt(byId('imp-tempo').value, 10) || 100, 30, 240),
+      beats: parseInt(byId('imp-beats').value, 10) || 4,
+      octaveShift: parseInt(byId('imp-shift').value, 10) || 0
+    });
+    byId('imp-msg').innerHTML = r.msgs.map(m => '<div class="' + (m.level === 'error' ? 'text-red-300' : 'text-amber-300') + '">' + (m.level === 'error' ? '✖ ' : '⚠ ') + esc(m.msg) + '</div>').join('');
+    if (!r.song.measures.length) return;
+    openReview(r.song, { from: 'import', isNew: true, notes: r.msgs });
+  });
+}
+
+/* ---- review ---- */
+const Strip = {
+  timer: 0,
+  build() {
+    byId('strip').innerHTML = SORTED13.map(m => '<div class="strip-key flex-1 rounded-sm" data-m="' + m + '" style="height:' + (40 + (m - 60) * 0.6) + '%"></div>').join('');
+  },
+  light(midi, tok) {
+    const key = S.tuning === 'Bb4' && midi === 70 ? 71 : (S.tuning === 'Bb4' && midi === 71 ? -1 : midi);
+    $$('#strip .lit').forEach(x => x.classList.remove('lit'));
+    const k = $('#strip [data-m="' + key + '"]'), label = byId('strip-note');
+    label.textContent = tok + ' · ' + noteLabel(describe(midi, midi === 70), S.noteSystem);
+    if (k) { k.classList.add('lit'); label.classList.remove('text-red-400'); label.classList.add('text-amber-300'); }
+    else { label.classList.add('text-red-400'); label.classList.remove('text-amber-300'); label.textContent += ' (ไม่มีคีย์)'; }
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => { $$('#strip .lit').forEach(x => x.classList.remove('lit')); }, 220);
+  }
+};
+
+function openReview(song, opt) {
+  song.measures = song.measures || [];
+  S.review = { song, dirty: !!opt.isNew, from: opt.from || 'import', notes: opt.notes || [] };
+  switchView('review');
+  renderReview();
+  window.scrollTo(0, 0);
+  if (opt.autoplay) setTimeout(() => togglePlay(0), 60);
+}
+
+function reparse() { S.parsed = parseSong(S.review.song, S.tuning); return S.parsed; }
+const fmtDur = d => (Math.abs(d - 1) < 0.01 ? '' : Math.abs(d - 0.5) < 0.01 ? '½' : Math.abs(d - 1 / 3) < 0.01 ? '⅓' : Math.abs(d - 0.25) < 0.01 ? '¼' : '×' + (Math.round(d * 100) / 100));
+
+function renderReview() {
+  const s = S.review.song;
+  byId('rv-title').value = s.title || '';
+  byId('rv-tempo').value = s.tempo;
+  const sel = byId('rv-beats');
+  if (!$$('option', sel).some(o => o.textContent === String(s.beats))) { const o = el('option'); o.textContent = s.beats; sel.appendChild(o); }
+  sel.value = String(s.beats);
+  byId('rv-shift').textContent = (s.octaveShift > 0 ? '+' : '') + (s.octaveShift || 0);
+  byId('rv-kp').checked = S.keypad;
+  byId('rv-import-notes').innerHTML = (S.review.notes || []).map(m => '<div class="' + (m.level === 'error' ? 'text-red-300' : 'text-amber-300') + '">' + (m.level === 'error' ? '✖ ' : '⚠ ') + esc(m.msg) + '</div>').join('');
+  renderCards();
+  setPlayButton(false);
+}
+
+function cardHTML(m, i) {
+  const ph = { lyr: 'เนื้อร้อง (แยกพยางค์ด้วยช่องว่าง)', mel: "ทำนอง เช่น 1 1 5 5'", chd: 'คอร์ด / เบส เช่น C . F .' };
+  const inp = (f, cls) => '<input data-f="' + f + '" value="' + esc(m[f]) + '" placeholder="' + ph[f] + '" ' + (f === 'mel' && S.keypad ? 'inputmode="none" ' : '') +
+    'spellcheck="false" autocomplete="off" autocapitalize="off" autocorrect="off" class="' + cls + ' w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-100 placeholder-slate-600">';
+  const btn = (a, t, cls) => '<button data-act="' + a + '" class="px-2 py-1 rounded-md ' + (cls || 'bg-slate-800 text-slate-300 border border-slate-700') + ' text-[11px]">' + t + '</button>';
+  return '<div class="mcard bg-slate-900 border border-slate-800 rounded-xl p-2.5 space-y-1.5" data-i="' + i + '">' +
+    '<div class="flex items-center gap-1.5"><span class="text-xs font-semibold text-amber-300">ห้อง ' + (i + 1) + (m.br && i ? ' ·ท่อนใหม่' : '') + '</span><span class="mbadge text-[10px]"></span>' +
+    '<div class="ml-auto flex gap-1">' + btn('play', '▶', 'bg-amber-600 text-white') + btn('oct-dn', '8↓') + btn('oct-up', '8↑') + btn('dup', '⧉') + btn('ins', '＋') + btn('del', '🗑', 'bg-slate-800 text-rose-300 border border-slate-700') + '</div></div>' +
+    '<div class="chips flex flex-wrap gap-1 min-h-[1.6rem]"></div>' +
+    inp('lyr', 'text-sm') + inp('mel', 'mono text-base') + inp('chd', 'mono text-sm') +
+    '<ul class="issues text-[11px] space-y-0.5"></ul></div>';
+}
+
+function renderCards() {
+  const s = S.review.song;
+  byId('rv-list').innerHTML = s.measures.map(cardHTML).join('');
+  reparse();
+  s.measures.forEach((_, i) => refreshCard(i));
+  renderSummary();
+}
+
+function chipsHTML(pm) {
+  const parts = pm.items.filter(it => it.type !== 'hold').map(it => {
+    if (it.type === 'rest') return '<span class="chip px-1.5 py-0.5 rounded bg-slate-800 text-slate-500 text-xs text-center">0</span>';
+    if (it.type === 'bad') return '<span class="chip px-1.5 py-0.5 rounded bg-red-900/60 border border-red-500 text-red-200 text-xs text-center">' + esc(it.tok) + '?</span>';
+    const d = describe(it.midi, it.midi === 70), bad = !!it.bad;
+    return '<button data-midi="' + it.midi + '" class="chip px-1.5 py-0.5 rounded text-center leading-tight border ' + (bad ? 'bg-red-900/60 border-red-500 text-red-100' : 'bg-slate-800 border-slate-700 text-slate-100') + '">' +
+      '<span class="text-sm font-semibold">' + esc(numeralLabel(d)) + '</span><sub class="text-[9px] text-amber-300">' + fmtDur(it.dur) + '</sub>' +
+      '<span class="block text-[9px] ' + (bad ? 'text-red-200' : 'text-slate-400') + '">' + esc(noteLabel(d, S.noteSystem)) + '</span>' +
+      (it.lyric ? '<span class="block text-[9px] text-sky-300">' + esc(it.lyric) + '</span>' : '') + '</button>';
+  });
+  pm.chords.forEach(c => {
+    const label = c.type === 'chord' ? c.name : c.type === 'bass' ? 'เบส ' + c.name : '–';
+    parts.push('<span class="chip px-1.5 py-0.5 rounded border text-[11px] self-center ' + (c.bad ? 'bg-red-900/60 border-red-500 text-red-200' : 'bg-sky-900/50 border-sky-700 text-sky-200') + '">♪ ' + esc(label) + '</span>');
+  });
+  return parts.join('') || '<span class="text-[11px] text-slate-600">ยังไม่มีโน้ต</span>';
+}
+
+function refreshCard(i) {
+  const card = byId('rv-list').children[i], pm = S.parsed && S.parsed.measures[i];
+  if (!card || !pm) return;
+  $('.chips', card).innerHTML = chipsHTML(pm);
+  $('.issues', card).innerHTML = pm.issues.map(x => '<li class="' + (x.level === 'error' ? 'text-red-300' : 'text-amber-300') + '">' + (x.level === 'error' ? '✖ ' : '⚠ ') + esc(x.msg) + '</li>').join('');
+  const e = pm.issues.filter(x => x.level === 'error').length, w = pm.issues.length - e;
+  $('.mbadge', card).innerHTML = e ? '<span class="px-1.5 rounded bg-red-500/20 text-red-300">✖ ' + e + '</span>' : w ? '<span class="px-1.5 rounded bg-amber-500/20 text-amber-300">⚠ ' + w + '</span>' : '<span class="px-1.5 rounded bg-emerald-500/20 text-emerald-300">✓</span>';
+}
+
+function renderSummary() {
+  const s = S.review.song, sm = summarize(S.parsed), box = byId('rv-summary');
+  if (!s.measures.length) {
+    box.className = 'rounded-xl border border-slate-700 bg-slate-900 p-2.5 text-xs'; box.innerHTML = 'ยังไม่มีห้อง — กด "เพิ่มห้องท้ายเพลง"'; return;
+  }
+  if (!sm.errors && !sm.warns) {
+    box.className = 'rounded-xl border border-emerald-600/50 bg-emerald-900/20 p-2.5 text-xs text-emerald-200';
+    box.innerHTML = '✅ ผ่านการตรวจ — ' + sm.notes + ' โน้ตอยู่ในช่วง 13 คีย์ (C4–A5, จูน ' + S.tuning + ') ทุกห้อง';
+    return;
+  }
+  const bad = sm.errors > 0;
+  box.className = 'rounded-xl border p-2.5 text-xs space-y-1.5 ' + (bad ? 'border-red-500/60 bg-red-900/20 text-red-100' : 'border-amber-500/50 bg-amber-900/10 text-amber-100');
+  let html = '<div class="font-semibold">' + (bad ? '⚠️ ต้องแก้ ' + sm.errors + ' จุด' : '⚠️ มีข้อสังเกต ' + sm.warns + ' จุด') +
+    (sm.range ? ' · โน้ตเกินช่วง/ไม่มีคีย์ ' + sm.range + ' โน้ต' : '') + ' <span class="font-normal text-slate-400">(ช่วงเครื่อง C4–A5, จูน ' + S.tuning + ')</span></div>';
+  const sug = sm.range ? suggestShift(s, S.tuning) : null;
+  if (sug) {
+    html += '<button data-fix="shift" data-shift="' + sug.shift + '" class="px-2.5 py-1.5 rounded-lg bg-amber-500 text-slate-950 text-[11px] font-bold">🪄 เลื่อนทั้งเพลงเป็น ' + (sug.shift > 0 ? '+' : '') + sug.shift + ' ออคเทฟ → เหลือเกินช่วง ' + sug.left + ' โน้ต</button>';
+  }
+  html += '<div class="space-y-0.5 max-h-40 overflow-y-auto">' + S.parsed.issues.slice(0, 40).map(x =>
+    '<button data-goto="' + x.measure + '" class="block w-full text-left ' + (x.level === 'error' ? 'text-red-300' : 'text-amber-300') + '">ห้อง ' + (x.measure + 1) + ': ' + esc(x.msg) + '</button>').join('') + '</div>';
+  box.innerHTML = html;
+}
+
+function markDirty() { S.review.dirty = true; }
+function refreshAfterEdit(i) { reparse(); refreshCard(i); refreshCard(i + 1); renderSummary(); }
+function refreshAll() { reparse(); S.review.song.measures.forEach((_, i) => refreshCard(i)); renderSummary(); }
+
+function setPlayButton(on) {
+  const b = byId('btn-play-all');
+  b.textContent = on ? '⏹ หยุด' : '▶ ฟังทั้งเพลง';
+  b.classList.toggle('bg-rose-700', on); b.classList.toggle('bg-amber-600', !on);
+}
+function togglePlay(from) {
+  if (Player.playing) { Player.stop(); return; }
+  unlockAudioUI();
+  const s = S.review.song;
+  reparse();
+  if (!S.parsed.measures.length) { toast('ยังไม่มีโน้ตให้ฟัง'); return; }
+  setPlayButton(true);
+  Player.start(S.parsed, {
+    tempo: clamp(+s.tempo || 100, 30, 240), from, chords: byId('rv-chords').checked,
+    onEvent: e => {
+      if (e.k === 'n') Strip.light(e.midi, e.tok);
+      else {
+        $$('#rv-list .playing').forEach(c => c.classList.remove('playing'));
+        const c = byId('rv-list').children[e.i];
+        if (c) {
+          c.classList.add('playing');
+          const r = c.getBoundingClientRect();
+          if (r.top < 200 || r.bottom > innerHeight - 200) c.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+      }
+    },
+    onEnd: () => { setPlayButton(false); $$('#rv-list .playing').forEach(c => c.classList.remove('playing')); }
+  });
+}
+
+/* keypad for the melody field */
+let kpTarget = null;
+function showKeypad() { if (S.keypad && state.currentView === 'review') byId('keypad').classList.remove('hidden'); }
+function hideKeypad() { byId('keypad').classList.add('hidden'); }
+function applyKeypadMode() {
+  $$('#rv-list input[data-f="mel"]').forEach(i => { i.inputMode = S.keypad ? 'none' : 'text'; });
+  if (!S.keypad) hideKeypad();
+}
+function keypadPress(k) {
+  if (k === 'close') { hideKeypad(); if (document.activeElement) document.activeElement.blur(); return; }
+  const t = kpTarget;
+  if (!t) return;
+  t.focus();
+  let a = t.selectionStart, b = t.selectionEnd;
+  if (a == null) { a = b = t.value.length; }
+  if (k === 'bs') {
+    if (a === b && a > 0) a--;
+    t.setRangeText('', a, b, 'end');
+  } else {
+    t.setRangeText(k, a, b, 'end');
+  }
+  t.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function setupReview() {
+  Strip.build();
+  const rs = () => S.review.song;
+  byId('btn-review-back').addEventListener('click', () => go(S.review.from === 'library' ? 'library' : 'import'));
+  byId('rv-title').addEventListener('input', e => { rs().title = e.target.value; markDirty(); });
+  byId('rv-tempo').addEventListener('input', e => { rs().tempo = clamp(parseInt(e.target.value, 10) || 100, 30, 240); markDirty(); });
+  byId('rv-beats').addEventListener('change', e => { rs().beats = parseInt(e.target.value, 10) || 4; markDirty(); refreshAll(); });
+  const shift = d => {
+    rs().octaveShift = clamp((rs().octaveShift || 0) + d, -3, 3); markDirty();
+    byId('rv-shift').textContent = (rs().octaveShift > 0 ? '+' : '') + rs().octaveShift; refreshAll();
+  };
+  byId('rv-shift-dn').addEventListener('click', () => shift(-1));
+  byId('rv-shift-up').addEventListener('click', () => shift(1));
+  byId('btn-play-all').addEventListener('click', () => togglePlay(0));
+  byId('rv-kp').addEventListener('change', e => { S.keypad = e.target.checked; ls.set('keypad', S.keypad); applyKeypadMode(); });
+  byId('btn-add-measure').addEventListener('click', () => {
+    const last = rs().measures[rs().measures.length - 1];
+    rs().measures.push({ mel: '', lyr: '', chd: '', br: !last }); markDirty(); renderCards();
+    const c = byId('rv-list').lastElementChild; if (c) c.scrollIntoView({ block: 'center' });
+  });
+  byId('btn-save').addEventListener('click', saveSong);
+
+  byId('rv-summary').addEventListener('click', e => {
+    const f = e.target.closest('[data-fix]');
+    if (f) { shift(parseInt(f.dataset.shift, 10) - (rs().octaveShift || 0)); return; }
+    const g = e.target.closest('[data-goto]');
+    if (g) {
+      const c = byId('rv-list').children[+g.dataset.goto];
+      if (c) { c.scrollIntoView({ block: 'center', behavior: 'smooth' }); c.classList.add('playing'); setTimeout(() => c.classList.remove('playing'), 1200); }
+    }
+  });
+
+  const list = byId('rv-list');
+  list.addEventListener('input', e => {
+    const inp = e.target.closest('input[data-f]');
+    if (!inp) return;
+    const i = +inp.closest('.mcard').dataset.i;
+    rs().measures[i][inp.dataset.f] = inp.value;
+    markDirty(); refreshAfterEdit(i);
+  });
+  list.addEventListener('focusin', e => {
+    const inp = e.target.closest('input[data-f="mel"]');
+    if (inp) { kpTarget = inp; showKeypad(); }
+    else if (e.target.matches('input')) hideKeypad();
+  });
+  list.addEventListener('focusout', () => {
+    setTimeout(() => { if (!document.activeElement || !document.activeElement.matches('input[data-f="mel"]')) hideKeypad(); }, 160);
+  });
+  list.addEventListener('click', e => {
+    const chip = e.target.closest('button[data-midi]');
+    if (chip) { unlockAudioUI(); if (Synth.ensure()) Synth.kalimba(Synth.master, +chip.dataset.midi, Synth.ctx.currentTime + 0.01, 0.9); return; }
+    const b = e.target.closest('button[data-act]');
+    if (!b) return;
+    const card = b.closest('.mcard'), i = +card.dataset.i, ms = rs().measures, act = b.dataset.act;
+    if (act === 'play') { if (Player.playing) Player.stop(); togglePlay(i); }
+    else if (act === 'oct-dn' || act === 'oct-up') {
+      const m = ms[i]; m.mel = shiftMelodyStr(m.mel, act === 'oct-up' ? 1 : -1);
+      $('input[data-f="mel"]', card).value = m.mel; markDirty(); refreshAfterEdit(i);
+    } else if (act === 'dup') { ms.splice(i + 1, 0, Object.assign({}, ms[i], { br: false })); markDirty(); renderCards(); }
+    else if (act === 'ins') { ms.splice(i + 1, 0, { mel: '', lyr: '', chd: '', br: false }); markDirty(); renderCards(); }
+    else if (act === 'del') {
+      const m = ms[i];
+      if ((m.mel + m.lyr + m.chd).trim() && !confirm('ลบห้อง ' + (i + 1) + ' ?')) return;
+      if (m.br && ms[i + 1]) ms[i + 1].br = true;
+      ms.splice(i, 1); markDirty(); renderCards();
+    }
+  });
+
+  const kp = byId('keypad');
+  ['mousedown', 'touchstart'].forEach(ev => kp.addEventListener(ev, e => e.preventDefault(), { passive: false }));
+  kp.addEventListener('click', e => { const b = e.target.closest('button[data-k]'); if (b) keypadPress(b.dataset.k); });
+}
+
+async function saveSong() {
+  const s = S.review.song;
+  s.title = (s.title || '').trim() || 'เพลงไม่มีชื่อ';
+  byId('rv-title').value = s.title;
+  if (!s.measures.length) { toast('ยังไม่มีห้องโน้ต'); return; }
+  const sm = summarize(reparse());
+  if (sm.range && !confirm('ยังมีโน้ตเกินช่วง/ไม่มีคีย์บนคาลิมบา 13 คีย์ ' + sm.range + ' โน้ต\nบันทึกไว้ก่อนแล้วแก้ทีหลัง?')) return;
+  if (!sm.range && sm.errors && !confirm('มีโทเค็นที่อ่านไม่ได้ ' + sm.errors + ' จุด (จะถูกข้ามตอนเล่น)\nบันทึกไว้ก่อน?')) return;
+  const now = Date.now();
+  const rec = {
+    id: s.id || uid(), title: s.title, tempo: s.tempo, beats: s.beats, octaveShift: s.octaveShift || 0,
+    created: s.created || now, updated: now,
+    measures: s.measures.map(m => ({ mel: m.mel || '', lyr: m.lyr || '', chd: m.chd || '', br: !!m.br }))
+  };
+  try {
+    await DB.put(rec);
+    Object.assign(s, { id: rec.id, created: rec.created, updated: rec.updated });
+    S.review.dirty = false;
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+    toast('บันทึกลงเครื่องแล้ว ✓');
+    await loadSongs();
+    go('library');
+  } catch (e) {
+    toast('บันทึกไม่ได้: ' + (e && e.message || e), 4000);
+  }
+}
+
+/* ---- tuning shared with M1 settings ---- */
+function onTuning() {
+  ls.set('tuning', state.tuning13);
+  syncPracticeLibrary();
+  if (state.currentView === 'review') refreshAll();
+  if (state.currentView === 'add') renderLibrary();
+}
+
+function setHdr() {
+  const h = document.querySelector('header');
+  if (h) document.documentElement.style.setProperty('--hdr', (h.offsetHeight + 4) + 'px');
+}
+
+function initM2() {
+  const saved = ls.get('tuning', null);
+  if (saved === 'B4' || saved === 'Bb4') {
+    state.tuning13 = saved;
+    byId('current-tuning-name').textContent = saved;
+    const r = document.querySelector('input[name="kalimba-tuning"][value="' + saved + '"]');
+    if (r) r.checked = true;
+    renderKalimba();
+  }
+  setupLibrary(); setupImport(); setupReview();
+  applyAddSub(); setHdr();
+  window.addEventListener('resize', setHdr);
+  window.addEventListener('orientationchange', setHdr);
+  window.M2 = { renderLibrary, leaveReview, onTuning };
+  loadSongs();
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+    navigator.serviceWorker.register('sw.js').catch(() => { /* offline cache unavailable */ });
+  }
+  window.KT = { S, parseSong, importText, songToText, summarize, suggestShift, DB };
+}
+initM2();
+
+    })();
+  </script>
+</body>
+</html>
