@@ -49,7 +49,7 @@
         <div class="w-8 h-8 rounded-lg bg-amber-600 flex items-center justify-center shadow-md text-lg">🎵</div>
         <div>
           <h1 class="text-sm font-semibold font-heading leading-tight text-amber-300">ครูฝึกคาลิมบา</h1>
-          <p class="text-[10px] text-slate-400">ระบบฝึกร่วม (Universal Music Engine) • M2</p>
+          <p class="text-[10px] text-slate-400">ฝึกคาลิมบาฟรี • ใช้ออฟไลน์ได้</p>
         </div>
       </div>
       <div class="flex items-center gap-1.5">
@@ -57,6 +57,7 @@
           <span id="audio-indicator" class="inline-block w-2 h-2 rounded-full bg-red-600 animate-pulse"></span>
           <span id="audio-status-text">แตะเปิดเสียง</span>
         </button>
+        <button id="btn-install" class="hidden px-2 py-1 text-xs rounded-full bg-slate-800 text-amber-300 border border-slate-700">📲 ติดตั้ง</button>
         <button id="btn-open-settings" class="p-1.5 text-slate-300 rounded-lg bg-slate-800 hover:bg-slate-700">⚙️</button>
       </div>
     </div>
@@ -73,6 +74,29 @@
   <!-- หน้าที่ 1: แป้นดนตรี (Play View) -->
   <div id="section-play" class="flex-1 flex flex-col justify-between max-w-xl mx-auto w-full px-2 py-2">
     <section class="w-full space-y-2">
+      <div id="first-song-card" class="hidden bg-gradient-to-r from-amber-600/30 to-amber-500/10 border border-amber-500/50 rounded-xl p-2.5 text-xs">
+        <div id="fs-intro" class="flex items-center justify-between gap-2">
+          <div>
+            <div class="font-semibold text-amber-200 text-sm">🎵 เล่นเพลงแรกใน 5 นาที</div>
+            <div class="text-[11px] text-slate-300">ดาวส่องแสง · แตะคีย์ที่เรืองแสงทีละโน้ต ไม่ต้องรีบ</div>
+          </div>
+          <div class="flex gap-1 shrink-0">
+            <button id="fs-start" class="px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold">เริ่มเลย</button>
+            <button id="fs-close" aria-label="ปิด" class="px-2 py-1.5 rounded-lg text-slate-400">✕</button>
+          </div>
+        </div>
+        <div id="fs-run" class="hidden space-y-1.5">
+          <div class="flex items-center justify-between gap-2">
+            <span id="fs-step" class="font-semibold text-amber-200">-</span>
+            <div class="flex gap-1 shrink-0">
+              <button id="fs-listen" class="px-2 py-1 rounded-lg bg-slate-800 text-slate-200 border border-slate-700">🔊 ฟังก่อน</button>
+              <button id="fs-stop" class="px-2 py-1 rounded-lg bg-slate-800 text-slate-400 border border-slate-700">หยุด</button>
+            </div>
+          </div>
+          <div id="fs-notes" class="flex gap-1 overflow-x-auto no-scrollbar"></div>
+          <div id="fs-hint" class="text-[11px] text-slate-300">แตะคีย์สีทองที่กำลังกะพริบ</div>
+        </div>
+      </div>
       <div class="bg-slate-900 p-1 rounded-xl border border-slate-800 flex items-center gap-1 text-xs">
         <button id="tab-profile-kalimba13" class="flex-1 py-1.5 px-2 rounded-lg font-medium bg-amber-600 text-white text-center">คาลิมบา 13 คีย์</button>
         <button id="tab-profile-kalimba17" class="flex-1 py-1.5 px-2 rounded-lg font-medium text-slate-400 text-center">คาลิมบา 17 คีย์</button>
@@ -389,6 +413,40 @@
 
   <div id="toast" class="hidden fixed left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-slate-100 text-slate-900 text-xs font-medium shadow-lg max-w-[90%] text-center" style="bottom: calc(1.5rem + env(safe-area-inset-bottom));"></div>
 
+  <div id="install-banner" class="hidden fixed inset-x-2 z-40 max-w-xl mx-auto bg-slate-900 border border-amber-500/60 rounded-xl p-2.5 shadow-2xl flex items-center gap-2 text-xs" style="bottom: calc(0.75rem + env(safe-area-inset-bottom));">
+    <span class="text-xl">📲</span>
+    <span id="install-banner-text" class="flex-1 text-slate-200">ติดตั้งเป็นแอปบนหน้าจอโฮม เปิดเร็ว ใช้ออฟไลน์ได้</span>
+    <button id="install-banner-go" class="px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold shrink-0">ติดตั้ง</button>
+    <button id="install-banner-close" aria-label="ปิด" class="px-1.5 py-1 text-slate-400 shrink-0">✕</button>
+  </div>
+
+  <div id="modal-install" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl p-4 w-full max-w-sm space-y-3 text-sm">
+      <div class="flex items-center justify-between">
+        <h3 class="font-semibold font-heading text-amber-300">📲 ติดตั้งเป็นแอป</h3>
+        <button id="modal-install-close" aria-label="ปิด" class="px-2 py-1 text-slate-400">✕</button>
+      </div>
+      <div class="text-[11px] text-slate-400">เปิดจากหน้าจอโฮมได้เหมือนแอป · ใช้ออฟไลน์ได้ · เพลงที่บันทึกไว้ไม่หาย</div>
+      <div id="install-steps" class="space-y-2 text-slate-200"></div>
+      <div id="install-actions" class="flex flex-col gap-2"></div>
+    </div>
+  </div>
+
+  <div id="modal-firstsong-done" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-amber-500/50 rounded-2xl p-5 w-full max-w-sm space-y-3 text-center">
+      <div class="text-5xl">🎉</div>
+      <h3 class="text-lg font-bold font-heading text-amber-300">เล่นเพลงแรกได้แล้ว!</h3>
+      <p id="fs-done-text" class="text-xs text-slate-300">เก่งมาก</p>
+      <div class="flex flex-col gap-2 text-sm">
+        <button id="fs-done-practice" class="py-2.5 rounded-xl bg-amber-500 text-slate-950 font-bold">🎯 ฝึกเพลงนี้ตามจังหวะต่อ</button>
+        <button id="fs-done-share" class="py-2 rounded-xl bg-slate-800 text-slate-100 border border-slate-700">📤 ชวนเพื่อนมาลอง</button>
+        <button id="fs-done-install" class="hidden py-2 rounded-xl bg-slate-800 text-amber-300 border border-slate-700">📲 ติดตั้งเป็นแอปไว้ฝึกทุกวัน</button>
+        <button id="fs-done-premium" class="hidden py-2 rounded-xl bg-slate-800 text-emerald-300 border border-emerald-700/60">⭐ สนใจรุ่นพรีเมียม (แจ้งชื่อไว้ก่อน)</button>
+        <button id="fs-done-close" class="py-1.5 text-xs text-slate-400">ปิด</button>
+      </div>
+    </div>
+  </div>
+
   <!-- หน้าต่างตั้งค่า Modal -->
   <div id="modal-settings" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl">
@@ -620,6 +678,7 @@
         clearTimeout(activeTwoHandTimeout); activeTwoHandTimeout = setTimeout(() => $('two-hand-badge').classList.add('hidden'), 1200);
       }
       state.lastTriggerTime = now;
+      if (window.KTFirst) KTFirst.onNote(pitch);
 
       // Lesson Interaction
       if (state.currentView === 'lesson' && state.lesson.currentTarget) {
@@ -1892,7 +1951,206 @@ function initM2() {
   }
   window.KT = { S, parseSong, importText, songToText, summarize, suggestShift, DB };
 }
+
+/* ---- growth: first-song onboarding, install guide, premium waitlist ---- */
+const APP_URL = location.origin + location.pathname;
+const WAITLIST_URL = '';   // premium waitlist form; the button stays hidden while this is empty
+const FIRST_SONG = {
+  notes: ['C4', 'C4', 'G4', 'G4', 'A4', 'A4', 'G4', 'F4', 'F4', 'E4', 'E4', 'D4', 'D4', 'C4'],
+  words: ['ทวิง', 'เคิล', 'ทวิง', 'เคิล', 'ลิต', 'เติล', 'สตาร์', 'ฮาว', 'ไอ', 'วัน', 'เดอร์', 'วอท', 'ยู', 'อาร์']
+};
+const UA = navigator.userAgent;
+const inApp = /\bLine\//i.test(UA) ? 'line' : /FBAN|FBAV|FB_IAB|Instagram|BytedanceWebview|musical_ly|TikTok/i.test(UA) ? 'social' : '';
+const isIOS = /iPhone|iPad|iPod/.test(UA) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isAndroid = /Android/i.test(UA);
+const isStandalone = () => (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+let installPrompt = null;
+
+const First = {
+  idx: 0, running: false, listening: false, misses: 0, t0: 0, timers: [],
+  tineFor(pitch) { return document.querySelector('#kalimba-tines-wrapper [data-pitch="' + pitch + '"]'); },
+  clearGlow() { document.querySelectorAll('#kalimba-tines-wrapper .guide-target').forEach(t => t.classList.remove('guide-target')); },
+  glow() {
+    this.clearGlow();
+    const t = this.tineFor(FIRST_SONG.notes[this.idx]);
+    if (t) t.classList.add('guide-target');
+  },
+  render() {
+    const n = FIRST_SONG.notes, cur = n[this.idx];
+    byId('fs-step').textContent = this.listening ? '🔊 ฟังทำนอง…'
+      : 'โน้ตที่ ' + (this.idx + 1) + '/' + n.length + ' · แตะ ' + pitchToThai(cur) + ' (' + pitchToNumber(cur) + ')';
+    byId('fs-notes').innerHTML = n.map((p, i) => {
+      const cls = i < this.idx ? 'bg-emerald-600/80 text-white' : i === this.idx ? 'bg-amber-400 text-slate-950 ring-2 ring-amber-200' : 'bg-slate-800 text-slate-400';
+      return '<span class="chip shrink-0 text-center rounded px-1 py-0.5 leading-tight ' + cls + '"><b class="block text-[11px]">' + pitchToNumber(p) +
+        '</b><span class="block text-[9px] whitespace-nowrap">' + FIRST_SONG.words[i] + '</span></span>';
+    }).join('');
+    const now = byId('fs-notes').children[this.idx];
+    if (now) now.scrollIntoView({ block: 'nearest', inline: 'center' });
+  },
+  show() {
+    const card = byId('first-song-card');
+    card.classList.toggle('hidden', !!(ls.get('fs.done', false) || ls.get('fs.closed', false)));
+  },
+  start() {
+    unlockAudioUI();
+    if (state.currentView !== 'play') switchView('play');
+    Object.assign(this, { idx: 0, running: true, listening: false, misses: 0, t0: Date.now() });
+    byId('fs-intro').classList.add('hidden'); byId('fs-run').classList.remove('hidden');
+    byId('fs-hint').textContent = 'แตะคีย์สีทองที่กำลังกะพริบ ถ้ายังไม่คุ้น กด "ฟังก่อน" ได้';
+    hideBanner();
+    this.render(); this.glow();
+  },
+  stop() {
+    this.running = false; this.listening = false;
+    this.timers.forEach(clearTimeout); this.timers = [];
+    this.clearGlow();
+    byId('fs-run').classList.add('hidden'); byId('fs-intro').classList.remove('hidden');
+  },
+  listen() {
+    if (!this.running || this.listening) return;
+    unlockAudioUI();
+    this.listening = true; this.clearGlow(); this.render();
+    const n = FIRST_SONG.notes, gap = 520;
+    n.forEach((p, i) => this.timers.push(setTimeout(() => {
+      audio.playPitch(p);
+      const t = this.tineFor(p);
+      if (t) { t.classList.add('active'); setTimeout(() => t.classList.remove('active'), 260); }
+    }, i * gap + (i >= 7 ? gap : 0))));
+    this.timers.push(setTimeout(() => {
+      this.listening = false; this.timers = [];
+      if (this.running) { this.render(); this.glow(); }
+    }, n.length * gap + gap + 300));
+  },
+  onNote(pitch) {
+    if (!this.running || this.listening || state.currentView !== 'play') return;
+    const want = FIRST_SONG.notes[this.idx];
+    if (pitch !== want) {
+      this.misses++;
+      byId('fs-hint').innerHTML = '<span class="text-amber-300">ยังไม่ใช่ ลองแตะคีย์สีทอง (' + pitchToThai(want) + ' / ' + pitchToNumber(want) + ')</span>';
+      return;
+    }
+    this.idx++;
+    byId('fs-hint').innerHTML = '<span class="text-emerald-300">ถูกต้อง ✨</span>';
+    if (this.idx >= FIRST_SONG.notes.length) { this.finish(); return; }
+    this.render(); this.glow();
+  },
+  finish() {
+    const secs = Math.max(1, Math.round((Date.now() - this.t0) / 1000));
+    this.stop();
+    ls.set('fs.done', true);
+    this.show();
+    const time = secs >= 60 ? Math.floor(secs / 60) + ' นาที ' + (secs % 60) + ' วินาที' : secs + ' วินาที';
+    byId('fs-done-text').textContent = 'ใช้เวลา ' + time + (this.misses ? ' · พลาด ' + this.misses + ' ครั้ง' : ' · ไม่พลาดเลย!') + ' ลองฝึกตามจังหวะต่อเพื่อให้คล่องขึ้น';
+    byId('fs-done-install').classList.toggle('hidden', isStandalone());
+    byId('fs-done-premium').classList.toggle('hidden', !WAITLIST_URL);
+    byId('modal-firstsong-done').classList.remove('hidden');
+  }
+};
+
+async function shareApp() {
+  const data = { title: 'ครูฝึกคาลิมบา', text: 'ฝึกคาลิมบาฟรี เล่นเพลงแรกได้ใน 5 นาที 🎵', url: APP_URL };
+  if (navigator.share) {
+    try { await navigator.share(data); return; } catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  copyLink();
+}
+function copyLink() {
+  const done = () => toast('คัดลอกลิงก์แล้ว ส่งให้เพื่อนได้เลย');
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(APP_URL).then(done, () => toast(APP_URL, 5000));
+  else toast(APP_URL, 5000);
+}
+function openExternal() {
+  location.href = APP_URL + '?openExternalBrowser=1';   // LINE opens this in Safari / Chrome
+}
+
+function stepList(items) {
+  return '<ol class="space-y-2">' + items.map((s, i) =>
+    '<li class="flex gap-2 items-start"><span class="w-5 h-5 shrink-0 rounded-full bg-amber-500 text-slate-950 text-[11px] font-bold flex items-center justify-center">' + (i + 1) +
+    '</span><span>' + s + '</span></li>').join('') + '</ol>';
+}
+function actionBtn(label, primary, fn) {
+  const b = el('button', primary ? 'py-2.5 rounded-xl bg-amber-500 text-slate-950 font-bold' : 'py-2 rounded-xl bg-slate-800 text-slate-100 border border-slate-700');
+  b.textContent = label; b.onclick = fn;
+  return b;
+}
+function openInstall() {
+  const steps = byId('install-steps'), acts = byId('install-actions');
+  acts.innerHTML = '';
+  if (isStandalone()) {
+    steps.innerHTML = '<p>✅ ติดตั้งแล้ว เปิดจากหน้าจอโฮมได้เลย</p>';
+  } else if (inApp === 'line') {
+    steps.innerHTML = '<p class="text-amber-200">ตอนนี้เปิดอยู่ในแอป LINE ซึ่งติดตั้งไม่ได้ และเพลงที่บันทึกอาจหาย</p>' +
+      stepList(['กดปุ่มด้านล่างเพื่อเปิดใน ' + (isIOS ? 'Safari' : 'Chrome'), 'แล้วกดปุ่ม "📲 ติดตั้ง" อีกครั้ง']);
+    acts.appendChild(actionBtn('เปิดในเบราว์เซอร์', true, openExternal));
+  } else if (inApp) {
+    steps.innerHTML = '<p class="text-amber-200">ตอนนี้เปิดอยู่ในแอปโซเชียล ซึ่งติดตั้งไม่ได้ และเพลงที่บันทึกอาจหาย</p>' +
+      stepList(['กด ••• หรือ ⋮ ที่มุมจอ', 'เลือก "เปิดในเบราว์เซอร์" (หรือ "เปิดใน Safari/Chrome")', 'แล้วกดปุ่ม "📲 ติดตั้ง" อีกครั้ง']);
+    acts.appendChild(actionBtn('คัดลอกลิงก์ไปเปิดเอง', false, copyLink));
+  } else if (isIOS) {
+    steps.innerHTML = stepList([
+      'กดปุ่ม <b>แชร์</b> <span class="inline-block px-1 rounded bg-slate-700">⬆️</span> (ถ้าไม่เห็น ให้กด <b>•••</b> ก่อน)',
+      'เลื่อนลงแล้วเลือก <b>"เพิ่มไปยังหน้าจอโฮม"</b>',
+      'กด <b>"เพิ่ม"</b> มุมขวาบน แล้วเปิดแอปจากไอคอนบนหน้าจอโฮม'
+    ]);
+  } else if (installPrompt) {
+    steps.innerHTML = '<p>กดปุ่มด้านล่าง แล้วเลือก "ติดตั้ง"</p>';
+    acts.appendChild(actionBtn('ติดตั้งเลย', true, async () => {
+      const ev = installPrompt; installPrompt = null;
+      ev.prompt();
+      try { await ev.userChoice; } catch (e) { /* prompt dismissed */ }
+      byId('modal-install').classList.add('hidden');
+      updateInstallUI();
+    }));
+  } else if (isAndroid) {
+    steps.innerHTML = stepList(['กด <b>⋮</b> มุมขวาบนของ Chrome', 'เลือก <b>"ติดตั้งแอป"</b> หรือ <b>"เพิ่มลงในหน้าจอหลัก"</b>', 'กด <b>"ติดตั้ง"</b>']);
+  } else {
+    steps.innerHTML = '<p>ใช้บนมือถือจะสะดวกที่สุด เปิดลิงก์นี้บนมือถือ แล้วกด "📲 ติดตั้ง"</p>';
+    acts.appendChild(actionBtn('คัดลอกลิงก์', false, copyLink));
+  }
+  acts.appendChild(actionBtn('📤 ชวนเพื่อนมาลอง', false, shareApp));
+  hideBanner();
+  byId('modal-install').classList.remove('hidden');
+}
+function hideBanner() { byId('install-banner').classList.add('hidden'); }
+function updateInstallUI() {
+  const can = !isStandalone() && (isIOS || isAndroid || !!inApp || !!installPrompt);
+  byId('btn-install').classList.toggle('hidden', !can);
+  return can;
+}
+function maybeBanner(visits) {
+  if (!updateInstallUI() || ls.get('install.dismissed', false) || First.running) return;
+  if (!inApp && visits < 2) return;
+  byId('install-banner-text').textContent = inApp
+    ? 'เปิดผ่าน' + (inApp === 'line' ? ' LINE' : 'แอปโซเชียล') + 'อยู่ เปิดในเบราว์เซอร์เพื่อติดตั้งและบันทึกเพลงได้'
+    : 'ติดตั้งเป็นแอปบนหน้าจอโฮม เปิดเร็ว ใช้ออฟไลน์ได้';
+  byId('install-banner-go').textContent = inApp === 'line' ? 'เปิดเลย' : 'ติดตั้ง';
+  byId('install-banner').classList.remove('hidden');
+}
+
+function initGrowth() {
+  const visits = ls.get('visits', 0) + 1;
+  ls.set('visits', visits);
+  byId('fs-start').onclick = () => First.start();
+  byId('fs-close').onclick = () => { ls.set('fs.closed', true); First.show(); };
+  byId('fs-stop').onclick = () => First.stop();
+  byId('fs-listen').onclick = () => First.listen();
+  byId('fs-done-practice').onclick = () => { byId('modal-firstsong-done').classList.add('hidden'); practiceWith('s1'); };
+  byId('fs-done-share').onclick = shareApp;
+  byId('fs-done-install').onclick = () => { byId('modal-firstsong-done').classList.add('hidden'); openInstall(); };
+  byId('fs-done-premium').onclick = () => { if (WAITLIST_URL) window.open(WAITLIST_URL, '_blank', 'noopener'); };
+  byId('fs-done-close').onclick = () => byId('modal-firstsong-done').classList.add('hidden');
+  byId('btn-install').onclick = openInstall;
+  byId('modal-install-close').onclick = () => byId('modal-install').classList.add('hidden');
+  byId('install-banner-go').onclick = () => (inApp === 'line' ? openExternal() : openInstall());
+  byId('install-banner-close').onclick = () => { ls.set('install.dismissed', true); hideBanner(); };
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installPrompt = e; updateInstallUI(); });
+  window.addEventListener('appinstalled', () => { installPrompt = null; hideBanner(); updateInstallUI(); toast('ติดตั้งแล้ว 🎉 เปิดจากหน้าจอโฮมได้เลย', 3000); });
+  window.KTFirst = First;
+  First.show();
+  setTimeout(() => maybeBanner(visits), 1500);
+}
 initM2();
+initGrowth();
 
     })();
   </script>
