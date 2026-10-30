@@ -267,6 +267,16 @@
         </div>
         <button id="btn-premium" class="px-3 py-1.5 rounded-lg bg-emerald-500 text-slate-950 font-bold shrink-0">ลงชื่อรอ</button>
       </div>
+      <input id="lib-search" type="search" enterkeyhint="search" placeholder="🔎 ค้นหาเพลง เช่น jingle, วันเกิด, ดาว"
+        class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-100">
+      <div id="lib-noresult" class="hidden bg-slate-900 border border-amber-600/50 rounded-xl p-3 text-xs space-y-2">
+        <div class="text-amber-200">ไม่พบ "<span id="lib-q"></span>" ในคลัง · หาไฟล์ MIDI ของเพลงนี้แล้วนำเข้าเองได้</div>
+        <div class="flex flex-wrap gap-1.5">
+          <button id="btn-q-google" class="px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold">🔎 หาไฟล์ MIDI ใน Google</button>
+          <button id="btn-q-guide" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 border border-slate-700">📖 วิธีโหลด + นำเข้า</button>
+          <button id="btn-q-request" class="px-3 py-1.5 rounded-lg bg-slate-800 text-emerald-300 border border-slate-700">🙋 ขอเพลงนี้</button>
+        </div>
+      </div>
       <div id="lib-list" class="space-y-2"></div>
       <div id="lib-empty" class="hidden text-center text-slate-400 text-xs py-8 leading-relaxed bg-slate-900 border border-slate-800 rounded-2xl">
         ยังไม่มีเพลงที่บันทึกในเครื่อง<br>กด "เพิ่มเพลง" เพื่อนำเข้าโน้ตแบบ 3 บรรทัด
@@ -277,6 +287,10 @@
         <input id="file-restore" type="file" accept=".json,application/json" class="hidden">
       </div>
       <p class="text-[10px] text-slate-500 leading-relaxed">เพลงเก็บใน IndexedDB ของเครื่องนี้เท่านั้น ถ้าล้างข้อมูลเบราว์เซอร์เพลงจะหาย แนะนำให้สำรองเป็นครั้งคราว</p>
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2">
+        <h3 class="text-[11px] font-bold text-emerald-300 tracking-wider">🎁 คลังเพลงฟรี (เพลงหมดลิขสิทธิ์) · <span id="free-count"></span></h3>
+        <div id="lib-free" class="space-y-2"></div>
+      </div>
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2">
         <h3 class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">เพลงตัวอย่างในแอป (ฝึกอย่างเดียว)</h3>
         <div id="lib-builtin" class="space-y-2"></div>
@@ -289,6 +303,17 @@
         <h2 class="text-sm font-semibold font-heading text-amber-300 flex items-center gap-1.5"><span>➕</span> เพิ่มเพลงของฉัน</h2>
         <button id="btn-import-back" class="text-xs px-2 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700">← คลังเพลง</button>
       </div>
+      <div class="bg-emerald-950/40 border border-emerald-700/50 p-2.5 rounded-xl space-y-1.5 text-xs">
+        <div class="font-semibold text-emerald-300">📂 มีไฟล์ MIDI / คาราโอเกะ (.mid .kar)?</div>
+        <div class="text-[11px] text-slate-300">แอปแปลงเป็นโน้ตคาลิมบาแบบมือใหม่ให้อัตโนมัติ เก็บในเครื่องคุณเท่านั้น ใช้ออฟไลน์ได้</div>
+        <div class="flex flex-wrap gap-1.5 items-center">
+          <button id="btn-midi" class="px-3 py-1.5 rounded-lg bg-emerald-500 text-slate-950 font-bold">📂 เลือกไฟล์</button>
+          <button id="btn-midi-guide" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 border border-slate-700">📖 วิธีหาไฟล์</button>
+          <span id="midi-quota" class="text-[10px] text-slate-400"></span>
+        </div>
+        <input id="file-midi" type="file" class="hidden">
+      </div>
+      <div class="text-[11px] text-slate-500 text-center">— หรือวางโน้ตตัวเลขเอง —</div>
       <label class="block text-xs text-slate-300 font-medium">ชื่อเพลง
         <input id="imp-title" type="text" placeholder="เช่น Yours Ever หรือ ดาวส่องแสง" class="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2 text-slate-100">
       </label>
@@ -451,6 +476,41 @@
         <button id="fs-done-install" class="hidden py-2 rounded-xl bg-slate-800 text-amber-300 border border-slate-700">📲 ติดตั้งเป็นแอปไว้ฝึกทุกวัน</button>
         <button id="fs-done-premium" class="hidden py-2 rounded-xl bg-slate-800 text-emerald-300 border border-emerald-700/60">⭐ สนใจรุ่นพรีเมียม (แจ้งชื่อไว้ก่อน)</button>
         <button id="fs-done-close" class="py-1.5 text-xs text-slate-400">ปิด</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-midi" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl p-4 w-full max-w-sm space-y-3 text-sm max-h-[85vh] overflow-y-auto">
+      <div class="flex items-center justify-between">
+        <h3 id="midi-h" class="font-semibold font-heading text-emerald-300">🎵 เลือกทำนอง</h3>
+        <button id="modal-midi-close" aria-label="ปิด" class="px-2 py-1 text-slate-400">✕</button>
+      </div>
+      <div id="midi-body" class="space-y-2"></div>
+    </div>
+  </div>
+
+  <div id="modal-guide" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl p-4 w-full max-w-sm space-y-3 text-sm max-h-[85vh] overflow-y-auto">
+      <div class="flex items-center justify-between">
+        <h3 class="font-semibold font-heading text-amber-300">📖 วิธีโหลดไฟล์ MIDI มาฝึก</h3>
+        <button id="modal-guide-close" aria-label="ปิด" class="px-2 py-1 text-slate-400">✕</button>
+      </div>
+      <div class="grid grid-cols-2 gap-1 bg-slate-950 p-1 rounded-xl text-xs">
+        <button data-os="ios" class="py-1.5 rounded-lg">📱 iPhone / iPad</button>
+        <button data-os="android" class="py-1.5 rounded-lg">🤖 Android</button>
+      </div>
+      <div id="guide-steps" class="space-y-2 text-[13px] text-slate-200"></div>
+      <div class="bg-red-950/40 border border-red-800/50 rounded-xl p-2.5 text-[11px] text-red-100 space-y-1">
+        <div class="font-semibold">⚠️ ระวังให้ดี</div>
+        <div>• เว็บฟรีมักมีปุ่ม "Download" ปลอมที่เป็นโฆษณา ให้แตะเฉพาะลิงก์ที่ชื่อไฟล์ลงท้าย <b>.mid</b> หรือ <b>.kar</b></div>
+        <div>• ห้ามโหลดไฟล์ .apk .exe .zip .dmg และไม่ต้องติดตั้งแอปใดๆ</div>
+        <div>• ถ้าเด้งไปหน้าอื่นหรือมีป๊อปอัปแปลกๆ ให้ปิดแท็บนั้นทันที</div>
+      </div>
+      <div class="text-[10px] text-slate-400">📌 เพลงที่นำเข้าใช้ฝึกส่วนตัวในเครื่องคุณเท่านั้น แอปไม่ส่งหรือแชร์ไฟล์ไปที่ใด ผู้ใช้รับผิดชอบไฟล์ที่นำเข้าเอง</div>
+      <div class="flex flex-col gap-2">
+        <button id="guide-google" class="py-2.5 rounded-xl bg-amber-500 text-slate-950 font-bold">🔎 หาไฟล์ MIDI ใน Google</button>
+        <button id="guide-pick" class="py-2 rounded-xl bg-emerald-600 text-white font-semibold">📂 มีไฟล์แล้ว — เลือกไฟล์เลย</button>
       </div>
     </div>
   </div>
@@ -1360,6 +1420,299 @@ const SAMPLE2 = [
 
 /* @@PARSER-END */
 
+/* @@MIDI-START  MIDI / karaoke (.mid .midi .kar) → beginner kalimba song. Pure: no DOM, testable in node. */
+const MELODY_NAME_RE = /melody|melodi|vocal|voice|lead|sing|solo|tune|ร้อง|ทำนอง|เมโลดี้|นักร้อง/i;
+
+function decodeText(bytes) {
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(bytes); } catch (e) { /* not UTF-8 */ }
+  try { return new TextDecoder('windows-874').decode(bytes); } catch (e) { /* no Thai codec */ }
+  return String.fromCharCode.apply(null, Array.from(bytes));
+}
+
+function parseMidi(input) {
+  const b = input instanceof Uint8Array ? input : new Uint8Array(input);
+  let p = 0;
+  const tag = at => String.fromCharCode(b[at], b[at + 1], b[at + 2], b[at + 3]);
+  const u32 = () => { const v = ((b[p] << 24) | (b[p + 1] << 16) | (b[p + 2] << 8) | b[p + 3]) >>> 0; p += 4; return v; };
+  const u16 = () => { const v = (b[p] << 8) | b[p + 1]; p += 2; return v; };
+  const vlq = () => { let v = 0, c; do { c = b[p++]; v = (v << 7) | (c & 0x7f); } while (c & 0x80 && p < b.length); return v; };
+
+  if (b.length > 12 && tag(0) === 'RIFF') {            // RMID wrapper
+    for (let i = 12; i < b.length - 4; i++) if (tag(i) === 'MThd') { p = i; break; }
+  }
+  if (b.length < 14 || tag(p) !== 'MThd') throw new Error('ไฟล์นี้ไม่ใช่ไฟล์ MIDI (.mid / .kar)');
+  const hStart = p + 8; p += 4;
+  const hLen = u32(), format = u16(), nTracks = u16(), division = u16();
+  if (division & 0x8000) throw new Error('ไฟล์ MIDI แบบเวลา SMPTE ยังไม่รองรับ');
+  p = hStart + hLen;
+
+  const ppq = division || 480, tracks = [];
+  let tempo = 0, timeSig = null;
+  while (tracks.length < nTracks && p + 8 <= b.length) {
+    const id = tag(p); p += 4;
+    const len = u32(), end = Math.min(p + len, b.length);
+    if (id !== 'MTrk') { p = end; continue; }
+    let tick = 0, run = 0, name = '';
+    const open = new Map(), notes = [], texts = [];
+    while (p < end) {
+      tick += vlq();
+      let st = b[p];
+      if (st & 0x80) { p++; if (st < 0xf0) run = st; } else if (run) st = run; else break;
+      if (st === 0xff) {
+        const type = b[p++], l = vlq(), data = b.subarray(p, p + l); p += l;
+        if (type === 0x2f) break;
+        if (type === 0x03 && !name) name = decodeText(data).trim();
+        else if (type === 0x51 && l === 3 && !tempo) tempo = (data[0] << 16) | (data[1] << 8) | data[2];
+        else if (type === 0x58 && l >= 2 && !timeSig) timeSig = [data[0], 1 << data[1]];
+        else if (type === 0x01 || type === 0x05) texts.push({ tick, type, text: decodeText(data) });
+      } else if (st === 0xf0 || st === 0xf7) {
+        p += vlq();
+      } else {
+        const hi = st & 0xf0, ch = st & 0x0f;
+        if (hi === 0xc0 || hi === 0xd0) { p += 1; continue; }
+        const a1 = b[p], a2 = b[p + 1]; p += 2;
+        const key = ch * 128 + a1;
+        if (hi === 0x90 && a2 > 0) {
+          const o = open.get(key);
+          if (o) notes.push({ ch, midi: a1, start: o.tick, end: tick, vel: o.vel });
+          open.set(key, { tick, vel: a2 });
+        } else if (hi === 0x80 || hi === 0x90) {
+          const o = open.get(key);
+          if (o) { notes.push({ ch, midi: a1, start: o.tick, end: tick, vel: o.vel }); open.delete(key); }
+        }
+      }
+    }
+    open.forEach((o, key) => notes.push({ ch: key >> 7, midi: key & 127, start: o.tick, end: Math.max(tick, o.tick + ppq / 2), vel: o.vel }));
+    p = end;
+    tracks.push({ index: tracks.length, name, notes: notes.filter(n => n.end > n.start), texts });
+  }
+  return { format, ppq, tempo: tempo || 500000, timeSig: timeSig || [4, 4], tracks };
+}
+
+// karaoke lyrics: lyric meta events, or the text events of a .kar "Words" track (lines marked with / or \)
+function midiLyrics(mid) {
+  const all = [];
+  mid.tracks.forEach(t => t.texts.forEach(x => all.push(x)));
+  let title = '';
+  const head = all.filter(x => x.type === 0x01 && /^@T/.test(x.text));
+  if (head.length) title = head[0].text.slice(2).trim();
+  let lyr = all.filter(x => x.type === 0x05);
+  if (lyr.length < 8) {
+    let best = [];
+    mid.tracks.forEach(t => {
+      const tx = t.texts.filter(x => x.type === 0x01 && !/^[@%]/.test(x.text));
+      if (tx.length > best.length) best = tx;
+    });
+    lyr = best.length >= 8 ? best : [];
+  }
+  lyr = lyr.map(x => ({ tick: x.tick, text: x.text.replace(/[\/\\\r\n]/g, ' ').replace(/\s+/g, '') })).filter(x => x.text);
+  lyr.sort((a, b) => a.tick - b.tick);
+  return { title, lyrics: lyr };
+}
+
+function midiVoices(mid, lyrics) {
+  const voices = [], tol = mid.ppq / 8;
+  const lyrTicks = lyrics.map(x => x.tick);
+  mid.tracks.forEach(t => {
+    const byCh = new Map();
+    t.notes.forEach(n => { if (n.ch !== 9) { if (!byCh.has(n.ch)) byCh.set(n.ch, []); byCh.get(n.ch).push(n); } });
+    byCh.forEach((notes, ch) => {
+      if (notes.length < 4) return;
+      notes.sort((a, b) => a.start - b.start || b.midi - a.midi);
+      let poly = 0, sum = 0;
+      notes.forEach((n, i) => { sum += n.midi; if (i && n.start < notes[i - 1].end - tol) poly++; });
+      let hit = 0, j = 0;
+      lyrTicks.forEach(lt => {
+        while (j < notes.length && notes[j].start < lt - tol) j++;
+        if (j < notes.length && Math.abs(notes[j].start - lt) <= tol) hit++;
+      });
+      const mean = sum / notes.length, mono = 1 - poly / notes.length;
+      const named = MELODY_NAME_RE.test(t.name);
+      const score = (named ? 3 : 0) + (lyrTicks.length ? 4 * hit / lyrTicks.length : 0) + 2 * mono +
+        (mean >= 55 && mean <= 84 ? 1 : 0) + Math.min(notes.length, 300) / 300;
+      voices.push({ id: t.index * 16 + ch, track: t.index, ch, name: t.name || ('แทร็ก ' + (t.index + 1)) + ' · ช่อง ' + (ch + 1),
+        notes, count: notes.length, mean, mono, lyricHit: lyrTicks.length ? hit / lyrTicks.length : 0, score });
+    });
+  });
+  voices.sort((a, b) => b.score - a.score);
+  return voices;
+}
+
+const TOK_BY_PC = { 0: '1', 2: '2', 4: '3', 5: '4', 7: '5', 9: '6', 10: 'b7', 11: '7' };
+function midiTok(m) {
+  const oct = Math.floor((m - 60) / 12), pc = ((m % 12) + 12) % 12;
+  return TOK_BY_PC[pc] + (oct > 0 ? "'".repeat(oct) : ','.repeat(-oct));
+}
+
+// best whole-song transposition onto the 13 keys: most notes playable as-is, then fewest that need
+// an octave fold, then the smallest move
+function bestShift(notes, tuning) {
+  const keys = keySet(tuning), pcs = new Set(Array.from(keys).map(m => m % 12));
+  let best = { shift: 0, score: -1 };
+  for (let s = -36; s <= 36; s++) {
+    let sc = 0;
+    notes.forEach(n => {
+      const m = n.midi + s, w = n.len || 1;
+      if (keys.has(m)) sc += 2 * w - (m === 70 || m === 71 ? 0.01 : 0);   // tie-break: avoid the tunable B/Bb key
+      else if (pcs.has(((m % 12) + 12) % 12)) sc += w;
+    });
+    if (sc > best.score || (sc === best.score && Math.abs(s) < Math.abs(best.shift))) best = { shift: s, score: sc };
+  }
+  return best.shift;
+}
+
+function fitNote(m, tuning) {
+  const keys = keySet(tuning);
+  if (keys.has(m)) return { midi: m, how: '' };
+  const pc = ((m % 12) + 12) % 12;
+  if (Array.from(keys).some(k => k % 12 === pc)) {
+    let f = m;
+    while (f < KEY_MIN) f += 12;
+    while (f > KEY_MAX) f -= 12;
+    if (keys.has(f)) return { midi: f, how: 'fold' };
+  }
+  let near = null;
+  Array.from(keys).forEach(k => { if (near === null || Math.abs(k - m) < Math.abs(near - m) || (Math.abs(k - m) === Math.abs(near - m) && k < near)) near = k; });
+  return { midi: near, how: Math.abs(near - m) <= 2 ? 'snap' : 'fold' };
+}
+
+// notes: [{midi, start, end, lyric?}] in ticks (ppq per beat). Returns a song in the importText shape.
+function notesToSong(raw, opt) {
+  const ppq = opt.ppq, unit = ppq / 2, tuning = opt.tuning || 'Bb4';
+  const beats = Math.max(1, Math.min(12, opt.beats || 4)), perBar = beats * 2;
+  // one note at a time: highest note wins at the same onset (skyline), later onsets cut the previous one
+  const src = raw.slice().sort((a, b) => a.start - b.start || b.midi - a.midi);
+  const q = [];
+  let dropped = 0;
+  src.forEach(n => {
+    const s = Math.round(n.start / unit);
+    let e = Math.max(s + 1, Math.round(n.end / unit));
+    const prev = q[q.length - 1];
+    if (prev && s <= prev.s) {
+      if (s === prev.s) { if (n.lyric && !prev.lyric) prev.lyric = n.lyric; dropped++; return; }
+    }
+    if (prev && prev.e > s) prev.e = s;
+    q.push({ s, e, midi: n.midi, lyric: n.lyric || '' });
+  });
+  if (!q.length) return { song: { title: opt.title || '', tempo: opt.tempo || 90, beats, octaveShift: 0, measures: [] }, report: { notes: 0 } };
+  q.forEach(n => { n.len = n.e - n.s; });
+
+  const shift = opt.shift != null ? opt.shift : bestShift(q, tuning);
+  let folded = 0, snapped = 0;
+  q.forEach(n => {
+    const f = fitNote(n.midi + shift, tuning);
+    if (f.how === 'fold') folded++; else if (f.how === 'snap') snapped++;
+    n.out = f.midi;
+  });
+
+  const firstBar = Math.floor(q[0].s / perBar), off = firstBar * perBar;
+  const total = Math.ceil((q[q.length - 1].e - off) / perBar) * perBar;
+  const grid = new Array(total).fill('0'), lyrAt = new Map();
+  q.forEach(n => {
+    const s = n.s - off;
+    grid[s] = midiTok(n.out);
+    for (let k = s + 1; k < n.e - off; k++) grid[k] = '-';
+    lyrAt.set(s, n.lyric);
+  });
+  const measures = [];
+  let anyLyric = false;
+  for (let bar = 0; bar * perBar < total; bar++) {
+    const slots = [], lyr = [];
+    for (let bt = 0; bt < beats; bt++) {
+      const i = bar * perBar + bt * 2, a = grid[i], c = grid[i + 1];
+      slots.push(c === '-' ? a : a === '0' && c === '0' ? '0' : a + '_' + c);
+      [i, i + 1].forEach(k => { if (lyrAt.has(k)) { const t = lyrAt.get(k); lyr.push(t || '~'); if (t) anyLyric = true; } });
+    }
+    measures.push({ mel: slots.join(' '), lyr: lyr.some(t => t !== '~') ? lyr.join(' ') : '', chd: '', br: bar % 4 === 0 });
+  }
+  const tempo = Math.max(40, Math.min(200, Math.round(opt.tempo || 90)));
+  const secs = (total / 2) * 60 / tempo, nps = q.length / Math.max(1, secs);
+  let level = nps < 1.6 ? 1 : nps < 2.6 ? 2 : 3;
+  if (snapped / q.length > 0.08 && level < 3) level++;
+  return {
+    song: { title: opt.title || '', tempo, beats, octaveShift: 0, measures },
+    report: { notes: q.length, shift, folded, snapped, dropped, level, lyrics: anyLyric }
+  };
+}
+
+function midiToSong(input, opt) {
+  opt = opt || {};
+  const mid = parseMidi(input), kar = midiLyrics(mid), voices = midiVoices(mid, kar.lyrics);
+  if (!voices.length) throw new Error('ไม่พบทำนองในไฟล์นี้ (มีแต่กลองหรือไม่มีโน้ต)');
+  const v = voices.find(x => x.id === opt.voice) || voices[0];
+  const tol = mid.ppq / 8, notes = v.notes.map(n => ({ midi: n.midi, start: n.start, end: n.end, lyric: '' }));
+  if (kar.lyrics.length && v.lyricHit > 0.3) {
+    // each syllable goes to the note it starts on (or the last note before it)
+    let j = 0;
+    kar.lyrics.forEach(l => {
+      while (j + 1 < notes.length && notes[j + 1].start <= l.tick + tol) j++;
+      if (notes[j] && notes[j].start <= l.tick + tol) notes[j].lyric += l.text;
+    });
+  }
+  const ts = mid.timeSig, beats = Math.max(1, Math.round(ts[0] * 4 / ts[1]));
+  const title = (opt.title || kar.title || (mid.tracks[0] && mid.tracks[0].name) || '').trim();
+  const r = notesToSong(notes, { ppq: mid.ppq, beats, tempo: 60000000 / mid.tempo, tuning: opt.tuning, title });
+  r.report.voice = v.name;
+  r.karTitle = kar.title;
+  r.voices = voices.slice(0, 6).map(x => ({ id: x.id, name: x.name, count: x.count, lyricHit: x.lyricHit, score: x.score }));
+  return r;
+}
+
+// a catalog / typed song re-fitted onto the current tuning with the same rules as MIDI imports
+function refitSong(song, tuning) {
+  const parsed = parseSong(song, 'B4'), ppq = 480, notes = [];
+  parsed.measures.forEach(pm => pm.notes.forEach(n => notes.push({
+    midi: n.midi, start: Math.round((pm.start + n.beat) * ppq), end: Math.round((pm.start + n.beat + n.dur) * ppq), lyric: n.lyric
+  })));
+  return notesToSong(notes, { ppq, beats: song.beats, tempo: song.tempo, tuning, title: song.title });
+}
+
+// free song catalog: public-domain melodies written out by us (no third-party arrangement)
+const FREE_SONGS = [
+  { id: 'free-twinkle', title: 'ดาวส่องแสง (Twinkle Twinkle Little Star)', tags: 'twinkle star ดาว', origin: 'เพลงพื้นบ้านฝรั่งเศส ศตวรรษที่ 18', tempo: 90, beats: 4,
+    mel: ['1 1 5 5 | 6 6 5 - | 4 4 3 3 | 2 2 1 -', '5 5 4 4 | 3 3 2 - | 5 5 4 4 | 3 3 2 -', '1 1 5 5 | 6 6 5 - | 4 4 3 3 | 2 2 1 -'] },
+  { id: 'free-hotcross', title: 'Hot Cross Buns', tags: 'hot cross buns ง่าย', origin: 'เพลงพื้นบ้านอังกฤษ', tempo: 90, beats: 4,
+    mel: ['3 2 1 - | 3 2 1 - | 1_1 1_1 2_2 2_2 | 3 2 1 -'] },
+  { id: 'free-mary', title: 'Mary Had a Little Lamb', tags: 'mary lamb แมรี่ แกะ', origin: 'เพลงพื้นบ้านอเมริกัน ค.ศ. 1830', tempo: 100, beats: 4,
+    mel: ['3 2 1 2 | 3 3 3 - | 2 2 2 - | 3 5 5 -', '3 2 1 2 | 3 3 3 3 | 2 2 3 2 | 1 - - -'] },
+  { id: 'free-lightly', title: 'Lightly Row (Hänschen klein)', tags: 'lightly row hanschen', origin: 'เพลงพื้นบ้านเยอรมัน', tempo: 100, beats: 4,
+    mel: ['5 3 3 - | 4 2 2 - | 1 2 3 4 | 5 5 5 -', '5 3 3 - | 4 2 2 - | 1 3 5 5 | 1 - - -',
+      '2 2 2 2 | 2 3 4 - | 3 3 3 3 | 3 4 5 -', '5 3 3 - | 4 2 2 - | 1 3 5 5 | 1 - - -'] },
+  { id: 'free-clair', title: 'Au Clair de la Lune (แสงจันทร์)', tags: 'au clair de la lune moon จันทร์', origin: 'เพลงพื้นบ้านฝรั่งเศส ศตวรรษที่ 18', tempo: 96, beats: 4,
+    mel: ['1 1 1 2 | 3 - 2 - | 1 3 2 2 | 1 - - -', '1 1 1 2 | 3 - 2 - | 1 3 2 2 | 1 - - -',
+      '2 2 2 2 | 6, - 6, - | 2 1 7, 6, | 5, - - -', '1 1 1 2 | 3 - 2 - | 1 3 2 2 | 1 - - -'] },
+  { id: 'free-london', title: 'London Bridge Is Falling Down', tags: 'london bridge สะพานลอนดอน', origin: 'เพลงพื้นบ้านอังกฤษ', tempo: 100, beats: 4,
+    mel: ['5 -_6 5 4 | 3 4 5 - | 2 3 4 - | 3 4 5 -', '5 -_6 5 4 | 3 4 5 - | 2 - 5 - | 3 1 - -'] },
+  { id: 'free-frere', title: 'Frère Jacques (Are You Sleeping)', tags: 'frere jacques brother john are you sleeping', origin: 'เพลงพื้นบ้านฝรั่งเศส', tempo: 100, beats: 4,
+    mel: ['1 2 3 1 | 1 2 3 1 | 3 4 5 - | 3 4 5 -', '5_6 5_4 3 1 | 5_6 5_4 3 1 | 1 5, 1 - | 1 5, 1 -'] },
+  { id: 'free-row', title: 'Row, Row, Row Your Boat', tags: 'row your boat เรือ', origin: 'เพลงพื้นบ้านอเมริกัน ค.ศ. 1852', tempo: 100, beats: 3,
+    mel: ['1 -_1 - | 1 2_3 - | 3 2_3 -_4 | 5 - -', "1'_1' 1'_5 5_5 | 3_3 3_1 1_1 | 5 4_3 -_2 | 1 - -"] },
+  { id: 'free-ode', title: 'Ode to Joy (Beethoven)', tags: 'ode to joy beethoven เบโธเฟน', origin: 'เบโธเฟน (เสียชีวิต ค.ศ. 1827)', tempo: 100, beats: 4,
+    mel: ['3 3 4 5 | 5 4 3 2 | 1 1 2 3 | 3 -_2 2 -', '3 3 4 5 | 5 4 3 2 | 1 1 2 3 | 2 -_1 1 -',
+      '2 2 3 1 | 2 3_4 3 1 | 2 3_4 3 2 | 1 2 5, -', '3 3 4 5 | 5 4 3 2 | 1 1 2 3 | 2 -_1 1 -'] },
+  { id: 'free-jingle', title: 'Jingle Bells (ท่อนฮุก)', tags: 'jingle bells christmas คริสต์มาส', origin: 'James Lord Pierpont (เสียชีวิต ค.ศ. 1893)', tempo: 110, beats: 4,
+    mel: ['3 3 3 - | 3 3 3 - | 3 5 1 -_2 | 3 - - -', '4 4 4 -_4 | 4 3 3 3_3 | 3 2 2 3 | 2 - 5 -',
+      '3 3 3 - | 3 3 3 - | 3 5 1 -_2 | 3 - - -', '4 4 4 4 | 4 3 3 3_3 | 5 5 4 2 | 1 - - -'] },
+  { id: 'free-birthday', title: 'Happy Birthday (สุขสันต์วันเกิด)', tags: 'happy birthday วันเกิด', origin: 'Mildred & Patty Hill (เสียชีวิต ค.ศ. 1916, 1946)', tempo: 100, beats: 3,
+    mel: ["0 0 5_5 | 6 5 1' | 7 - 5_5 | 6 5 2'", "1' - 5_5 | 5' 3' 1' | 7 6 4'_4' | 3' 1' 2' | 1' - -"] },
+  { id: 'free-wewish', title: 'We Wish You a Merry Christmas', tags: 'we wish you merry christmas คริสต์มาส', origin: 'เพลงพื้นบ้านอังกฤษ', tempo: 110, beats: 3,
+    mel: ['0 0 5, | 1 1_2 1_7, | 6, 6, 6, | 2 2_3 2_1', '7, 5, 5, | 3 3_4 3_2 | 1 6, 5,_5, | 6, 2 7, | 1 - -'] },
+  { id: 'free-macdonald', title: 'Old MacDonald Had a Farm', tags: 'old macdonald farm ฟาร์ม', origin: 'เพลงพื้นบ้านอเมริกัน', tempo: 110, beats: 4,
+    mel: ['1 1 1 5, | 6, 6, 5, - | 3 3 2 2 | 1 - - 5,', '1 1 1 5, | 6, 6, 5, - | 3 3 2 2 | 1 - - -'] },
+  { id: 'free-yankee', title: 'Yankee Doodle', tags: 'yankee doodle', origin: 'เพลงพื้นบ้านอเมริกัน ศตวรรษที่ 18', tempo: 110, beats: 4,
+    mel: ['1 1 2 3 | 1 3 2 5, | 1 1 2 3 | 1 - 7, -', '1 1 2 3 | 4 3 2 1 | 7, 5, 6, 7, | 1 - 1 -'] }
+];
+
+function freeSongText(f) {
+  return ['@title ' + f.title, '@tempo ' + f.tempo, '@beats ' + f.beats].concat(...f.mel.map(l => ['', l])).join('\n');
+}
+function freeSong(f, tuning) {
+  const r = refitSong(importText(freeSongText(f), {}).song, tuning);
+  r.song.id = f.id;
+  return r;
+}
+/* @@MIDI-END */
+
 /* ====================== M2 app code (import · review · IndexedDB library) ====================== */
 
 const $ = (s, r) => (r || document).querySelector(s);      // NB: shadows the M1 id-helper inside this scope only
@@ -1509,7 +1862,7 @@ function practiceSong(s) {
 }
 function syncPracticeLibrary() {
   const active = state.practice.activeSong;
-  state.library = S.songs.map(practiceSong).concat(BUILTIN);
+  state.library = S.songs.map(practiceSong).concat(freeList().map(x => practiceSong(x.song)), BUILTIN);
   if (active) state.practice.activeSong = state.library.find(x => x.id === active.id) || active;
 }
 function practiceWith(id) {
@@ -1571,6 +1924,8 @@ function renderLibrary() {
     '<div class="p-3 bg-slate-800/80 border border-slate-700 rounded-xl flex items-center justify-between text-xs" data-id="' + esc(b.id) + '">' +
     '<div><h4 class="font-bold text-slate-100">' + esc(b.title) + '</h4><p class="text-[10px] text-slate-400">' + b.notes.length + ' โน้ต • ' + b.bpm + ' BPM</p></div>' +
     '<button data-lib="prac" class="px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold">🎯 ฝึกเพลงนี้</button></div>').join('');
+  renderFree();
+  applyLibSearch();
 }
 
 async function copyText(text) {
@@ -1693,7 +2048,8 @@ function renderReview() {
   sel.value = String(s.beats);
   byId('rv-shift').textContent = (s.octaveShift > 0 ? '+' : '') + (s.octaveShift || 0);
   byId('rv-kp').checked = S.keypad;
-  byId('rv-import-notes').innerHTML = (S.review.notes || []).map(m => '<div class="' + (m.level === 'error' ? 'text-red-300' : 'text-amber-300') + '">' + (m.level === 'error' ? '✖ ' : '⚠ ') + esc(m.msg) + '</div>').join('');
+  byId('rv-import-notes').innerHTML = (S.review.notes || []).map(m => '<div class="' + (m.level === 'error' ? 'text-red-300' : m.level === 'info' ? 'text-emerald-300' : 'text-amber-300') + '">' +
+    (m.level === 'error' ? '✖ ' : m.level === 'info' ? '✓ ' : '⚠ ') + esc(m.msg) + '</div>').join('');
   renderCards();
   setPlayButton(false);
 }
@@ -2160,8 +2516,205 @@ function initGrowth() {
   First.show();
   setTimeout(() => maybeBanner(visits), 1500);
 }
+
+/* ---- free catalog, library search, MIDI / karaoke import ---- */
+const MIDI_FREE_LIMIT = 3;
+const REQUEST_ENTRY = 'entry.593957736';   // "เพลงที่อยากเล่นบนคาลิมบา" on the waitlist form
+let freeCache = null;
+function freeList() {
+  if (!freeCache || freeCache.tuning !== state.tuning13) {
+    freeCache = { tuning: state.tuning13, list: FREE_SONGS.map(f => Object.assign(freeSong(f, state.tuning13), { meta: f })) };
+  }
+  return freeCache.list;
+}
+function renderFree() {
+  const list = freeList();
+  byId('free-count').textContent = list.length + ' เพลง';
+  byId('lib-free').innerHTML = list.map(x =>
+    '<div class="p-2.5 bg-slate-800/80 border border-slate-700 rounded-xl flex items-center gap-2 text-xs" data-id="' + esc(x.song.id) + '" data-tags="' + esc(x.meta.tags.toLowerCase()) + '">' +
+    '<div class="flex-1 min-w-0"><h4 class="font-bold text-slate-100 truncate">' + esc(x.meta.title) + '</h4>' +
+    '<p class="text-[10px] text-slate-400 truncate">' + '★'.repeat(x.report.level) + ' · ' + esc(x.meta.origin) + '</p></div>' +
+    '<button data-lib="fplay" aria-label="ฟังและดูโน้ต" class="px-2.5 py-1.5 rounded-lg bg-slate-700 text-slate-200">▶</button>' +
+    '<button data-lib="prac" class="px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold">🎯 ฝึก</button></div>').join('');
+}
+function libQuery() { return (byId('lib-search').value || '').trim(); }
+function applyLibSearch() {
+  const q = libQuery().toLowerCase();
+  let shown = 0;
+  $$('#lib-list [data-id], #lib-free [data-id], #lib-builtin [data-id]').forEach(r => {
+    const ok = !q || r.textContent.toLowerCase().includes(q) || (r.dataset.tags || '').includes(q);
+    r.classList.toggle('hidden', !ok);
+    if (ok) shown++;
+  });
+  byId('lib-noresult').classList.toggle('hidden', !q || shown > 0);
+  byId('lib-q').textContent = libQuery();
+  if (q) byId('lib-empty').classList.add('hidden');
+}
+function googleMidi(q) {
+  window.open('https://www.google.com/search?q=' + encodeURIComponent((q ? q + ' ' : 'kalimba ') + 'midi'), '_blank', 'noopener');
+}
+function requestSong(q) {
+  if (WAITLIST_URL) window.open(WAITLIST_URL + '?usp=pp_url&' + REQUEST_ENTRY + '=' + encodeURIComponent(q), '_blank', 'noopener');
+}
+
+const GUIDE = {
+  ios: [
+    ['🔎', 'ค้นหา', 'กด <b>"หาไฟล์ MIDI ใน Google"</b> ในแอป หรือเปิด Safari พิมพ์ <b>ชื่อเพลง midi</b> (เพลงไทยลอง <b>ชื่อเพลง คาราโอเกะ midi</b>)'],
+    ['🌐', 'เลือกไฟล์ในเว็บ', 'เข้าเว็บที่ขึ้นมา หาลิงก์ที่ชื่อไฟล์ลงท้าย <b>.mid</b> หรือ <b>.kar</b> แล้วแตะ'],
+    ['⬇️', 'ดาวน์โหลด', 'Safari ถามว่าจะดาวน์โหลดไหม กด <b>"ดาวน์โหลด"</b> ไฟล์จะไปอยู่ที่แอป <b>ไฟล์ (Files) → ดาวน์โหลด</b>'],
+    ['🎵', 'กลับมาที่แอปนี้', 'แท็บ <b>➕ เพิ่ม/คลัง</b> → <b>➕ เพิ่มเพลง</b> → <b>📂 เลือกไฟล์</b>'],
+    ['📁', 'เลือกไฟล์', 'แตะ <b>"เรียกดู"</b> → โฟลเดอร์ <b>"ดาวน์โหลด"</b> → แตะไฟล์เพลง'],
+    ['✅', 'พร้อมฝึก', 'กด <b>"ใช้ทำนองที่แนะนำ"</b> → ฟังดู → <b>💾 บันทึก</b> แล้วกด <b>🎯 ฝึก</b> ได้เลย ใช้ออฟไลน์ได้']
+  ],
+  android: [
+    ['🔎', 'ค้นหา', 'กด <b>"หาไฟล์ MIDI ใน Google"</b> ในแอป หรือเปิด Chrome พิมพ์ <b>ชื่อเพลง midi</b> (เพลงไทยลอง <b>ชื่อเพลง คาราโอเกะ midi</b>)'],
+    ['🌐', 'เลือกไฟล์ในเว็บ', 'เข้าเว็บที่ขึ้นมา หาลิงก์ที่ชื่อไฟล์ลงท้าย <b>.mid</b> หรือ <b>.kar</b> แล้วแตะ'],
+    ['⬇️', 'ดาวน์โหลด', 'Chrome ดาวน์โหลดให้ทันที (ถ้าถาม กด <b>"ดาวน์โหลด"</b>) ไฟล์จะอยู่ในโฟลเดอร์ <b>Download</b>'],
+    ['🎵', 'กลับมาที่แอปนี้', 'แท็บ <b>➕ เพิ่ม/คลัง</b> → <b>➕ เพิ่มเพลง</b> → <b>📂 เลือกไฟล์</b>'],
+    ['📁', 'เลือกไฟล์', 'เลือก <b>"ไฟล์ล่าสุด"</b> หรือ <b>"ดาวน์โหลด"</b> → แตะไฟล์เพลง'],
+    ['✅', 'พร้อมฝึก', 'กด <b>"ใช้ทำนองที่แนะนำ"</b> → ฟังดู → <b>💾 บันทึก</b> แล้วกด <b>🎯 ฝึก</b> ได้เลย ใช้ออฟไลน์ได้']
+  ]
+};
+function showGuide(os) {
+  $$('#modal-guide [data-os]').forEach(b => { b.className = 'py-1.5 rounded-lg ' + (b.dataset.os === os ? 'bg-amber-600 text-white' : 'text-slate-400'); });
+  byId('guide-steps').innerHTML = GUIDE[os].map((s, i) =>
+    '<div class="flex gap-2.5 items-start bg-slate-800/70 border border-slate-700 rounded-xl p-2.5">' +
+    '<div class="w-9 h-9 shrink-0 rounded-lg bg-slate-950 flex items-center justify-center text-lg">' + s[0] + '</div>' +
+    '<div><div class="font-semibold text-amber-200 text-xs">ขั้นที่ ' + (i + 1) + ' · ' + s[1] + '</div><div class="text-[12px] leading-relaxed">' + s[2] + '</div></div></div>').join('');
+}
+function openGuide() {
+  showGuide(isAndroid ? 'android' : 'ios');
+  byId('modal-midi').classList.add('hidden');
+  byId('modal-guide').classList.remove('hidden');
+}
+
+const Midi = {
+  pending: null, bus: null,
+  used() { return ls.get('midi.count', 0); },
+  isMember() { return !!ls.get('member', false); },   // turned on by the membership system once it exists
+  refreshQuota() {
+    byId('midi-quota').textContent = this.isMember() ? 'สมาชิก · นำเข้าได้ไม่จำกัด'
+      : 'ฟรีเหลือ ' + Math.max(0, MIDI_FREE_LIMIT - this.used()) + '/' + MIDI_FREE_LIMIT + ' เพลง';
+  },
+  pick() {
+    if (!this.isMember() && this.used() >= MIDI_FREE_LIMIT) { this.showLimit(); return; }
+    byId('modal-guide').classList.add('hidden');
+    const f = byId('file-midi'); f.value = ''; f.click();
+  },
+  async onFile(file) {
+    if (!file) return;
+    if (file.size > 2000000) { this.showError('ไฟล์ใหญ่เกินไป ไฟล์ MIDI ปกติมีขนาดไม่กี่สิบ KB'); return; }
+    let bytes;
+    try { bytes = new Uint8Array(await file.arrayBuffer()); } catch (e) { this.showError('อ่านไฟล์ไม่ได้'); return; }
+    let r;
+    try { r = midiToSong(bytes, { tuning: S.tuning }); } catch (e) { this.showError(e.message); return; }
+    this.pending = { bytes, fileTitle: file.name.replace(/\.(mid|midi|kar|rmi)$/i, '').replace(/[_]+/g, ' ').trim(), r };
+    if (r.voices.length <= 1) this.use(r.voices[0].id); else this.showPicker();
+  },
+  convert(voice) {
+    const p = this.pending, r = midiToSong(p.bytes, { tuning: S.tuning, voice });
+    r.song.title = r.karTitle || p.fileTitle || r.song.title || 'เพลงจากไฟล์ MIDI';
+    return r;
+  },
+  open(title, html) {
+    byId('midi-h').textContent = title;
+    byId('midi-body').innerHTML = html;
+    byId('modal-midi').classList.remove('hidden');
+  },
+  close() { this.stopPreview(); byId('modal-midi').classList.add('hidden'); },
+  showPicker() {
+    const vs = this.pending.r.voices;
+    this.open('🎵 เลือกทำนอง',
+      '<p class="text-xs text-slate-300">ไฟล์นี้มี ' + vs.length + ' แทร็ก แอปเลือกทำนองร้องให้แล้ว ถ้าไม่แน่ใจ กดปุ่มเขียวได้เลย</p>' +
+      '<button data-act="use" data-mv="' + vs[0].id + '" class="w-full py-2.5 rounded-xl bg-emerald-500 text-slate-950 font-bold">✅ ใช้ทำนองที่แนะนำ</button>' +
+      vs.map((v, i) => '<div class="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-xl p-2 text-xs">' +
+        '<div class="flex-1 min-w-0"><div class="font-semibold text-slate-100 truncate">' + (i === 0 ? '⭐ ' : '') + esc(v.name) + '</div>' +
+        '<div class="text-[10px] text-slate-400">' + v.count + ' โน้ต' + (v.lyricHit > 0.3 ? ' · 🎤 ตรงกับเนื้อร้อง' : '') + '</div></div>' +
+        '<button data-act="play" data-mv="' + v.id + '" class="px-2.5 py-1.5 rounded-lg bg-slate-700 text-slate-100">▶ ฟัง</button>' +
+        '<button data-act="use" data-mv="' + v.id + '" class="px-2.5 py-1.5 rounded-lg bg-slate-700 text-emerald-300">ใช้</button></div>').join(''));
+  },
+  preview(voice) {
+    unlockAudioUI();
+    if (!Synth.ensure()) return;
+    this.stopPreview();
+    const r = this.convert(voice), parsed = parseSong(r.song, S.tuning), c = Synth.ctx, spb = 60 / r.song.tempo, t0 = c.currentTime + 0.1;
+    const bus = c.createGain(); bus.connect(Synth.master); this.bus = bus;
+    parsed.measures.forEach(pm => pm.notes.forEach(n => {
+      const t = (pm.start + n.beat) * spb;
+      if (t < 12) Synth.kalimba(bus, n.midi, t0 + t, 0.85);
+    }));
+  },
+  stopPreview() {
+    if (!this.bus) return;
+    const b = this.bus; this.bus = null;
+    b.gain.setTargetAtTime(0, Synth.ctx.currentTime, 0.03);
+    setTimeout(() => { try { b.disconnect(); } catch (e) { /* gone */ } }, 300);
+  },
+  use(voice) {
+    const r = this.convert(voice), rp = r.report;
+    this.close();
+    if (!this.isMember()) ls.set('midi.count', this.used() + 1);
+    this.refreshQuota();
+    const notes = [{ level: 'info', msg: 'แปลงจากไฟล์ MIDI: ทำนอง "' + rp.voice + '" · ' + rp.notes + ' โน้ต · ความยาก ' + '★'.repeat(rp.level) }];
+    if (rp.shift) notes.push({ level: 'info', msg: 'ย้ายคีย์ ' + (rp.shift > 0 ? '+' : '') + rp.shift + ' ครึ่งเสียง ให้ลงคาลิมบา 13 คีย์' });
+    if (rp.dropped) notes.push({ level: 'info', msg: 'ตัดโน้ตซ้อนและโน้ตประดับที่เร็วเกินไป ' + rp.dropped + ' ตัว ให้เล่นง่ายขึ้น' });
+    if (rp.folded) notes.push({ level: 'warn', msg: rp.folded + ' โน้ตถูกย้ายขึ้นหรือลง 1 ออกเทฟ ให้อยู่บนแป้น' });
+    if (rp.snapped) notes.push({ level: 'warn', msg: rp.snapped + ' โน้ตไม่มีบนแป้น จึงปรับไปโน้ตที่ใกล้สุด เสียงอาจต่างจากต้นฉบับเล็กน้อย' });
+    if (rp.lyrics) notes.push({ level: 'info', msg: 'ใส่เนื้อร้องจากไฟล์คาราโอเกะให้แล้ว' });
+    notes.push({ level: 'info', msg: 'กด ▶ ฟัง แล้ว 💾 บันทึก เพื่อเก็บไว้ฝึกแบบออฟไลน์' });
+    openReview(r.song, { from: 'import', isNew: true, notes });
+  },
+  showLimit() {
+    this.open('⭐ นำเข้าฟรีครบ ' + MIDI_FREE_LIMIT + ' เพลงแล้ว',
+      '<p class="text-xs text-slate-300">สมาชิกนำเข้าไฟล์ MIDI ได้ไม่จำกัด รุ่นสมาชิกกำลังจะเปิด ลงชื่อไว้ก่อน เราจะแจ้งเมื่อเปิด</p>' +
+      (WAITLIST_URL ? '<button data-act="waitlist" class="w-full py-2.5 rounded-xl bg-emerald-500 text-slate-950 font-bold">⭐ ลงชื่อรอรุ่นสมาชิก</button>' : '') +
+      '<p class="text-[11px] text-slate-400">ระหว่างนี้ยังฝึกเพลงในคลังเพลงฟรี และวางโน้ตตัวเลขเองได้ไม่จำกัด</p>');
+  },
+  showError(msg) {
+    this.open('😕 แปลงไฟล์นี้ไม่ได้',
+      '<p class="text-xs text-red-200">' + esc(msg) + '</p>' +
+      '<p class="text-[11px] text-slate-300">ไฟล์ต้องเป็น .mid หรือ .kar (ไม่ใช่ .mp3 หรือรูปภาพ) ลองหาไฟล์อื่นของเพลงเดียวกัน</p>' +
+      '<button data-act="guide" class="w-full py-2 rounded-xl bg-slate-800 text-slate-100 border border-slate-700">📖 ดูวิธีหาไฟล์</button>');
+  }
+};
+
+function initMidi() {
+  byId('btn-midi').onclick = () => Midi.pick();
+  byId('file-midi').onchange = e => Midi.onFile(e.target.files && e.target.files[0]);
+  byId('btn-midi-guide').onclick = openGuide;
+  byId('btn-q-guide').onclick = openGuide;
+  byId('btn-q-google').onclick = () => googleMidi(libQuery());
+  byId('btn-q-request').onclick = () => { requestSong(libQuery()); };
+  byId('btn-q-request').classList.toggle('hidden', !WAITLIST_URL);
+  byId('lib-search').addEventListener('input', applyLibSearch);
+  byId('modal-midi-close').onclick = () => Midi.close();
+  byId('modal-guide-close').onclick = () => byId('modal-guide').classList.add('hidden');
+  byId('guide-google').onclick = () => googleMidi(libQuery());
+  byId('guide-pick').onclick = () => Midi.pick();
+  $$('#modal-guide [data-os]').forEach(b => { b.onclick = () => showGuide(b.dataset.os); });
+  byId('midi-body').addEventListener('click', e => {
+    const b = e.target.closest('[data-act]');
+    if (!b) return;
+    const act = b.dataset.act, v = b.dataset.mv != null ? +b.dataset.mv : null;
+    if (act === 'use') Midi.use(v);
+    else if (act === 'play') Midi.preview(v);
+    else if (act === 'waitlist') window.open(WAITLIST_URL, '_blank', 'noopener');
+    else if (act === 'guide') openGuide();
+  });
+  byId('lib-free').addEventListener('click', e => {
+    const b = e.target.closest('[data-lib="fplay"]');
+    if (!b) return;
+    const x = freeList().find(f => f.song.id === b.closest('[data-id]').dataset.id);
+    if (!x) return;
+    const song = JSON.parse(JSON.stringify(x.song));
+    delete song.id;                      // saving it makes the user's own copy
+    openReview(song, { from: 'library', autoplay: true, notes: [{ level: 'info', msg: 'เพลงฟรี: ' + x.meta.origin + ' · กด 💾 บันทึก ถ้าอยากแก้หรือเก็บเป็นเพลงของฉัน' }] });
+  });
+  Midi.refreshQuota();
+}
 initM2();
 initGrowth();
+initMidi();
 
     })();
   </script>
