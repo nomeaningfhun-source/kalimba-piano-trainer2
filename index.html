@@ -259,6 +259,14 @@
         <h2 class="text-sm font-semibold font-heading text-amber-300">📚 เพลงของฉัน</h2>
         <button id="btn-lib-add" class="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold">➕ เพิ่มเพลง</button>
       </div>
+      <div id="premium-card" class="hidden bg-gradient-to-r from-emerald-700/30 to-emerald-500/10 border border-emerald-600/50 rounded-xl p-2.5 text-xs flex items-center gap-2">
+        <span class="text-xl">⭐</span>
+        <div class="flex-1">
+          <div class="font-semibold text-emerald-200">รุ่นพรีเมียมกำลังมา</div>
+          <div class="text-[11px] text-slate-300">เพลงใหม่ทุกเดือน · บทเรียนเป็นขั้น · ตรวจโน้ตผ่านไมค์ · แปลงเพลงที่ชอบเป็นโน้ต · ไม่มีโฆษณา</div>
+        </div>
+        <button id="btn-premium" class="px-3 py-1.5 rounded-lg bg-emerald-500 text-slate-950 font-bold shrink-0">ลงชื่อรอ</button>
+      </div>
       <div id="lib-list" class="space-y-2"></div>
       <div id="lib-empty" class="hidden text-center text-slate-400 text-xs py-8 leading-relaxed bg-slate-900 border border-slate-800 rounded-2xl">
         ยังไม่มีเพลงที่บันทึกในเครื่อง<br>กด "เพิ่มเพลง" เพื่อนำเข้าโน้ตแบบ 3 บรรทัด
@@ -1954,7 +1962,7 @@ function initM2() {
 
 /* ---- growth: first-song onboarding, install guide, premium waitlist ---- */
 const APP_URL = location.origin + location.pathname;
-const WAITLIST_URL = '';   // premium waitlist form; the button stays hidden while this is empty
+const WAITLIST_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSdMIDCW_EaCVFcD43Z4aQ5AXbXHQzc_aQe9iKpz6gVYU9FLvQ/viewform';   // premium waitlist (Google Form); buttons hide while empty
 const FIRST_SONG = {
   notes: ['C4', 'C4', 'G4', 'G4', 'A4', 'A4', 'G4', 'F4', 'F4', 'E4', 'E4', 'D4', 'D4', 'C4'],
   words: ['ทวิง', 'เคิล', 'ทวิง', 'เคิล', 'ลิต', 'เติล', 'สตาร์', 'ฮาว', 'ไอ', 'วัน', 'เดอร์', 'วอท', 'ยู', 'อาร์']
@@ -2137,7 +2145,10 @@ function initGrowth() {
   byId('fs-done-practice').onclick = () => { byId('modal-firstsong-done').classList.add('hidden'); practiceWith('s1'); };
   byId('fs-done-share').onclick = shareApp;
   byId('fs-done-install').onclick = () => { byId('modal-firstsong-done').classList.add('hidden'); openInstall(); };
-  byId('fs-done-premium').onclick = () => { if (WAITLIST_URL) window.open(WAITLIST_URL, '_blank', 'noopener'); };
+  const openWaitlist = () => { if (WAITLIST_URL) window.open(WAITLIST_URL, '_blank', 'noopener'); };
+  byId('fs-done-premium').onclick = openWaitlist;
+  byId('btn-premium').onclick = openWaitlist;
+  byId('premium-card').classList.toggle('hidden', !WAITLIST_URL);
   byId('fs-done-close').onclick = () => byId('modal-firstsong-done').classList.add('hidden');
   byId('btn-install').onclick = openInstall;
   byId('modal-install-close').onclick = () => byId('modal-install').classList.add('hidden');
