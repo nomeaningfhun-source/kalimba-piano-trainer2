@@ -536,6 +536,15 @@
             </label>
           </div>
         </div>
+        <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700 space-y-2">
+          <label for="unlock-code" class="block font-medium text-slate-200">รหัสสมาชิก (นำเข้าไฟล์ MIDI ไม่จำกัด):</label>
+          <div class="flex gap-2">
+            <input id="unlock-code" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="ใส่รหัส"
+              class="flex-1 min-w-0 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-slate-100">
+            <button id="btn-unlock" class="px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-semibold">ปลดล็อก</button>
+          </div>
+          <div id="unlock-status" class="text-[11px] text-slate-400"></div>
+        </div>
       </div>
       <button id="btn-save-settings" class="w-full py-2.5 rounded-xl bg-amber-500 text-slate-950 font-bold">บันทึก</button>
     </div>
@@ -2519,6 +2528,7 @@ function initGrowth() {
 
 /* ---- free catalog, library search, MIDI / karaoke import ---- */
 const MIDI_FREE_LIMIT = 3;
+const MEMBER_CODE_SHA256 = ['eb74418202dbfcb44ceaec6018f8602d2865959293cdce1e657fb2190a283572'];   // SHA-256 of codes that unlock unlimited imports on a device
 const REQUEST_ENTRY = 'entry.593957736';   // "เพลงที่อยากเล่นบนคาลิมบา" on the waitlist form
 let freeCache = null;
 function freeList() {
@@ -2711,6 +2721,31 @@ function initMidi() {
     openReview(song, { from: 'library', autoplay: true, notes: [{ level: 'info', msg: 'เพลงฟรี: ' + x.meta.origin + ' · กด 💾 บันทึก ถ้าอยากแก้หรือเก็บเป็นเพลงของฉัน' }] });
   });
   Midi.refreshQuota();
+  const showUnlock = () => {
+    byId('unlock-status').textContent = Midi.isMember() ? '✅ เครื่องนี้ปลดล็อกแล้ว นำเข้าไฟล์ได้ไม่จำกัด' : 'ยังไม่ได้ปลดล็อก (ฟรี ' + MIDI_FREE_LIMIT + ' เพลง)';
+  };
+  const tryUnlock = async (code, quiet) => {
+    if (!(await isMemberCode(code))) { if (!quiet) toast('รหัสไม่ถูกต้อง'); return false; }
+    ls.set('member', true);
+    Midi.refreshQuota(); showUnlock();
+    toast('ปลดล็อกแล้ว ✓ นำเข้าไฟล์ MIDI ได้ไม่จำกัด', 3000);
+    return true;
+  };
+  byId('btn-unlock').onclick = () => tryUnlock(byId('unlock-code').value.trim()).then(ok => { if (ok) byId('unlock-code').value = ''; });
+  showUnlock();
+  // a link with ?unlock=CODE unlocks the device it is opened on, then drops the code from the address bar
+  const q = new URLSearchParams(location.search), code = q.get('unlock');
+  if (code) {
+    q.delete('unlock');
+    history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : '') + location.hash);
+    tryUnlock(code.trim());
+  }
+}
+async function isMemberCode(code) {
+  if (!code || !(window.crypto && crypto.subtle)) return false;
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(code));
+  const hex = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  return MEMBER_CODE_SHA256.includes(hex);
 }
 initM2();
 initGrowth();
