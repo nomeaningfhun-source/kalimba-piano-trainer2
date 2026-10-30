@@ -10,7 +10,7 @@
   <meta name="apple-mobile-web-app-title" content="ครูฝึกคาลิมบา">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icons/icon-180.png">
-  <title>ครูฝึกคาลิมบา & เปียโน</title>
+  <title>ครูฝึกคาลิมบา</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -24,10 +24,6 @@
     .kalimba-tine { background: linear-gradient(90deg, #cbd5e1 0%, #f8fafc 35%, #94a3b8 70%, #64748b 100%); box-shadow: -1px 2px 5px rgba(0,0,0,0.35); transition: transform 0.05s ease, filter 0.05s ease; transform-origin: top center; }
     .kalimba-tine.active { transform: scaleY(0.97) translateY(2px); filter: brightness(1.25); background: linear-gradient(90deg, #38bdf8 0%, #bae6fd 40%, #0284c7 80%, #0369a1 100%); }
     .kalimba-tine.guide-target { background: linear-gradient(90deg, #f59e0b 0%, #fef08a 40%, #d97706 80%, #b45309 100%) !important; animation: pulse 0.7s infinite alternate; }
-    .piano-white-key { background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 90%, #cbd5e1 100%); box-shadow: 0 4px 4px rgba(0,0,0,0.2); }
-    .piano-white-key.active { background: linear-gradient(180deg, #bae6fd 0%, #7dd3fc 90%, #38bdf8 100%); transform: translateY(2px); }
-    .piano-black-key { background: linear-gradient(180deg, #334155 0%, #1e293b 80%, #0f172a 100%); }
-    .piano-black-key.active { background: linear-gradient(180deg, #0284c7 0%, #0369a1 80%, #075985 100%); transform: translateY(2px); }
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     /* M2: inputs must stay editable under the body's user-select:none (iOS), 16px avoids focus-zoom */
@@ -52,7 +48,7 @@
       <div class="flex items-center gap-2">
         <div class="w-8 h-8 rounded-lg bg-amber-600 flex items-center justify-center shadow-md text-lg">🎵</div>
         <div>
-          <h1 class="text-sm font-semibold font-heading leading-tight text-amber-300">ครูฝึกคาลิมบา & เปียโน</h1>
+          <h1 class="text-sm font-semibold font-heading leading-tight text-amber-300">ครูฝึกคาลิมบา</h1>
           <p class="text-[10px] text-slate-400">ระบบฝึกร่วม (Universal Music Engine) • M2</p>
         </div>
       </div>
@@ -80,7 +76,6 @@
       <div class="bg-slate-900 p-1 rounded-xl border border-slate-800 flex items-center gap-1 text-xs">
         <button id="tab-profile-kalimba13" class="flex-1 py-1.5 px-2 rounded-lg font-medium bg-amber-600 text-white text-center">คาลิมบา 13 คีย์</button>
         <button id="tab-profile-kalimba17" class="flex-1 py-1.5 px-2 rounded-lg font-medium text-slate-400 text-center">คาลิมบา 17 คีย์</button>
-        <button id="tab-profile-piano" class="flex-1 py-1.5 px-2 rounded-lg font-medium text-slate-400 text-center">เปียโน 2 ออคเทฟ</button>
       </div>
       <div class="grid grid-cols-2 gap-2 text-xs">
         <div class="bg-slate-900/80 p-1.5 rounded-lg border border-slate-800 flex items-center justify-between">
@@ -117,7 +112,7 @@
       </div>
     </section>
 
-    <!-- ตัวเครื่องคาลิมบา / เปียโน -->
+    <!-- ตัวเครื่องคาลิมบา -->
     <main class="flex-1 flex flex-col justify-center items-center py-2 w-full overflow-hidden">
       <div id="view-kalimba" class="w-full relative flex flex-col items-center">
         <div class="kalimba-body w-full rounded-3xl p-3 sm:p-5 relative border-4 border-amber-950 flex flex-col items-center">
@@ -135,21 +130,6 @@
             <span>👈 ซ้าย (L)</span>
             <span class="text-amber-400/80 font-medium">รูดนิ้ว (Glissando) ได้</span>
             <span>ขวา (R) 👉</span>
-          </div>
-        </div>
-      </div>
-      <div id="view-piano" class="w-full hidden flex flex-col items-center">
-        <div class="w-full bg-slate-900 rounded-2xl p-3 border border-slate-800 shadow-xl">
-          <div class="flex items-center justify-between mb-2 px-1 text-xs">
-            <span class="text-slate-400">ช่วงเสียงเปียโน:</span>
-            <div class="flex items-center gap-1.5">
-              <button id="btn-piano-octave-down" class="px-2 py-0.5 rounded bg-slate-800 text-slate-200">◀ ต่ำ</button>
-              <span id="piano-octave-display" class="font-mono text-amber-400 px-1">C3 - B4</span>
-              <button id="btn-piano-octave-up" class="px-2 py-0.5 rounded bg-slate-800 text-slate-200">สูง ▶</button>
-            </div>
-          </div>
-          <div class="w-full overflow-x-auto no-scrollbar py-2">
-            <div id="piano-keys-wrapper" class="relative flex justify-center min-w-[340px] h-44 select-none"></div>
           </div>
         </div>
       </div>
@@ -526,7 +506,7 @@
     }
 
     class AudioEngine {
-      constructor() { this.ctx = null; this.isUnlocked = false; this.instrumentType = 'kalimba'; }
+      constructor() { this.ctx = null; this.isUnlocked = false; }
       init() {
         if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
         if (this.ctx.state === 'suspended') this.ctx.resume();
@@ -544,17 +524,6 @@
         }
         kalimbaVoice(this.ctx, this.kBus, freq, this.ctx.currentTime, 0.6);
       }
-      playPiano(freq) {
-        if (!this.ctx) return;
-        const now = this.ctx.currentTime;
-        const osc1 = this.ctx.createOscillator(), osc2 = this.ctx.createOscillator(), g = this.ctx.createGain();
-        osc1.type = 'triangle'; osc1.frequency.setValueAtTime(freq, now);
-        osc2.type = 'sine'; osc2.frequency.setValueAtTime(freq * 2 + 0.4, now);
-        g.gain.setValueAtTime(0, now); g.gain.linearRampToValueAtTime(0.65, now + 0.005);
-        g.gain.exponentialRampToValueAtTime(0.0001, now + 1.9);
-        osc1.connect(g); osc2.connect(g); g.connect(this.ctx.destination);
-        osc1.start(now); osc2.start(now); osc1.stop(now + 1.95); osc2.stop(now + 1.95);
-      }
       playMetronome(isDownbeat = false) {
         if (!this.ctx) return;
         const now = this.ctx.currentTime;
@@ -567,8 +536,7 @@
       playPitch(pitchStr) {
         this.init();
         const freq = midiToFreq(pitchToMidi(pitchStr));
-        if (this.instrumentType === 'piano') this.playPiano(freq);
-        else this.playKalimba(freq);
+        this.playKalimba(freq);
       }
     }
 
@@ -576,7 +544,7 @@
     const $ = id => document.getElementById(id);
     const state = {
       currentView: 'play', currentProfile: 'kalimba13', tuning13: 'Bb4', labelMode: 'both', noteSystem: 'thai',
-      timingToleranceMs: 80, pianoBaseOctave: 4, lastTriggerTime: 0, activeTouches: new Map(),
+      timingToleranceMs: 80, lastTriggerTime: 0, activeTouches: new Map(),
       practice: { activeSong: null, bpm: 80, helpLevel: 1, isRunning: false, timer: null, noteIdx: 0, countIn: 4, correctNotes: 0, streak: 0 },
       lesson: { currentTarget: null, correctCount: 0, missMap: {} },
       inspectingNotes: [],
@@ -635,31 +603,6 @@
           <span class="text-[9px] font-semibold text-slate-700 mt-0.5">${labels.bottom}</span>
         </div>`;
         wrapper.appendChild(tine);
-      });
-    }
-
-    function renderPiano() {
-      const wrapper = $('piano-keys-wrapper'); wrapper.innerHTML = ''; const baseOct = state.pianoBaseOctave;
-      $('piano-octave-display').textContent = `C${baseOct} - B${baseOct + 1}`;
-      const whiteNotes = [], blackNotes = [];
-      for (let oct = baseOct; oct <= baseOct + 1; oct++) {
-        ['C', 'D', 'E', 'F', 'G', 'A', 'B'].forEach(n => whiteNotes.push(`${n}${oct}`));
-        ['C#', 'D#', 'F#', 'G#', 'A#'].forEach(n => blackNotes.push({ pitch: `${n}${oct}`, oct, base: n }));
-      }
-      whiteNotes.forEach(pitch => {
-        const key = document.createElement('div');
-        key.className = 'piano-white-key w-7 sm:w-8 h-40 border-r border-slate-300 rounded-b-md flex flex-col justify-end items-center pb-2 cursor-pointer relative';
-        key.dataset.pitch = pitch; const labels = getNoteLabel(pitch);
-        key.innerHTML = `<div class="pointer-events-none text-center"><span class="text-[10px] font-bold text-slate-800 block">${labels.top}</span><span class="text-[9px] font-medium text-slate-600 block">${labels.bottom}</span></div>`;
-        wrapper.appendChild(key);
-      });
-      const blackOffsets = { 'C#': 18, 'D#': 46, 'F#': 102, 'G#': 130, 'A#': 158 };
-      blackNotes.forEach(item => {
-        const key = document.createElement('div');
-        key.className = 'piano-black-key absolute z-10 w-4 sm:w-5 h-24 rounded-b-sm flex flex-col justify-end items-center pb-1 cursor-pointer';
-        key.dataset.pitch = item.pitch; key.style.left = `${(item.oct - baseOct) * 196 + (blackOffsets[item.base] || 0)}px`;
-        key.innerHTML = `<span class="pointer-events-none text-[8px] font-mono text-slate-300">${pitchToNumber(item.pitch)}</span>`;
-        wrapper.appendChild(key);
       });
     }
 
@@ -727,24 +670,17 @@
       container.addEventListener('mouseover', e => { if (isDown) { const t = e.target.closest('[data-pitch]'); if (t) triggerNotePlay(t); } });
     }
     attachTouch($('kalimba-tines-wrapper'));
-    attachTouch($('piano-keys-wrapper'));
 
     function switchProfile(pid) {
-      state.currentProfile = pid; audio.instrumentType = pid === 'piano' ? 'piano' : 'kalimba';
-      [$('tab-profile-kalimba13'), $('tab-profile-kalimba17'), $('tab-profile-piano')].forEach(t => t.className = 'flex-1 py-1.5 px-2 rounded-lg font-medium text-slate-400 text-center');
-      if (pid === 'piano') {
-        $('tab-profile-piano').className = 'flex-1 py-1.5 px-2 rounded-lg font-medium bg-amber-600 text-white text-center';
-        $('view-kalimba').classList.add('hidden'); $('view-piano').classList.remove('hidden'); renderPiano();
-      } else {
-        $(pid === 'kalimba13' ? 'tab-profile-kalimba13' : 'tab-profile-kalimba17').className = 'flex-1 py-1.5 px-2 rounded-lg font-medium bg-amber-600 text-white text-center';
-        $('view-kalimba').classList.remove('hidden'); $('view-piano').classList.add('hidden'); renderKalimba();
-      }
+      state.currentProfile = pid;
+      [$('tab-profile-kalimba13'), $('tab-profile-kalimba17')].forEach(t => t.className = 'flex-1 py-1.5 px-2 rounded-lg font-medium text-slate-400 text-center');
+      $(pid === 'kalimba13' ? 'tab-profile-kalimba13' : 'tab-profile-kalimba17').className = 'flex-1 py-1.5 px-2 rounded-lg font-medium bg-amber-600 text-white text-center';
+      renderKalimba();
     }
     $('tab-profile-kalimba13').onclick = () => switchProfile('kalimba13');
     $('tab-profile-kalimba17').onclick = () => switchProfile('kalimba17');
-    $('tab-profile-piano').onclick = () => switchProfile('piano');
-    $('select-label-mode').onchange = e => { state.labelMode = e.target.value; state.currentProfile === 'piano' ? renderPiano() : renderKalimba(); };
-    $('select-note-system').onchange = e => { state.noteSystem = e.target.value; state.currentProfile === 'piano' ? renderPiano() : renderKalimba(); };
+    $('select-label-mode').onchange = e => { state.labelMode = e.target.value; renderKalimba(); };
+    $('select-note-system').onchange = e => { state.noteSystem = e.target.value; renderKalimba(); };
     $('btn-toggle-tuning-quick').onclick = () => {
       state.tuning13 = state.tuning13 === 'Bb4' ? 'B4' : 'Bb4';
       $('current-tuning-name').textContent = state.tuning13;
@@ -863,8 +799,6 @@
       if (window.M2) M2.onTuning();
       $('modal-settings').classList.add('hidden');
     };
-    $('btn-piano-octave-down').onclick = () => { if (state.pianoBaseOctave > 2) { state.pianoBaseOctave--; renderPiano(); } };
-    $('btn-piano-octave-up').onclick = () => { if (state.pianoBaseOctave < 5) { state.pianoBaseOctave++; renderPiano(); } };
 
     renderKalimba();
 
