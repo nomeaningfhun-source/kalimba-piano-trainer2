@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Batch-converts MIDI / karaoke files into beginner kalimba songs for the free catalog, using the
-// same converter as the app (the @@PARSER and @@MIDI blocks of index.html).
+// same converter as the app (the @@PARSER and @@MIDI blocks of js/core.js).
 //
 //   node tools/midi2song.js [--tuning Bb4|B4] [--out dir] file1.mid file2.kar ...
 //
@@ -19,8 +19,7 @@ for (let i = 0; i < args.length; i++) {
 }
 if (!files.length) { console.error('usage: node tools/midi2song.js [--tuning Bb4|B4] [--out dir] files...'); process.exit(1); }
 
-const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
-const js = html.split('<script>')[1].split('</script>')[0];
+const js = fs.readFileSync(path.join(__dirname, '..', 'js', 'core.js'), 'utf8');
 const block = name => js.match(new RegExp('/\\* @@' + name + '-START.*?\\*/([\\s\\S]*?)/\\* @@' + name + '-END \\*/'))[1];
 const ctx = { TextDecoder };
 vm.createContext(ctx);

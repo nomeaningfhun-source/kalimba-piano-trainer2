@@ -1,8 +1,11 @@
 // Offline cache: app shell is precached, CDN assets (Tailwind, Google Fonts) are cached on first online visit.
-const CACHE = 'kalimba-trainer-m2-8';
+const CACHE = 'kalimba-trainer-v3-1';
 const SHELL = [
   './',
   './index.html',
+  './css/app.css',
+  './js/core.js',
+  './js/app.js',
   './manifest.webmanifest',
   './icons/icon-180.png',
   './icons/icon-192.png',
