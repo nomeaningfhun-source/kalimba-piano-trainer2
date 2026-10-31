@@ -92,7 +92,7 @@ class AudioEngine {
   constructor() { this.ctx = null; this.isUnlocked = false; }
   init() {
     if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-    if (this.ctx.state === 'suspended') this.ctx.resume();
+    if (this.ctx.state !== 'running') this.ctx.resume().catch(() => {});   // iOS also uses 'interrupted'
     this.isUnlocked = true;
     const silent = document.getElementById('ios-silent-audio');
     if (silent) silent.play().catch(() => {});
@@ -959,6 +959,13 @@ function initM2() {
   window.M2 = { renderLibrary, leaveReview, onTuning };
   loadSongs();
   if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+    // a new version takes over in the background: reload once so the update shows without reopening the app
+    const hadController = !!navigator.serviceWorker.controller;
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadController || reloaded || state.currentView === 'review' || (window.KTFall && KTFall.running)) return;
+      reloaded = true; location.reload();
+    });
     navigator.serviceWorker.register('sw.js').catch(() => { /* offline cache unavailable */ });
   }
   window.KT = { S, parseSong, importText, songToText, summarize, suggestShift, DB };
@@ -1538,6 +1545,8 @@ const Tuner = {
 
 /* ---- song player: falling notes over the kalimba, judged from taps or a real kalimba ---- */
 const HAND_COLOR = { L: '#7FA3D6', R: '#E39A86', C: '#C9A46A' };
+// the player runs on the page clock: iOS can suspend or interrupt the audio clock, which would freeze the notes
+const clock = () => performance.now() / 1000;
 const Fall = {
   src: null, events: [], skipped: 0, tempo: 80, beats: 4, totalBeats: 0, minGap: 1,
   mode: ls.get('fall.mode', 'wait'), speed: ls.get('fall.speed', 1), loop: false,
@@ -1640,7 +1649,7 @@ const Fall = {
     const at = this.pos;
     this.startAt = at; this.pos = at - this.beats; this.clickBeat = Math.floor(this.pos);
     this.running = true; this.t0 = Date.now();
-    this.last = audio.ctx ? audio.ctx.currentTime : performance.now() / 1000;
+    this.last = clock();
     byId('pl-result').classList.add('hidden');
     this.controls(); this.message();
     cancelAnimationFrame(this.raf);
@@ -1661,12 +1670,16 @@ const Fall = {
     if (this.speed > max && max >= 0.3) { this.speed = max; ls.set('fall.speed', this.speed); this.meta(); this.controls(); toast(t('pl.mic.fast'), 3000); }
   },
   frame() {
-    const c = audio.ctx, now = c ? c.currentTime : performance.now() / 1000;
+    const now = clock();
     const dt = Math.min(0.1, Math.max(0, now - this.last));
     this.last = now;
-    if (this.running) this.advance(dt / this.spb, now);
-    this.flashes = this.flashes.filter(f => now - f.t < 0.35);
-    this.draw(now); this.guide(); this.progress();
+    try {
+      if (this.running) this.advance(dt / this.spb, now);
+      this.flashes = this.flashes.filter(f => now - f.t < 0.35);
+      this.draw(now); this.guide(); this.progress();
+    } catch (e) {
+      console.error(e);   // keep the song moving rather than freezing on one bad frame
+    }
     if (this.running || this.flashes.length) this.raf = requestAnimationFrame(() => this.frame());
   },
   advance(db, now) {
@@ -1683,7 +1696,7 @@ const Fall = {
         const e = this.events[this.next++];
         if (e.res) continue;
         e.res = 'demo';
-        if (Synth.ensure()) Synth.kalimba(Synth.master, e.midi, now, 0.85);
+        if (Synth.ensure()) Synth.kalimba(Synth.master, e.midi, Synth.ctx.currentTime, 0.85);
         this.flash(e, '#C9A46A', now);
         const ln = this.lanes[e.pitch];
         if (ln) { ln.el.classList.add('active'); setTimeout(() => ln.el.classList.remove('active'), 160); }
@@ -1711,7 +1724,7 @@ const Fall = {
   onNote(pitch, at) {
     if (!this.running || this.demo || !this.src || this.pos < this.startAt - 0.25) return;
     const c = audio.ctx, ago = at != null && c ? Math.max(0, c.currentTime - at) : 0;
-    const p = this.pos - ago / this.spb, now = c ? c.currentTime : 0;
+    const p = this.pos - ago / this.spb, now = clock();
     if (this.mode === 'wait') {
       const e0 = this.events[this.next];
       if (!e0 || p < e0.beat - 0.75) return;   // too early to count
@@ -1796,7 +1809,7 @@ const Fall = {
     const g = this.g;
     if (!g) return;
     const W = this.W, H = this.H, hitY = H - 4, pxb = this.pxPerBeat();
-    now = now != null ? now : (audio.ctx ? audio.ctx.currentTime : 0);
+    now = now != null ? now : clock();
     g.clearRect(0, 0, W, H);
     // lanes
     Object.values(this.lanes).forEach((ln, i) => { g.fillStyle = i % 2 ? '#131B2A' : '#111827'; g.fillRect(ln.x - ln.w / 2, 0, ln.w, H); });

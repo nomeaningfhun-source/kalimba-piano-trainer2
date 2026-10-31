@@ -122,4 +122,24 @@ t('refit keeps a song that already fits unchanged', () => {
   assert.deepStrictEqual(r.song.measures.map(m => m.mel), f.mel.join(' | ').split(' | '));
 });
 
+t('keeps 16th notes and their rhythm (a Canon-style run)', () => {
+  // quarter, two 8ths, four 16ths, 16th-8th-16th, then a held note
+  const run = [[60, 0, 1], [62, 1, 0.5], [64, 1.5, 0.5], [65, 2, 0.25], [67, 2.25, 0.25], [69, 2.5, 0.25], [67, 2.75, 0.25],
+    [65, 3, 0.25], [64, 3.25, 0.5], [62, 3.75, 0.25], [60, 4, 4]];
+  const f = smf([track([[0, meta(0x51, be(1000000, 3))], ...noteEvents(run)])], 480, 0);
+  const r = P.midiToSong(f, { tuning: 'Bb4' });
+  assert.strictEqual(r.report.dropped, 0);
+  assert.strictEqual(r.song.measures[0].mel, '1 2_3 4_5_6_5 4_3_-_2');
+  const beatsOf = P.parseSong(r.song, 'Bb4').measures[0].notes.map(n => n.beat);
+  assert.deepStrictEqual(beatsOf, [0, 1, 1.5, 2, 2.25, 2.5, 2.75, 3, 3.25, 3.75]);
+});
+
+t('very fast songs keep an 8th-note grid', () => {
+  const run = [[60, 0, 0.25], [62, 0.25, 0.25], [64, 0.5, 0.5], [65, 1, 1]];
+  const f = smf([track([[0, meta(0x51, be(400000, 3))], ...noteEvents(run)])], 480, 0);   // 150 BPM
+  const r = P.midiToSong(f, { tuning: 'Bb4' });
+  assert.strictEqual(r.song.measures[0].mel.split(' ').length, 4);
+  assert.ok(!/_.*_/.test(r.song.measures[0].mel), r.song.measures[0].mel);
+});
+
 console.log(n + ' passed');

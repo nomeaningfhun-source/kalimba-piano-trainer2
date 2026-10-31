@@ -644,10 +644,24 @@ function fitNote(m, tuning) {
   return { midi: near, how: Math.abs(near - m) <= 2 ? 'snap' : 'fold' };
 }
 
+// one beat of grid cells (a note token, '-' = still sounding, '0' = silence) as the shortest token:
+// '5', '5_6' (two 8ths) or '5_6_-_1' (16ths). A kalimba note rings on, so silence after a note in the
+// same beat is written as a hold.
+function beatTok(cells) {
+  const c = cells.slice();
+  for (let k = 1; k < c.length; k++) if (c[k] === '0' && c[k - 1] !== '0') c[k] = '-';
+  if (c.every(x => x === '0')) return '0';
+  if (c.slice(1).every(x => x === '-')) return c[0];
+  if (c.length === 4 && c[1] === '-' && c[3] === '-') return c[0] + '_' + c[2];
+  return c.join('_');
+}
+
 // notes: [{midi, start, end, lyric?}] in ticks (ppq per beat). Returns a song in the importText shape.
 function notesToSong(raw, opt) {
-  const ppq = opt.ppq, unit = ppq / 2, tuning = opt.tuning || 'Bb4';
-  const beats = Math.max(1, Math.min(12, opt.beats || 4)), perBar = beats * 2;
+  const ppq = opt.ppq, tuning = opt.tuning || 'Bb4';
+  // 16th-note grid, or 8ths for very fast songs where 16ths would be unplayable anyway
+  const sub = (opt.tempo || 90) > 130 ? 2 : 4, unit = ppq / sub;
+  const beats = Math.max(1, Math.min(12, opt.beats || 4)), perBar = beats * sub;
   // one note at a time: highest note wins at the same onset (skyline), later onsets cut the previous one
   const src = raw.slice().sort((a, b) => a.start - b.start || b.midi - a.midi);
   const q = [];
@@ -687,14 +701,14 @@ function notesToSong(raw, opt) {
   for (let bar = 0; bar * perBar < total; bar++) {
     const slots = [], lyr = [];
     for (let bt = 0; bt < beats; bt++) {
-      const i = bar * perBar + bt * 2, a = grid[i], c = grid[i + 1];
-      slots.push(c === '-' ? a : a === '0' && c === '0' ? '0' : a + '_' + c);
-      [i, i + 1].forEach(k => { if (lyrAt.has(k)) { const t = lyrAt.get(k); lyr.push(t || '~'); if (t) anyLyric = true; } });
+      const i = bar * perBar + bt * sub, cells = grid.slice(i, i + sub);
+      slots.push(beatTok(cells));
+      cells.forEach((_, k) => { if (lyrAt.has(i + k)) { const t = lyrAt.get(i + k); lyr.push(t || '~'); if (t) anyLyric = true; } });
     }
     measures.push({ mel: slots.join(' '), lyr: lyr.some(t => t !== '~') ? lyr.join(' ') : '', chd: '', br: bar % 4 === 0 });
   }
   const tempo = Math.max(40, Math.min(200, Math.round(opt.tempo || 90)));
-  const secs = (total / 2) * 60 / tempo, nps = q.length / Math.max(1, secs);
+  const secs = (total / sub) * 60 / tempo, nps = q.length / Math.max(1, secs);
   let level = nps < 1.6 ? 1 : nps < 2.6 ? 2 : 3;
   if (snapped / q.length > 0.08 && level < 3) level++;
   return {
