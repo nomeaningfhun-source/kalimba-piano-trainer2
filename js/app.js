@@ -128,8 +128,7 @@ const $ = id => document.getElementById(id);
 const state = {
   currentView: 'play', currentProfile: 'kalimba13', tuning13: 'Bb4', labelMode: 'both', noteSystem: 'thai',
   timingToleranceMs: 80, lastTriggerTime: 0, activeTouches: new Map(),
-  practice: { activeSong: null, bpm: 80, helpLevel: 1, isRunning: false, timer: null, noteIdx: 0, countIn: 4, correctNotes: 0, streak: 0 },
-  lesson: { currentTarget: null, correctCount: 0, missMap: {} },
+  lesson: { currentTarget: null, correctCount: 0, missMap: {}, timer: 0 },
   inspectingNotes: [],
   library: [
     { id: 's1', title: 'ดาวส่องแสง (โดเมนสาธารณะ)', bpm: 85, notes: ['C4','C4','G4','G4','A4','A4','G4','F4','F4','E4','E4','D4','D4','C4'] },
@@ -138,55 +137,85 @@ const state = {
 };
 
 function unlockAudioUI() {
-  audio.init(); $('audio-indicator').className = 'inline-block w-2 h-2 rounded-full bg-emerald-400';
-  $('audio-status-text').textContent = 'เสียงพร้อม 🔊';
+  audio.init();
+  // once sound is on the pill shrinks to an icon, leaving the header room for the title
+  const b = $('btn-audio-status');
+  if (b.dataset.ready) return;
+  b.dataset.ready = '1';
+  b.className = 'w-9 h-9 rounded-full border border-emerald-500/50 text-emerald-400 flex items-center justify-center';
+  b.dataset.i18nAria = 'audio.ready'; b.setAttribute('aria-label', t('audio.ready'));
+  b.innerHTML = icon('volume', 'w-5 h-5');
 }
 $('btn-audio-status').onclick = unlockAudioUI;
 document.addEventListener('touchstart', unlockAudioUI, { once: true });
 
-const VIEW_SECTIONS = { play: 'section-play', practice: 'section-practice', lesson: 'section-lesson', add: 'section-add', review: 'section-review' };
+// the note name in the chosen system: ด / C / 1
+function noteName(pitch) {
+  return state.noteSystem === 'thai' ? pitchToThai(pitch) : state.noteSystem === 'number' ? pitchToNumber(pitch) : pitch;
+}
+
+const VIEW_SECTIONS = { play: 'section-play', player: 'section-player', lesson: 'section-lesson', tuner: 'section-tuner', add: 'section-add', review: 'section-review' };
+const NAV_OF = { play: 'play', player: 'add', lesson: 'lesson', tuner: 'tuner', add: 'add', review: 'add' };
+const KALIMBA_SLOT = { play: 'play', player: 'player', lesson: 'lesson' };
 function switchView(viewName) {
   if (state.currentView === 'review' && viewName !== 'review' && window.M2 && !M2.leaveReview()) return;
+  const from = state.currentView;
+  if (from === 'player' && viewName !== 'player' && window.KTFall) KTFall.pause();
   state.currentView = viewName;
   Object.values(VIEW_SECTIONS).forEach(id => $(id).classList.add('hidden'));
-  ['play', 'practice', 'lesson', 'add'].forEach(v => $('nav-tab-' + v).className = 'py-1.5 rounded-lg font-medium text-slate-400 hover:text-slate-200 text-center');
   $(VIEW_SECTIONS[viewName]).classList.remove('hidden');
-  $('nav-tab-' + (viewName === 'review' ? 'add' : viewName)).className = 'py-1.5 rounded-lg font-medium bg-amber-600 text-white text-center';
+  document.querySelectorAll('#bottom-nav [data-view]').forEach(b => {
+    if (b.dataset.view === NAV_OF[viewName]) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+  });
+  document.body.classList.toggle('no-nav', viewName === 'review');
+  document.body.classList.toggle('in-player', viewName === 'player');
+  if (KALIMBA_SLOT[viewName]) mountKalimba(KALIMBA_SLOT[viewName]);
   if (viewName === 'lesson') startNextLessonQuestion();
   else if (viewName === 'add') renderLibrary();
+  if (window.KTMicSync) KTMicSync();
+  if (viewName === 'player' && window.KTFall) KTFall.layout();
+  window.scrollTo(0, 0);
 }
-$('nav-tab-play').onclick = () => switchView('play');
-$('nav-tab-practice').onclick = () => switchView('practice');
-$('nav-tab-lesson').onclick = () => switchView('lesson');
-$('nav-tab-add').onclick = () => switchView('add');
-$('btn-practice-change-song').onclick = () => switchView('add');
+document.querySelectorAll('#bottom-nav [data-view]').forEach(b => { b.onclick = () => switchView(b.dataset.view); });
+
+// one kalimba moves between the pages that need it
+function mountKalimba(slot) {
+  const host = document.querySelector('[data-kslot="' + slot + '"]'), k = $('view-kalimba');
+  if (host && k.parentNode !== host) host.appendChild(k);
+}
 
 function getNoteLabel(pitch) {
   if (state.labelMode === 'none') return { top: '', bottom: '' };
-  const numStr = pitchToNumber(pitch), thaiStr = pitchToThai(pitch), westStr = pitch;
+  const numStr = pitchToNumber(pitch);
   if (state.labelMode === 'number') return { top: numStr, bottom: '' };
-  if (state.labelMode === 'note') return { top: (state.noteSystem === 'thai' ? thaiStr : westStr), bottom: '' };
-  return { top: numStr, bottom: (state.noteSystem === 'thai' ? thaiStr : westStr) };
+  if (state.labelMode === 'note') return { top: noteName(pitch), bottom: '' };
+  return { top: numStr, bottom: state.noteSystem === 'number' ? pitch : noteName(pitch) };
+}
+
+function currentProfile() { return state.currentProfile === 'kalimba17' ? PROFILE_KALIMBA_17 : PROFILE_KALIMBA_13; }
+function profileKeys() {
+  return currentProfile().keys.map(k => Object.assign({}, k, { pitch: state.currentProfile === 'kalimba13' && k.tunable ? state.tuning13 : k.pitch }));
 }
 
 function renderKalimba() {
   const wrapper = $('kalimba-tines-wrapper'); wrapper.innerHTML = '';
-  const profile = state.currentProfile === 'kalimba17' ? PROFILE_KALIMBA_17 : PROFILE_KALIMBA_13;
   $('kalimba-hole-label').textContent = state.currentProfile === 'kalimba17' ? '17 KEYS' : '13 KEYS';
-  profile.keys.forEach((k, idx) => {
-    let actualPitch = (state.currentProfile === 'kalimba13' && k.tunable) ? state.tuning13 : k.pitch;
+  profileKeys().forEach(k => {
     const tine = document.createElement('div');
     tine.className = 'kalimba-tine rounded-b-xl flex flex-col justify-end items-center pb-2 cursor-pointer select-none';
-    tine.dataset.pitch = actualPitch;
-    tine.style.height = `${(k.lengthPct / 100) * 200 + 30}px`;
+    tine.dataset.pitch = k.pitch;
+    tine.dataset.hand = k.hand;
+    tine.style.height = `calc(var(--tine-h) * ${k.lengthPct / 100} + 30px)`;
     tine.style.width = state.currentProfile === 'kalimba17' ? 'calc(5.8% - 2px)' : 'calc(7.6% - 2px)';
-    const labels = getNoteLabel(actualPitch);
+    const labels = getNoteLabel(k.pitch);
     tine.innerHTML = `<div class="pointer-events-none flex flex-col items-center leading-none">
-      <span class="text-[11px] font-bold text-slate-800 font-mono">${labels.top}</span>
+      <span class="text-[11px] font-bold text-slate-950 font-mono">${labels.top}</span>
       <span class="text-[9px] font-semibold text-slate-700 mt-0.5">${labels.bottom}</span>
     </div>`;
     wrapper.appendChild(tine);
   });
+  if (window.KTFall) KTFall.layout();
+  if (window.KTTuner) KTTuner.render();
 }
 
 let activeTwoHandTimeout = null;
@@ -206,31 +235,22 @@ function triggerNotePlay(el) {
   judgePitch(pitch);
 }
 
-// a note the player produced: a tapped tine, or a real kalimba heard through the microphone
-function judgePitch(pitch) {
+// a note the player produced: a tapped tine, or a real kalimba heard through the microphone.
+// at = AudioContext time of the pluck when it is known (the microphone hears it a little late)
+function judgePitch(pitch, at) {
   if (window.KTFirst) KTFirst.onNote(pitch);
+  if (state.currentView === 'player' && window.KTFall) KTFall.onNote(pitch, at);
 
-  // Lesson Interaction
   if (state.currentView === 'lesson' && state.lesson.currentTarget) {
     if (pitch === state.lesson.currentTarget) {
-      $('lesson-feedback').innerHTML = '<span class="text-emerald-400 font-bold">✅ ถูกต้อง เก่งมาก!</span>';
+      $('lesson-feedback').innerHTML = '<span class="text-emerald-400 font-semibold">✓ ' + t('le.right') + '</span>';
       state.lesson.correctCount++; $('lesson-correct-count').textContent = state.lesson.correctCount;
-      setTimeout(startNextLessonQuestion, 800);
+      clearTimeout(state.lesson.timer);
+      state.lesson.timer = setTimeout(startNextLessonQuestion, 800);
     } else {
-      $('lesson-feedback').innerHTML = '<span class="text-red-400 font-bold">❌ ยังไม่ใช่ ลองแตะหาใหม่ครับ</span>';
+      $('lesson-feedback').innerHTML = '<span class="text-red-400 font-semibold">' + t('le.wrong') + '</span>';
       state.lesson.missMap[state.lesson.currentTarget] = (state.lesson.missMap[state.lesson.currentTarget] || 0) + 1;
-      $('lesson-weak-note').textContent = pitchToThai(state.lesson.currentTarget);
-    }
-  }
-
-  // Practice Interaction
-  if (state.currentView === 'practice' && state.practice.isRunning) {
-    const expected = state.practice.activeSong.notes[state.practice.noteIdx];
-    if (pitch === expected) {
-      state.practice.correctNotes++;
-      $('practice-feedback-text').innerHTML = '<span class="text-emerald-400">✨ ตรงเป๊ะ!</span>';
-    } else {
-      $('practice-feedback-text').innerHTML = '<span class="text-amber-400">⚠️ ผิดโน้ต</span>';
+      $('lesson-weak-note').textContent = noteName(state.lesson.currentTarget);
     }
   }
 }
@@ -262,113 +282,42 @@ attachTouch($('kalimba-tines-wrapper'));
 
 function switchProfile(pid) {
   state.currentProfile = pid;
-  [$('tab-profile-kalimba13'), $('tab-profile-kalimba17')].forEach(t => t.className = 'flex-1 py-1.5 px-2 rounded-lg font-medium text-slate-400 text-center');
-  $(pid === 'kalimba13' ? 'tab-profile-kalimba13' : 'tab-profile-kalimba17').className = 'flex-1 py-1.5 px-2 rounded-lg font-medium bg-amber-600 text-white text-center';
+  $('tab-profile-kalimba13').className = 'h-9 rounded-full font-medium ' + (pid === 'kalimba13' ? 'seg-on' : 'seg-off');
+  $('tab-profile-kalimba17').className = 'h-9 rounded-full font-medium ' + (pid === 'kalimba17' ? 'seg-on' : 'seg-off');
+  try { localStorage.setItem('kt.profile', JSON.stringify(pid)); } catch (e) { /* storage blocked */ }
   renderKalimba();
 }
 $('tab-profile-kalimba13').onclick = () => switchProfile('kalimba13');
 $('tab-profile-kalimba17').onclick = () => switchProfile('kalimba17');
 $('select-label-mode').onchange = e => { state.labelMode = e.target.value; renderKalimba(); };
-$('select-note-system').onchange = e => { state.noteSystem = e.target.value; renderKalimba(); };
-$('btn-toggle-tuning-quick').onclick = () => {
-  state.tuning13 = state.tuning13 === 'Bb4' ? 'B4' : 'Bb4';
-  $('current-tuning-name').textContent = state.tuning13;
+$('select-note-system').onchange = e => {
+  state.noteSystem = e.target.value;
+  try { localStorage.setItem('kt.noteSystem', JSON.stringify(state.noteSystem)); } catch (err) { /* storage blocked */ }
+  renderKalimba();
+  if (state.currentView === 'lesson' && state.lesson.currentTarget) showLessonTarget();
+};
+function setTuning13(v) {
+  state.tuning13 = v;
+  $('current-tuning-name').textContent = v;
   renderKalimba();
   if (window.M2) M2.onTuning();
-};
-
-// Practice Flow
-state.practice.activeSong = state.library[0];
-$('range-practice-bpm').oninput = e => { state.practice.bpm = parseInt(e.target.value, 10); $('practice-bpm-text').textContent = state.practice.bpm; };
-$('select-help-level').onchange = e => state.practice.helpLevel = parseInt(e.target.value, 10);
-
-$('btn-practice-start').onclick = () => {
-  unlockAudioUI();
-  if (state.practice.isRunning) return;
-  state.practice.isRunning = true;
-  state.practice.noteIdx = 0;
-  state.practice.correctNotes = 0;
-  state.practice.countIn = 4;
-  $('practice-score-summary').classList.add('hidden');
-  $('practice-count-in').classList.remove('hidden');
-  $('practice-note-box').classList.add('hidden');
-  
-  const secPerBeat = 60 / state.practice.bpm;
-  function runCountIn() {
-    if (state.practice.countIn > 0) {
-      $('practice-count-in').textContent = state.practice.countIn;
-      audio.playMetronome(state.practice.countIn === 4);
-      state.practice.countIn--;
-      state.practice.timer = setTimeout(runCountIn, secPerBeat * 1000);
-    } else {
-      $('practice-count-in').classList.add('hidden');
-      $('practice-note-box').classList.remove('hidden');
-      playPracticeBeat();
-    }
-  }
-  runCountIn();
-};
-
-function playPracticeBeat() {
-  const song = state.practice.activeSong;
-  if (!state.practice.isRunning || state.practice.noteIdx >= song.notes.length) {
-    finishPractice(); return;
-  }
-  const pitch = song.notes[state.practice.noteIdx];
-  $('practice-target-note').textContent = `${pitchToNumber(pitch)} (${pitchToThai(pitch)})`;
-  $('practice-target-sub').textContent = `โน้ตที่ ${state.practice.noteIdx + 1}/${song.notes.length}`;
-  audio.playMetronome(state.practice.noteIdx % 4 === 0);
-
-  document.querySelectorAll('.kalimba-tine').forEach(t => t.classList.remove('guide-target'));
-  if (state.practice.helpLevel === 1 || (state.practice.helpLevel === 2 && state.practice.noteIdx % 4 === 0)) {
-    const targetTine = document.querySelector(`[data-pitch="${pitch}"]`);
-    if (targetTine) targetTine.classList.add('guide-target');
-  }
-
-  state.practice.noteIdx++;
-  const secPerBeat = 60 / state.practice.bpm;
-  state.practice.timer = setTimeout(playPracticeBeat, secPerBeat * 1000);
 }
+$('btn-toggle-tuning-quick').onclick = () => setTuning13(state.tuning13 === 'Bb4' ? 'B4' : 'Bb4');
 
-function finishPractice() {
-  state.practice.isRunning = false;
-  document.querySelectorAll('.kalimba-tine').forEach(t => t.classList.remove('guide-target'));
-  const total = state.practice.activeSong.notes.length;
-  const pct = Math.round((state.practice.correctNotes / total) * 100) || 85;
-  $('score-note-pct').textContent = `${pct}%`;
-  $('score-timing-pct').textContent = `${Math.min(100, pct + 5)}%`;
-  $('practice-score-summary').classList.remove('hidden');
-  $('practice-feedback-text').textContent = 'จบเพลงแล้ว!';
-
-  if ($('check-auto-speed').checked && pct >= 80) {
-    state.practice.streak++;
-    $('speed-streak-count').textContent = `รอบ: ${state.practice.streak}/3`;
-    if (state.practice.streak >= 3) {
-      state.practice.bpm = Math.min(140, state.practice.bpm + 5);
-      $('range-practice-bpm').value = state.practice.bpm;
-      $('practice-bpm-text').textContent = state.practice.bpm;
-      state.practice.streak = 0;
-      $('speed-streak-count').textContent = `รอบ: 0/3 (เพิ่ม +5% แล้ว!)`;
-    }
-  }
+// Lesson: find the asked note on the kalimba
+function showLessonTarget() {
+  const p = state.lesson.currentTarget;
+  $('lesson-prompt-note').textContent = state.noteSystem === 'number' ? `${pitchToNumber(p)} (${p})` : `${noteName(p)} · ${pitchToNumber(p)}`;
 }
-
-$('btn-practice-stop').onclick = () => {
-  state.practice.isRunning = false;
-  if (state.practice.timer) clearTimeout(state.practice.timer);
-  document.querySelectorAll('.kalimba-tine').forEach(t => t.classList.remove('guide-target'));
-  $('practice-count-in').classList.add('hidden');
-  $('practice-note-box').classList.remove('hidden');
-  $('practice-feedback-text').textContent = 'หยุดการฝึกแล้ว';
-};
-
-// Lesson Flow
 function startNextLessonQuestion() {
-  const keys = PROFILE_KALIMBA_13.keys.map(k => (k.tunable ? state.tuning13 : k.pitch));
-  const target = keys[Math.floor(Math.random() * keys.length)];
+  const keys = profileKeys().map(k => k.pitch), miss = state.lesson.missMap;
+  // notes missed before come back more often
+  const pool = keys.concat(keys.filter(p => miss[p]).flatMap(p => Array(Math.min(3, miss[p])).fill(p)));
+  let target = pool[Math.floor(Math.random() * pool.length)];
+  if (target === state.lesson.currentTarget && keys.length > 1) target = keys[(keys.indexOf(target) + 1 + Math.floor(Math.random() * (keys.length - 1))) % keys.length];
   state.lesson.currentTarget = target;
-  $('lesson-prompt-note').textContent = `${pitchToNumber(target)} (${pitchToThai(target)} / ${target})`;
-  $('lesson-feedback').textContent = 'แตะคีย์ที่ตรงกับโน้ตด้านบน';
+  showLessonTarget();
+  $('lesson-feedback').textContent = t('le.hint');
 }
 $('btn-lesson-next').onclick = startNextLessonQuestion;
 
@@ -378,18 +327,46 @@ function renderLibrary() { if (window.M2) M2.renderLibrary(); }
 $('btn-open-settings').onclick = () => {
   const r = document.querySelector('input[name="kalimba-tuning"][value="' + state.tuning13 + '"]');
   if (r) r.checked = true;
+  const l = document.querySelector('input[name="app-lang"][value="' + LANG + '"]');
+  if (l) l.checked = true;
   $('modal-settings').classList.remove('hidden');
 };
 $('btn-close-settings').onclick = () => $('modal-settings').classList.add('hidden');
 $('btn-save-settings').onclick = () => {
-  state.tuning13 = document.querySelector('input[name="kalimba-tuning"]:checked').value;
-  $('current-tuning-name').textContent = state.tuning13;
-  renderKalimba();
-  if (window.M2) M2.onTuning();
+  const lang = document.querySelector('input[name="app-lang"]:checked');
+  if (lang && lang.value !== LANG) setLang(lang.value);
+  setTuning13(document.querySelector('input[name="kalimba-tuning"]:checked').value);
   $('modal-settings').classList.add('hidden');
 };
 
-renderKalimba();
+// Thai / English
+function setLang(l) {
+  LANG = l;
+  let chosen = null;
+  try { localStorage.setItem('kt.lang', JSON.stringify(l)); chosen = localStorage.getItem('kt.noteSystem'); } catch (e) { /* storage blocked */ }
+  if (!chosen) { state.noteSystem = l === 'th' ? 'thai' : 'western'; $('select-note-system').value = state.noteSystem; }
+  applyI18n();
+  renderKalimba();
+  if (state.currentView === 'lesson' && state.lesson.currentTarget) { showLessonTarget(); $('lesson-feedback').textContent = t('le.hint'); }
+  if (state.currentView === 'add') renderLibrary();
+  if (window.KTFirst && KTFirst.running) KTFirst.render();
+  if (window.KTFall) KTFall.relabel();
+  if (window.KTTuner) KTTuner.render();
+}
+$('btn-lang').onclick = () => setLang(LANG === 'th' ? 'en' : 'th');
+
+(() => {   // saved preferences; English speakers get letter names unless they chose otherwise
+  let ns = null, pf = null;
+  try { ns = JSON.parse(localStorage.getItem('kt.noteSystem')); pf = JSON.parse(localStorage.getItem('kt.profile')); } catch (e) { /* none saved */ }
+  state.noteSystem = ns === 'thai' || ns === 'number' || ns === 'western' ? ns : (LANG === 'th' ? 'thai' : 'western');
+  $('select-note-system').value = state.noteSystem;
+  if (pf === 'kalimba17') state.currentProfile = 'kalimba17';
+})();
+fillIcons();
+applyI18n();
+switchProfile(state.currentProfile);
+mountKalimba('play');
+document.querySelector('#nav-tab-play').setAttribute('aria-current', 'page');
 
 /* ============================ Milestone 2 ============================ */
 (() => {
@@ -536,27 +513,15 @@ const DB = {
   all() { return this.run('readonly', st => st.getAll()); }
 };
 
-/* ---- bridge to the M1 practice page (it plays state.library[].notes, one pitch per beat) ---- */
+/* ---- songs for the player: saved songs, the free catalog and the built-in samples ---- */
 const BUILTIN = state.library.slice();
-function practiceSong(s) {
-  const notes = [];
-  parseSong(s, state.tuning13).measures.forEach(m => m.notes.forEach(n => notes.push(midiToPitch(n.midi))));
-  return { id: s.id, title: s.title, bpm: s.tempo, notes, saved: true };
-}
 function syncPracticeLibrary() {
-  const active = state.practice.activeSong;
-  state.library = S.songs.map(practiceSong).concat(freeList().map(x => practiceSong(x.song)), BUILTIN);
-  if (active) state.practice.activeSong = state.library.find(x => x.id === active.id) || active;
+  state.library = S.songs.map(s => ({ id: s.id, title: s.title, song: s }))
+    .concat(freeList().map(x => ({ id: x.song.id, title: x.meta.title, song: x.song })), BUILTIN);
 }
 function practiceWith(id) {
   const s = state.library.find(x => x.id === id);
-  if (!s) return;
-  state.practice.activeSong = s;
-  byId('practice-current-song-title').textContent = 'เพลง: ' + s.title;
-  state.practice.bpm = clamp(s.bpm || 80, 50, 140);
-  byId('range-practice-bpm').value = state.practice.bpm;
-  byId('practice-bpm-text').textContent = state.practice.bpm;
-  switchView('practice');
+  if (s) Fall.open(s);
 }
 window.selectSongForPractice = practiceWith;
 
@@ -597,16 +562,16 @@ function renderLibrary() {
       '<div class="flex items-start gap-2"><div class="flex-1 min-w-0"><div class="font-bold text-slate-100 text-sm truncate">' + esc(s.title || 'เพลงไม่มีชื่อ') + '</div>' +
       '<div class="text-[10px] text-slate-400">' + s.measures.length + ' ห้อง • ' + s.tempo + ' BPM • ' + s.beats + ' จังหวะ • ' + esc(fmtDate(s.updated)) + '</div></div>' + badge + '</div>' +
       '<div class="flex flex-wrap gap-1.5 text-xs">' +
-      '<button data-lib="prac" class="px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold">🎯 ฝึก</button>' +
-      '<button data-lib="play" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 border border-slate-700">▶ ฟัง</button>' +
-      '<button data-lib="edit" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 border border-slate-700">✏️ ตรวจ/แก้</button>' +
+      '<button data-lib="prac" class="h-9 px-4 rounded-full bg-amber-500 text-slate-950 font-semibold">' + esc(t('lib.practice')) + '</button>' +
+      '<button data-lib="play" class="h-9 px-3 rounded-full border border-slate-700 text-slate-200">' + esc(t('lib.listen')) + '</button>' +
+      '<button data-lib="edit" class="h-9 px-3 rounded-full border border-slate-700 text-slate-200">' + esc(t('lib.edit')) + '</button>' +
       '<button data-lib="copy" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 border border-slate-700">📋</button>' +
       '<button data-lib="del" class="ml-auto px-3 py-1.5 rounded-lg bg-slate-800 text-rose-300 border border-slate-700">🗑</button></div></div>';
   }).join('');
   byId('lib-builtin').innerHTML = BUILTIN.map(b =>
     '<div class="p-3 bg-slate-800/80 border border-slate-700 rounded-xl flex items-center justify-between text-xs" data-id="' + esc(b.id) + '">' +
-    '<div><h4 class="font-bold text-slate-100">' + esc(b.title) + '</h4><p class="text-[10px] text-slate-400">' + b.notes.length + ' โน้ต • ' + b.bpm + ' BPM</p></div>' +
-    '<button data-lib="prac" class="px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold">🎯 ฝึกเพลงนี้</button></div>').join('');
+    '<div><h4 class="font-semibold text-slate-100">' + esc(b.title) + '</h4><p class="text-[11px] text-slate-400">' + esc(t('lib.notes', { n: b.notes.length })) + ' · ' + b.bpm + ' BPM</p></div>' +
+    '<button data-lib="prac" class="h-9 px-4 rounded-full bg-amber-500 text-slate-950 font-semibold shrink-0">' + esc(t('lib.practice')) + '</button></div>').join('');
   renderFree();
   applyLibSearch();
 }
@@ -1004,7 +969,8 @@ const APP_URL = location.origin + location.pathname;
 const WAITLIST_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSdMIDCW_EaCVFcD43Z4aQ5AXbXHQzc_aQe9iKpz6gVYU9FLvQ/viewform';   // premium waitlist (Google Form); buttons hide while empty
 const FIRST_SONG = {
   notes: ['C4', 'C4', 'G4', 'G4', 'A4', 'A4', 'G4', 'F4', 'F4', 'E4', 'E4', 'D4', 'D4', 'C4'],
-  words: ['ทวิง', 'เคิล', 'ทวิง', 'เคิล', 'ลิต', 'เติล', 'สตาร์', 'ฮาว', 'ไอ', 'วัน', 'เดอร์', 'วอท', 'ยู', 'อาร์']
+  words: ['ทวิง', 'เคิล', 'ทวิง', 'เคิล', 'ลิต', 'เติล', 'สตาร์', 'ฮาว', 'ไอ', 'วัน', 'เดอร์', 'วอท', 'ยู', 'อาร์'],
+  wordsEn: ['Twin', 'kle', 'twin', 'kle', 'lit', 'tle', 'star', 'how', 'I', 'won', 'der', 'what', 'you', 'are']
 };
 const UA = navigator.userAgent;
 const inApp = /\bLine\//i.test(UA) ? 'line' : /FBAN|FBAV|FB_IAB|Instagram|BytedanceWebview|musical_ly|TikTok/i.test(UA) ? 'social' : '';
@@ -1024,12 +990,12 @@ const First = {
   },
   render() {
     const n = FIRST_SONG.notes, cur = n[this.idx];
-    byId('fs-step').textContent = this.listening ? '🔊 ฟังทำนอง…'
-      : 'โน้ตที่ ' + (this.idx + 1) + '/' + n.length + ' · แตะ ' + pitchToThai(cur) + ' (' + pitchToNumber(cur) + ')';
+    byId('fs-step').textContent = this.listening ? t('fs.listening')
+      : t('fs.step', { i: this.idx + 1, n: n.length, note: noteName(cur) + ' (' + pitchToNumber(cur) + ')' });
     byId('fs-notes').innerHTML = n.map((p, i) => {
       const cls = i < this.idx ? 'bg-emerald-600/80 text-white' : i === this.idx ? 'bg-amber-400 text-slate-950 ring-2 ring-amber-200' : 'bg-slate-800 text-slate-400';
       return '<span class="chip shrink-0 text-center rounded px-1 py-0.5 leading-tight ' + cls + '"><b class="block text-[11px]">' + pitchToNumber(p) +
-        '</b><span class="block text-[9px] whitespace-nowrap">' + FIRST_SONG.words[i] + '</span></span>';
+        '</b><span class="block text-[9px] whitespace-nowrap">' + (LANG === 'th' ? FIRST_SONG.words : FIRST_SONG.wordsEn)[i] + '</span></span>';
     }).join('');
     const now = byId('fs-notes').children[this.idx];
     if (now) now.scrollIntoView({ block: 'nearest', inline: 'center' });
@@ -1043,7 +1009,7 @@ const First = {
     if (state.currentView !== 'play') switchView('play');
     Object.assign(this, { idx: 0, running: true, listening: false, misses: 0, t0: Date.now() });
     byId('fs-intro').classList.add('hidden'); byId('fs-run').classList.remove('hidden');
-    byId('fs-hint').textContent = 'แตะคีย์สีทองที่กำลังกะพริบ ถ้ายังไม่คุ้น กด "ฟังก่อน" ได้';
+    byId('fs-hint').textContent = t('fs.hint');
     hideBanner();
     this.render(); this.glow();
   },
@@ -1073,11 +1039,11 @@ const First = {
     const want = FIRST_SONG.notes[this.idx];
     if (pitch !== want) {
       this.misses++;
-      byId('fs-hint').innerHTML = '<span class="text-amber-300">ยังไม่ใช่ ลองแตะคีย์สีทอง (' + pitchToThai(want) + ' / ' + pitchToNumber(want) + ')</span>';
+      byId('fs-hint').innerHTML = '<span class="text-amber-300">' + esc(t('fs.wrong', { note: noteName(want) + ' / ' + pitchToNumber(want) })) + '</span>';
       return;
     }
     this.idx++;
-    byId('fs-hint').innerHTML = '<span class="text-emerald-300">ถูกต้อง ✨</span>';
+    byId('fs-hint').innerHTML = '<span class="text-emerald-300">✓ ' + esc(t('fs.right')) + '</span>';
     if (this.idx >= FIRST_SONG.notes.length) { this.finish(); return; }
     this.render(); this.glow();
   },
@@ -1213,13 +1179,13 @@ function freeList() {
 }
 function renderFree() {
   const list = freeList();
-  byId('free-count').textContent = list.length + ' เพลง';
+  byId('free-count').textContent = t('lib.songs', { n: list.length });
   byId('lib-free').innerHTML = list.map(x =>
     '<div class="p-2.5 bg-slate-800/80 border border-slate-700 rounded-xl flex items-center gap-2 text-xs" data-id="' + esc(x.song.id) + '" data-tags="' + esc(x.meta.tags.toLowerCase()) + '">' +
     '<div class="flex-1 min-w-0"><h4 class="font-bold text-slate-100 truncate">' + esc(x.meta.title) + '</h4>' +
     '<p class="text-[10px] text-slate-400 truncate">' + '★'.repeat(x.report.level) + ' · ' + esc(x.meta.origin) + '</p></div>' +
-    '<button data-lib="fplay" aria-label="ฟังและดูโน้ต" class="px-2.5 py-1.5 rounded-lg bg-slate-700 text-slate-200">▶</button>' +
-    '<button data-lib="prac" class="px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold">🎯 ฝึก</button></div>').join('');
+    '<button data-lib="fplay" aria-label="' + esc(t('lib.listen')) + '" class="w-9 h-9 rounded-full border border-slate-700 text-slate-200 flex items-center justify-center">' + icon('player-play', 'w-4 h-4') + '</button>' +
+    '<button data-lib="prac" class="h-9 px-4 rounded-full bg-amber-500 text-slate-950 font-semibold">' + esc(t('lib.practice')) + '</button></div>').join('');
 }
 function libQuery() { return (byId('lib-search').value || '').trim(); }
 function applyLibSearch() {
@@ -1423,20 +1389,26 @@ async function isMemberCode(code) {
 }
 
 /* ---- listen to a real kalimba through the microphone ---- */
+const MIC_LAG = 0.1;   // the listener reports a pluck about this long after it happens
 const Mic = {
-  on: false, stream: null, src: null, nodes: [], an: null, buf: null, timer: 0, L: null, quietSince: 0,
+  on: false, starting: false, stream: null, src: null, nodes: [], an: null, buf: null, timer: 0, L: null, quietSince: 0,
   async start() {
-    if (this.on) return;
-    if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) { toast('เบราว์เซอร์นี้ใช้ไมค์ไม่ได้', 3000); return; }
+    if (this.on || this.starting) return true;
+    if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) { toast(t('tu.nomic'), 3000); return false; }
     unlockAudioUI();
+    this.starting = true;
     let stream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
     } catch (e) {
-      toast(e && e.name === 'NotAllowedError' ? 'ไม่ได้อนุญาตให้ใช้ไมค์ — เปิดได้ที่ ตั้งค่า › Safari › ไมโครโฟน' : 'เปิดไมค์ไม่ได้', 4500);
-      return;
+      this.starting = false;
+      toast(e && e.name === 'NotAllowedError' ? t('tu.denied') : t('tu.fail'), 4500);
+      return false;
     }
+    this.starting = false;
+    if (!micWanted()) { stream.getTracks().forEach(tr => tr.stop()); return false; }   // left the page meanwhile
     this.listen(audio.ctx.createMediaStreamSource(stream), stream);
+    return true;
   },
   listen(src, stream) {                 // src: any AudioNode — the microphone, or a test signal
     const c = audio.ctx;
@@ -1450,9 +1422,7 @@ const Mic = {
     this.L = makeKeyListener(c.sampleRate, { hop: 0.025, win: this.an.fftSize });
     this.timer = setInterval(() => this.tick(), 25);
     this.on = true; window.KTMicOn = true;
-    byId('mic-panel').classList.remove('hidden');
-    byId('btn-mic').className = 'p-1.5 rounded-lg bg-sky-600 text-white';
-    setHdr();
+    micUI();
   },
   stop() {
     if (!this.on) return;
@@ -1460,54 +1430,478 @@ const Mic = {
     [this.src].concat(this.nodes).forEach(n => { try { n.disconnect(); } catch (e) { /* already gone */ } });
     if (this.stream) this.stream.getTracks().forEach(tr => tr.stop());
     this.on = false; window.KTMicOn = false; this.stream = null;
-    byId('mic-panel').classList.add('hidden');
-    byId('btn-mic').className = 'p-1.5 text-slate-300 rounded-lg bg-slate-800 hover:bg-slate-700';
-    setHdr();
+    Tuner.level(null);
+    micUI();
   },
   tick() {
-    const t = audio.ctx.currentTime;
+    const tm = audio.ctx.currentTime;
     this.an.getFloatTimeDomainData(this.buf);
-    const ev = this.L.feed(this.buf, t), lv = this.L.level(this.buf);
+    const ev = this.L.feed(this.buf, tm), lv = this.L.level(this.buf);
     // the app's own sound (a tapped tine, a preview) reaches the mic as well
-    const own = kalimbaVoice.lastT != null && t - kalimbaVoice.lastT > -0.2 && t - kalimbaVoice.lastT < 0.35;
-    if (lv) { this.quietSince = 0; this.show(lv.midi, lv.cents); }
-    else if (!this.quietSince) this.quietSince = t;
-    else if (t - this.quietSince > 0.6) this.show(null);
+    const own = kalimbaVoice.lastT != null && tm - kalimbaVoice.lastT > -0.2 && tm - kalimbaVoice.lastT < 0.35;
+    if (lv) { this.quietSince = 0; Tuner.level(lv); }
+    else if (!this.quietSince) this.quietSince = tm;
+    else if (tm - this.quietSince > 0.6) Tuner.level(null);
     if (ev && !own) this.heard(ev);
-  },
-  show(midi, cents) {
-    const needle = byId('mic-needle');
-    if (midi == null) {
-      byId('mic-note').textContent = '–'; byId('mic-note-sub').textContent = 'ดีดได้เลย'; byId('mic-cents').textContent = '–';
-      needle.style.left = '50%'; needle.className = 'absolute top-0 bottom-0 w-1 -ml-0.5 rounded bg-slate-500';
-      return;
-    }
-    const pitch = midiToPitch(midi), onKey = !!document.querySelector('#kalimba-tines-wrapper [data-pitch="' + pitch + '"]');
-    const c = clamp(cents, -50, 50), inTune = Math.abs(c) <= 10;
-    byId('mic-note').textContent = pitchToThai(pitch) + ' ' + pitchToNumber(pitch);
-    byId('mic-note-sub').textContent = pitch + (onKey ? '' : ' · ไม่มีบนแป้น');
-    byId('mic-cents').textContent = inTune ? 'ตรง ✓' : (c > 0 ? '+' : '') + c + ' เซนต์';
-    needle.style.left = (50 + c) + '%';
-    needle.className = 'absolute top-0 bottom-0 w-1 -ml-0.5 rounded ' + (inTune ? 'bg-emerald-400' : 'bg-amber-400');
   },
   heard(ev) {
     const pitch = midiToPitch(ev.midi);
     const tine = document.querySelector('#kalimba-tines-wrapper [data-pitch="' + pitch + '"]');
     if (tine) { tine.classList.add('active'); setTimeout(() => tine.classList.remove('active'), 160); }
-    byId('active-note-display').textContent = '🎤 ' + pitch + ' (' + pitchToThai(pitch) + ' / ' + pitchToNumber(pitch) + ')';
-    judgePitch(pitch);
+    byId('active-note-display').textContent = pitch + ' (' + noteName(pitch) + ' / ' + pitchToNumber(pitch) + ')';
+    Tuner.pluck(ev);
+    judgePitch(pitch, ev.t - MIC_LAG);
   }
 };
 
-function initMic() {
-  byId('btn-mic').onclick = () => (Mic.on ? Mic.stop() : Mic.start());
-  byId('btn-mic-stop').onclick = () => Mic.stop();
-  document.addEventListener('visibilitychange', () => { if (document.hidden) Mic.stop(); });
-  window.KTMic = Mic;
+// "Real kalimba" is one setting shared by the player and the lessons; the tuner has its own switch
+const Real = { on: ls.get('real', false) };
+function micWanted() {
+  const v = state.currentView;
+  return !document.hidden && ((v === 'tuner' && Tuner.on) || ((v === 'player' || v === 'lesson') && Real.on));
 }
+function micSync() {
+  if (micWanted()) { if (!Mic.on) Mic.start(); }
+  else Mic.stop();
+  micUI();
+}
+function micUI() {
+  const pm = byId('pl-mic');
+  pm.classList.toggle('tog-on', Real.on); pm.setAttribute('aria-pressed', String(Real.on));
+  byId('tu-toggle-label').textContent = t(Tuner.on ? 'tu.stop' : 'tu.start');
+  byId('tu-toggle').className = 'h-12 rounded-full font-semibold flex items-center justify-center gap-2 ' +
+    (Tuner.on ? 'border border-slate-700 text-slate-200' : 'bg-amber-500 text-slate-950');
+  if (!Mic.on) Tuner.level(null);
+  Fall.message();
+}
+
+/* ---- tuner page ---- */
+const Tuner = {
+  on: false, readings: {}, last: null, run: 0, runMidi: -1, runCents: [],
+  render() {
+    byId('tu-kind').textContent = (state.currentProfile === 'kalimba17' ? '17' : '13') + ' · ' + (state.currentProfile === 'kalimba17' ? 'C' : state.tuning13);
+    byId('tu-tines').innerHTML = profileKeys().map(k =>
+      '<button class="flex flex-col items-center gap-1" data-tu="' + k.pitch + '" aria-label="' + k.pitch + '">' +
+      '<span class="tu-tine" style="height:' + Math.round(k.lengthPct * 0.55 + 12) + 'px"></span>' +
+      '<span class="text-[10px] text-slate-400 font-mono leading-none">' + pitchToNumber(k.pitch) + '</span></button>').join('');
+    this.paint();
+    this.level(this.lastLv || null);
+  },
+  paint() {
+    const keys = profileKeys().map(k => k.pitch);
+    let checked = 0, ok = 0;
+    $$('#tu-tines [data-tu]').forEach(b => {
+      const p = b.dataset.tu, c = this.readings[p], bar = b.firstChild;
+      bar.className = 'tu-tine' + (c == null ? '' : Math.abs(c) <= 10 ? ' ok' : ' off') + (this.last === p ? ' now' : '');
+      if (c != null) { checked++; if (Math.abs(c) <= 10) ok++; }
+    });
+    byId('tu-summary').textContent = checked ? t('tu.checked', { a: checked, n: keys.length, ok }) : '';
+  },
+  // live reading every 25 ms (null = quiet)
+  level(lv) {
+    this.lastLv = lv;
+    const needle = byId('tu-needle');
+    if (!lv) {
+      byId('tu-note').textContent = '–'; byId('tu-sub').textContent = '';
+      byId('tu-cents').textContent = '–';
+      byId('tu-status').textContent = Mic.on ? t('tu.pluck') : (this.on ? '' : t('tu.idle'));
+      byId('tu-status').className = 'text-[14px] font-medium mt-1 min-h-[22px] text-center text-slate-300';
+      needle.style.transform = 'rotate(0deg)'; needle.setAttribute('stroke', '#566176');
+      this.run = 0;
+      return;
+    }
+    const pitch = midiToPitch(lv.midi), c = clamp(lv.cents, -50, 50), inTune = Math.abs(c) <= 10;
+    const onKey = profileKeys().some(k => k.pitch === pitch);
+    byId('tu-note').textContent = state.noteSystem === 'western' ? pitch : noteName(pitch);
+    byId('tu-sub').textContent = [pitchToNumber(pitch), state.noteSystem === 'western' ? '' : pitch, onKey ? '' : t('tu.offkey')].filter(Boolean).join(' · ');
+    byId('tu-cents').textContent = t('tu.c', { c: (c > 0 ? '+' : '') + c });
+    byId('tu-status').textContent = inTune ? '✓ ' + t('tu.in') : t(c < 0 ? 'tu.low' : 'tu.high', { c: Math.abs(c) });
+    byId('tu-status').className = 'text-[14px] font-medium mt-1 min-h-[22px] text-center ' + (inTune ? 'text-emerald-400' : 'text-red-400');
+    needle.style.transform = 'rotate(' + (c / 50 * 90) + 'deg)';
+    needle.setAttribute('stroke', inTune ? '#7FC8A0' : '#E58B7A');
+    // a steady tone for ~0.2 s becomes that tine's reading
+    if (lv.midi === this.runMidi) { this.run++; this.runCents.push(c); } else { this.runMidi = lv.midi; this.run = 1; this.runCents = [c]; }
+    if (onKey && this.run >= 8 && this.run % 4 === 0) {
+      const s = this.runCents.slice(-8).sort((a, b) => a - b);
+      this.readings[pitch] = s[4]; this.last = pitch; this.paint();
+    }
+  },
+  pluck(ev) {
+    const p = midiToPitch(ev.midi);
+    if (profileKeys().some(k => k.pitch === p)) { this.readings[p] = ev.cents; this.last = p; this.paint(); }
+  },
+  toggle() {
+    this.on = !this.on;
+    micSync();
+  }
+};
+
+/* ---- song player: falling notes over the kalimba, judged from taps or a real kalimba ---- */
+const HAND_COLOR = { L: '#7FA3D6', R: '#E39A86', C: '#C9A46A' };
+const Fall = {
+  src: null, events: [], skipped: 0, tempo: 80, beats: 4, totalBeats: 0, minGap: 1,
+  mode: ls.get('fall.mode', 'wait'), speed: ls.get('fall.speed', 1), loop: false,
+  pos: 0, startAt: 0, running: false, demo: false, done: false, raf: 0, last: 0, next: 0, clickBeat: null,
+  stats: null, lanes: {}, cv: null, g: null, W: 0, H: 0, flashes: [], t0: 0, guided: null, lyricM: -1,
+
+  get spb() { return 60 / (this.tempo * this.speed); },
+
+  // src: { id, title, song } with a 3-line song, or { id, title, bpm, notes } with one pitch per beat
+  open(src) {
+    this.halt();
+    this.src = src;
+    const ev = [];
+    if (src.song) {
+      const p = parseSong(src.song, state.tuning13);
+      this.tempo = src.song.tempo || 80; this.beats = src.song.beats || 4; this.totalBeats = p.totalBeats;
+      p.measures.forEach(pm => pm.notes.forEach(n => ev.push({ beat: pm.start + n.beat, midi: n.midi, lyric: n.lyric || '', m: pm.index })));
+    } else {
+      this.tempo = src.bpm || 80; this.beats = 4; this.totalBeats = src.notes.length;
+      src.notes.forEach((p, i) => ev.push({ beat: i, midi: pitchToMidi(p), lyric: '', m: Math.floor(i / 4) }));
+    }
+    ev.sort((a, b) => a.beat - b.beat);
+    ev.forEach(e => { e.pitch = midiToPitch(e.midi); e.res = null; });
+    this.all = ev;
+    let gap = 4;
+    for (let i = 1; i < ev.length; i++) { const d = ev[i].beat - ev[i - 1].beat; if (d > 0.01 && d < gap) gap = d; }
+    this.minGap = gap;
+    byId('pl-title').textContent = src.title || '-';
+    switchView('player');
+    this.layout();
+    this.reset(0);
+  },
+  // which notes this kalimba can play; the rest are skipped
+  pickPlayable() {
+    const keys = new Set(profileKeys().map(k => k.pitch));
+    this.events = (this.all || []).filter(e => keys.has(e.pitch));
+    this.skipped = (this.all || []).length - this.events.length;
+  },
+  reset(at) {
+    this.pickPlayable();
+    this.events.forEach(e => { e.res = e.beat < at - 0.001 ? 'skip' : null; });
+    this.stats = { hit: 0, perfect: 0, good: 0, miss: 0, wrong: 0 };
+    this.pos = at; this.startAt = at; this.done = false; this.flashes = [];
+    this.next = this.firstOpen();
+    byId('pl-result').classList.add('hidden');
+    this.meta(); this.controls(); this.message(); this.lyric(true); this.progress(); this.draw(); this.guide();
+  },
+  firstOpen() { let i = 0; while (i < this.events.length && this.events[i].res) i++; return i; },
+  meta() {
+    const bpm = Math.round(this.tempo * this.speed);
+    byId('pl-meta').textContent = bpm + ' BPM · ' + this.events.length + ' ' + (LANG === 'th' ? 'โน้ต' : 'notes') +
+      (this.skipped ? ' · ' + t('pl.skipped', { n: this.skipped }) : '');
+  },
+  controls() {
+    $$('[data-plmode]').forEach(b => { b.className = 'h-8 px-3 rounded-full ' + (b.dataset.plmode === this.mode ? 'seg-on' : 'seg-off'); });
+    byId('pl-speed').textContent = Math.round(this.speed * 100) + '%';
+    byId('pl-loop').classList.toggle('tog-on', this.loop); byId('pl-loop').setAttribute('aria-pressed', String(this.loop));
+    byId('pl-listen').classList.toggle('tog-on', this.demo && this.running);
+    const playing = this.running && !this.demo;
+    byId('pl-play-icon').innerHTML = icon(playing ? 'player-pause' : 'player-play', 'w-5 h-5');
+    const label = byId('pl-play-label');
+    label.dataset.i18n = playing ? 'pl.pause' : (this.pos > this.startAt + 0.01 && !this.done ? 'pl.resume' : 'pl.start');
+    label.textContent = t(label.dataset.i18n);
+  },
+  message(txt) {
+    const m = byId('pl-msg');
+    if (txt != null) { m.textContent = txt; return; }
+    if (this.running || this.done) { m.textContent = ''; return; }
+    m.textContent = !this.src ? t('pl.nosong') : this.pos > this.startAt + 0.01 ? '' : t(Real.on ? 'pl.ready.mic' : 'pl.ready');
+  },
+  relabel() { if (this.src) { this.meta(); this.controls(); this.message(); this.lyric(true); this.draw(); } },
+
+  /* lanes line up with the tines below the stage */
+  layout() {
+    const cv = byId('pl-canvas'), stage = byId('pl-stage');
+    if (!cv || stage.offsetParent === null) return;
+    const r = stage.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
+    this.W = r.width; this.H = r.height;
+    cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
+    this.cv = cv; this.g = cv.getContext('2d'); this.g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this.lanes = {};
+    $$('#kalimba-tines-wrapper [data-pitch]').forEach(tn => {
+      const tr = tn.getBoundingClientRect();
+      this.lanes[tn.dataset.pitch] = { x: tr.left - r.left + tr.width / 2, w: tr.width, hand: tn.dataset.hand || 'C', el: tn };
+    });
+    if (this.src) { this.pickPlayable(); this.next = Math.min(this.next, this.events.length); }
+    this.draw();
+  },
+  pxPerBeat() { return Math.max(46, this.H / 5); },
+
+  /* clock */
+  play(demo) {
+    if (!this.src) return;
+    unlockAudioUI();
+    if (this.done || this.next >= this.events.length) this.reset(0);
+    if (demo && Real.on === false) { /* listening needs no microphone */ }
+    if (!demo && Real.on && this.mode === 'rhythm') this.fitMic();
+    this.demo = !!demo;
+    // one measure of lead-in: notes fall while the count runs
+    const at = this.pos;
+    this.startAt = at; this.pos = at - this.beats; this.clickBeat = Math.floor(this.pos);
+    this.running = true; this.t0 = Date.now();
+    this.last = audio.ctx ? audio.ctx.currentTime : performance.now() / 1000;
+    byId('pl-result').classList.add('hidden');
+    this.controls(); this.message();
+    cancelAnimationFrame(this.raf);
+    this.raf = requestAnimationFrame(() => this.frame());
+  },
+  pause() {
+    if (!this.running) return;
+    this.running = false;
+    if (this.pos < this.startAt) this.pos = this.startAt;
+    this.demo = false;
+    byId('pl-count').classList.add('hidden');
+    this.controls(); this.message(); this.draw();
+  },
+  halt() { this.running = false; this.demo = false; cancelAnimationFrame(this.raf); this.unguide(); byId('pl-count').classList.add('hidden'); },
+  // the microphone hears at most ~4 notes a second
+  fitMic() {
+    const max = Math.floor((this.minGap * 60 / this.tempo) / 0.25 * 20) / 20;
+    if (this.speed > max && max >= 0.3) { this.speed = max; ls.set('fall.speed', this.speed); this.meta(); this.controls(); toast(t('pl.mic.fast'), 3000); }
+  },
+  frame() {
+    const c = audio.ctx, now = c ? c.currentTime : performance.now() / 1000;
+    const dt = Math.min(0.1, Math.max(0, now - this.last));
+    this.last = now;
+    if (this.running) this.advance(dt / this.spb, now);
+    this.flashes = this.flashes.filter(f => now - f.t < 0.35);
+    this.draw(now); this.guide(); this.progress();
+    if (this.running || this.flashes.length) this.raf = requestAnimationFrame(() => this.frame());
+  },
+  advance(db, now) {
+    const e0 = this.events[this.next];
+    let p = this.pos + db;
+    // lead-in count and clicks
+    if (this.pos < this.startAt) {
+      const left = Math.ceil(this.startAt - p - 1e-6), cnt = byId('pl-count');
+      if (p < this.startAt) { cnt.textContent = left; cnt.classList.remove('hidden'); } else cnt.classList.add('hidden');
+      if (Math.floor(p) > this.clickBeat && p < this.startAt + 0.01) { this.clickBeat = Math.floor(p); audio.playMetronome(left === this.beats); }
+    }
+    if (this.demo) {
+      while (this.next < this.events.length && this.events[this.next].beat <= p) {
+        const e = this.events[this.next++];
+        if (e.res) continue;
+        e.res = 'demo';
+        if (Synth.ensure()) Synth.kalimba(Synth.master, e.midi, now, 0.85);
+        this.flash(e, '#C9A46A', now);
+        const ln = this.lanes[e.pitch];
+        if (ln) { ln.el.classList.add('active'); setTimeout(() => ln.el.classList.remove('active'), 160); }
+      }
+    } else if (this.mode === 'wait') {
+      if (e0 && p >= e0.beat) p = e0.beat;   // wait for the player
+    } else {
+      const late = this.win().good;
+      while (this.next < this.events.length && (this.events[this.next].res || p - this.events[this.next].beat > late)) {
+        const e = this.events[this.next];
+        if (!e.res) { e.res = 'miss'; this.stats.miss++; this.score(); }
+        this.next++;
+      }
+    }
+    this.pos = p;
+    if (this.next !== this.lyricIdx) this.lyric();
+    const last = this.events.length ? this.events[this.events.length - 1].beat : 0;
+    if (this.next >= this.events.length && p > Math.max(last + 1, this.startAt)) this.finish();
+  },
+  // timing windows in beats; the microphone is less exact than a tap
+  win() {
+    const mic = Real.on, s = this.spb;
+    return { perfect: (mic ? 0.15 : 0.1) / s, good: (mic ? 0.3 : 0.22) / s };
+  },
+  onNote(pitch, at) {
+    if (!this.running || this.demo || !this.src || this.pos < this.startAt - 0.25) return;
+    const c = audio.ctx, ago = at != null && c ? Math.max(0, c.currentTime - at) : 0;
+    const p = this.pos - ago / this.spb, now = c ? c.currentTime : 0;
+    if (this.mode === 'wait') {
+      const e0 = this.events[this.next];
+      if (!e0 || p < e0.beat - 0.75) return;   // too early to count
+      const hit = this.events.find((e, i) => i >= this.next && !e.res && Math.abs(e.beat - e0.beat) < 0.01 && e.pitch === pitch);
+      if (hit) {
+        hit.res = 'hit'; this.stats.hit++; this.flash(hit, '#7FC8A0', now);
+        this.next = this.firstOpenFrom(this.next);
+      } else this.wrong(pitch, now);
+      this.score();
+      return;
+    }
+    const w = this.win();
+    let best = null, bestD = 1e9;
+    for (let i = this.next; i < this.events.length; i++) {
+      const e = this.events[i];
+      if (e.beat - p > w.good) break;
+      const d = Math.abs(e.beat - p);
+      if (!e.res && e.pitch === pitch && d <= w.good && d < bestD) { best = e; bestD = d; }
+    }
+    if (best) {
+      const perfect = bestD <= w.perfect;
+      best.res = perfect ? 'perfect' : 'good'; this.stats[best.res]++;
+      this.flash(best, perfect ? '#7FC8A0' : '#C9A46A', now);
+      this.next = this.firstOpenFrom(this.next);
+    } else this.wrong(pitch, now);
+    this.score();
+  },
+  firstOpenFrom(i) { while (i < this.events.length && this.events[i].res) i++; return i; },
+  wrong(pitch, now) {
+    this.stats.wrong++;
+    const ln = this.lanes[pitch];
+    if (ln) {
+      this.flashes.push({ x: ln.x, w: ln.w, t: now, color: '#D9705E' });
+      ln.el.classList.add('wrong'); setTimeout(() => ln.el.classList.remove('wrong'), 220);
+    }
+  },
+  flash(e, color, now) {
+    const ln = this.lanes[e.pitch];
+    if (ln) this.flashes.push({ x: ln.x, w: ln.w, t: now, color });
+    if (!this.running) { cancelAnimationFrame(this.raf); this.raf = requestAnimationFrame(() => this.frame()); }
+  },
+  score() {
+    const s = this.stats;
+    byId('pl-score').textContent = this.mode === 'wait'
+      ? t('pl.correct') + ' ' + s.hit + '/' + this.events.length + (s.wrong ? ' · ' + t('pl.wrong') + ' ' + s.wrong : '')
+      : t('pl.perfect') + ' ' + s.perfect + ' · ' + t('pl.good') + ' ' + s.good + ' · ' + t('pl.miss') + ' ' + s.miss;
+  },
+  finish() {
+    const s = this.stats, n = this.events.length || 1, wasDemo = this.demo;
+    this.halt(); this.done = true; this.pos = Math.max(this.pos, this.startAt);
+    this.controls(); this.message(); this.draw();
+    if (wasDemo) { this.reset(0); return; }
+    let acc, stars;
+    if (this.mode === 'wait') {
+      acc = s.hit / Math.max(1, s.hit + s.wrong);
+      stars = s.wrong === 0 ? 3 : acc >= 0.8 ? 2 : 1;
+    } else {
+      acc = (s.perfect + 0.7 * s.good) / n;
+      stars = acc >= 0.95 ? 3 : acc >= 0.8 ? 2 : acc >= 0.5 ? 1 : 0;
+    }
+    const pct = Math.round(acc * 100);
+    if (this.loop) { toast(t('pl.acc') + ' ' + pct + '%', 1500); setTimeout(() => { if (this.loop && state.currentView === 'player') { this.reset(0); this.play(); } }, 1200); return; }
+    const key = 'best.' + this.src.id + '.' + this.mode, best = ls.get(key, null);
+    if (best == null || pct > best) ls.set(key, pct);
+    byId('pl-stars').textContent = '★'.repeat(stars) + '☆'.repeat(3 - stars);
+    byId('pl-res-acc').textContent = pct + '%';
+    const secs = Math.round((Date.now() - this.t0) / 1000);
+    byId('pl-res-detail').textContent = this.mode === 'wait'
+      ? t('pl.correct') + ' ' + s.hit + ' · ' + t('pl.wrong') + ' ' + s.wrong + ' · ' + t('pl.time') + ' ' + Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0')
+      : t('pl.perfect') + ' ' + s.perfect + ' · ' + t('pl.good') + ' ' + s.good + ' · ' + t('pl.miss') + ' ' + s.miss;
+    byId('pl-res-best').textContent = best == null || pct > best ? (best == null ? '' : '★ ' + t('pl.newbest')) : t('pl.best', { n: best });
+    byId('pl-result').classList.remove('hidden');
+  },
+  seek(frac) {
+    if (!this.src || this.running) return;
+    // start of the measure that was tapped
+    this.reset(Math.max(0, Math.floor(clamp(frac, 0, 1) * this.totalBeats / this.beats) * this.beats));
+  },
+
+  /* drawing */
+  draw(now) {
+    const g = this.g;
+    if (!g) return;
+    const W = this.W, H = this.H, hitY = H - 4, pxb = this.pxPerBeat();
+    now = now != null ? now : (audio.ctx ? audio.ctx.currentTime : 0);
+    g.clearRect(0, 0, W, H);
+    // lanes
+    Object.values(this.lanes).forEach((ln, i) => { g.fillStyle = i % 2 ? '#131B2A' : '#111827'; g.fillRect(ln.x - ln.w / 2, 0, ln.w, H); });
+    // beats and measures
+    for (let b = Math.ceil(this.pos); ; b++) {
+      const y = hitY - (b - this.pos) * pxb;
+      if (y < 0) break;
+      g.fillStyle = b % this.beats === 0 ? '#2A3550' : '#1B2438';
+      g.fillRect(0, Math.round(y), W, 1);
+    }
+    // notes
+    const h = Math.max(12, Math.min(22, this.minGap * pxb - 3));
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = '600 ' + (h >= 18 ? 12 : 10) + 'px "IBM Plex Sans Thai", system-ui, sans-serif';
+    for (let i = 0; i < this.events.length; i++) {
+      const e = this.events[i], y = hitY - (e.beat - this.pos) * pxb;
+      if (y < -h) break;
+      if (y > H + h || (e.res && e.res !== 'miss')) continue;
+      const ln = this.lanes[e.pitch];
+      if (!ln) continue;
+      const w = Math.max(10, Math.min(ln.w - 2, 44)), x = ln.x - w / 2;
+      g.fillStyle = e.res === 'miss' ? '#34405A' : HAND_COLOR[ln.hand] || HAND_COLOR.C;
+      this.round(x, y - h, w, h, Math.min(7, h / 2));
+      g.fill();
+      if (i === this.next && !this.demo) { g.lineWidth = 2; g.strokeStyle = '#F2EDE3'; g.stroke(); }
+      if (w >= 14) { g.fillStyle = e.res === 'miss' ? '#A3ACBC' : '#0F1522'; g.fillText(pitchToNumber(e.pitch), ln.x, y - h / 2 + 0.5); }
+    }
+    // hit line and flashes
+    g.fillStyle = '#C9A46A'; g.fillRect(0, hitY, W, 2);
+    this.flashes.forEach(f => {
+      const a = Math.max(0, 1 - (now - f.t) / 0.35);
+      g.globalAlpha = a * 0.85; g.fillStyle = f.color;
+      g.fillRect(f.x - f.w / 2, hitY - 26, f.w, 28);
+      g.globalAlpha = 1;
+    });
+  },
+  round(x, y, w, h, r) {
+    const g = this.g;
+    g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+    g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+  },
+  // the next tine to play glows gold once its note is close
+  guide() {
+    const e = this.events[this.next];
+    const want = e && !this.demo && this.src && state.currentView === 'player' && e.beat - this.pos < 2 ? (this.lanes[e.pitch] || {}).el : null;
+    if (want === this.guided) return;
+    this.unguide();
+    if (want) { want.classList.add('guide-target'); this.guided = want; }
+  },
+  unguide() { if (this.guided) this.guided.classList.remove('guide-target'); this.guided = null; },
+  lyric(force) {
+    this.lyricIdx = this.next;
+    const e = this.events[Math.min(this.next, this.events.length - 1)];
+    if (!e) { byId('pl-lyric').textContent = ''; return; }
+    const line = (this.all || []).filter(x => x.m === e.m && x.lyric);
+    if (!line.length) { if (force || this.lyricM !== e.m) byId('pl-lyric').textContent = ''; this.lyricM = e.m; return; }
+    this.lyricM = e.m;
+    byId('pl-lyric').innerHTML = line.map(x => '<span class="' + (x === e ? 'text-amber-300 font-semibold' : x.res ? 'text-slate-500' : '') + '">' + esc(x.lyric) + '</span>').join(' ');
+  },
+  progress() {
+    const tb = this.totalBeats || 1, p = clamp(Math.max(this.pos, 0) / tb, 0, 1);
+    byId('pl-progress-fill').style.width = (p * 100).toFixed(1) + '%';
+    const sec = b => { const s = Math.max(0, Math.round(b * this.spb)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+    byId('pl-pos').textContent = sec(Math.max(this.pos, 0)) + ' / ' + sec(tb);
+  },
+
+  setMode(m) { this.mode = m; ls.set('fall.mode', m); if (!this.running) this.reset(this.startAt); else { this.controls(); this.score(); } },
+  setSpeed(d) {
+    this.speed = Math.round(clamp(this.speed + d, 0.3, 1.5) * 100) / 100;
+    ls.set('fall.speed', this.speed);
+    this.meta(); this.controls(); this.progress();
+  }
+};
+
+function initPlayer() {
+  byId('pl-back').onclick = () => switchView('add');
+  byId('pl-choose').onclick = () => switchView('add');
+  byId('pl-play').onclick = () => {
+    if (!Fall.src) { switchView('add'); return; }
+    if (Fall.running && !Fall.demo) Fall.pause(); else { Fall.halt(); Fall.play(false); }
+  };
+  byId('pl-listen').onclick = () => {
+    if (!Fall.src) return;
+    if (Fall.running && Fall.demo) { Fall.pause(); return; }
+    Fall.halt(); Fall.play(true);
+  };
+  byId('pl-again').onclick = () => { Fall.reset(0); Fall.play(false); };
+  byId('pl-slow10').onclick = () => { Fall.setSpeed(-0.1); Fall.reset(0); Fall.play(false); };
+  $$('[data-plmode]').forEach(b => { b.onclick = () => Fall.setMode(b.dataset.plmode); });
+  byId('pl-slower').onclick = () => Fall.setSpeed(-0.05);
+  byId('pl-faster').onclick = () => Fall.setSpeed(0.05);
+  byId('pl-loop').onclick = () => { Fall.loop = !Fall.loop; Fall.controls(); };
+  byId('pl-mic').onclick = () => { Real.on = !Real.on; ls.set('real', Real.on); micSync(); };
+  byId('pl-progress').onclick = e => { const r = e.currentTarget.getBoundingClientRect(); Fall.seek((e.clientX - r.left) / r.width); };
+  byId('tu-toggle').onclick = () => Tuner.toggle();
+  byId('tu-tines').addEventListener('click', e => { const b = e.target.closest('[data-tu]'); if (b) audio.playPitch(b.dataset.tu); });
+  window.addEventListener('resize', () => Fall.layout());
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { Fall.pause(); Mic.stop(); } else micSync(); });
+  window.KTFall = Fall; window.KTMic = Mic; window.KTTuner = Tuner; window.KTMicSync = micSync;
+  Fall.controls(); Fall.message(); Tuner.render(); micUI();
+}
+
 initM2();
 initGrowth();
 initMidi();
-initMic();
+initPlayer();
 
 })();

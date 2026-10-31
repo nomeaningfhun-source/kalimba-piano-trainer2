@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#020617">
+  <meta name="theme-color" content="#0F1522">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -12,244 +12,233 @@
   <link rel="apple-touch-icon" href="icons/icon-180.png">
   <title>ครูฝึกคาลิมบา</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="js/theme.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Prompt:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/app.css">
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between overflow-x-hidden">
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col overflow-x-hidden">
   <audio id="ios-silent-audio" playsinline loop preload="auto" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=" class="hidden"></audio>
 
-  <!-- แถบหัวแอป -->
-  <header class="app-header bg-slate-900/95 backdrop-blur border-b border-slate-800 sticky top-0 z-30 px-3 py-2">
+  <header class="app-header bg-slate-950/95 backdrop-blur border-b border-slate-800 sticky top-0 z-30 px-3 py-2">
     <div class="max-w-xl mx-auto flex items-center justify-between gap-2">
-      <div class="flex items-center gap-2 min-w-0">
-        <div class="w-8 h-8 shrink-0 rounded-lg bg-amber-600 flex items-center justify-center shadow-md text-lg">🎵</div>
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div class="w-9 h-9 shrink-0 rounded-xl border border-amber-500/70 flex items-center justify-center text-amber-400"><i data-icon="music" class="w-5 h-5"></i></div>
         <div class="min-w-0">
-          <h1 class="text-sm font-semibold font-heading leading-tight text-amber-300 truncate">ครูฝึกคาลิมบา</h1>
-          <p class="text-[10px] text-slate-400 truncate">ฝึกคาลิมบาฟรี • ใช้ออฟไลน์ได้</p>
+          <h1 class="text-[15px] font-semibold leading-tight text-slate-100 truncate" data-i18n="app.title">ครูฝึกคาลิมบา</h1>
+          <p class="text-[11px] text-slate-400 truncate" data-i18n="app.sub">ฝึกคาลิมบาฟรี · ใช้ออฟไลน์ได้</p>
         </div>
       </div>
       <div class="flex items-center gap-1.5 shrink-0">
-        <button id="btn-audio-status" class="px-2.5 py-1 text-xs rounded-full bg-amber-500 text-slate-950 font-medium flex items-center gap-1 shadow-sm">
-          <span id="audio-indicator" class="inline-block w-2 h-2 rounded-full bg-red-600 animate-pulse"></span>
-          <span id="audio-status-text">แตะเปิดเสียง</span>
+        <button id="btn-audio-status" class="h-9 px-3 text-xs rounded-full border border-slate-700 text-slate-200 flex items-center gap-1.5">
+          <span id="audio-indicator" class="inline-block w-2 h-2 rounded-full bg-red-400 animate-pulse"></span>
+          <span id="audio-status-text" data-i18n="audio.tap">แตะเปิดเสียง</span>
         </button>
-        <button id="btn-install" class="hidden px-2 py-1 text-xs rounded-full bg-slate-800 text-amber-300 border border-slate-700">📲 ติดตั้ง</button>
-        <button id="btn-mic" aria-label="ฟังคาลิมบาจริงผ่านไมค์" class="p-1.5 text-slate-300 rounded-lg bg-slate-800 hover:bg-slate-700">🎤</button>
-        <button id="btn-open-settings" class="p-1.5 text-slate-300 rounded-lg bg-slate-800 hover:bg-slate-700">⚙️</button>
+        <button id="btn-install" class="hidden h-9 px-3 text-xs rounded-full border border-amber-500/70 text-amber-300" data-i18n="install">ติดตั้ง</button>
+        <button id="btn-lang" class="h-9 min-w-[2.75rem] px-2 text-xs font-semibold rounded-full border border-slate-700 text-slate-200" data-i18n="lang.switch" data-i18n-aria="lang.aria">EN</button>
+        <button id="btn-open-settings" class="w-9 h-9 flex items-center justify-center rounded-full border border-slate-700 text-slate-300" data-i18n-aria="settings"><i data-icon="settings" class="w-5 h-5"></i></button>
       </div>
-    </div>
-    
-    <!-- เมนูเปลี่ยนหน้าหลัก 4 หน้า -->
-    <div class="max-w-xl mx-auto mt-2 grid grid-cols-4 gap-1 bg-slate-950/80 p-1 rounded-xl border border-slate-800 text-xs">
-      <button id="nav-tab-play" class="py-1.5 rounded-lg font-medium transition bg-amber-600 text-white text-center">🎹 แป้น</button>
-      <button id="nav-tab-practice" class="py-1.5 rounded-lg font-medium transition text-slate-400 hover:text-slate-200 text-center">🎯 ฝึกเพลง</button>
-      <button id="nav-tab-lesson" class="py-1.5 rounded-lg font-medium transition text-slate-400 hover:text-slate-200 text-center">📖 บทเรียน</button>
-      <button id="nav-tab-add" class="py-1.5 rounded-lg font-medium transition text-slate-400 hover:text-slate-200 text-center">➕ เพิ่ม/คลัง</button>
     </div>
   </header>
 
-  <div id="mic-panel" class="hidden max-w-xl mx-auto w-full px-2 pt-2">
-    <div class="bg-slate-900 border border-sky-700/60 rounded-xl p-2.5 text-xs space-y-1.5">
-      <div class="flex items-center justify-between gap-2">
-        <span class="text-sky-300 font-semibold">🎤 กำลังฟังคาลิมบาจริง</span>
-        <button id="btn-mic-stop" class="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 border border-slate-700">ปิดไมค์</button>
-      </div>
-      <div class="flex items-center gap-3">
-        <div class="w-24 text-center">
-          <div id="mic-note" class="text-2xl font-black font-mono text-amber-300 leading-tight">–</div>
-          <div id="mic-note-sub" class="text-[10px] text-slate-400">ดีดได้เลย</div>
+  <!-- Play: the kalimba, free play and the first-song onboarding -->
+  <div id="section-play" class="flex-1 flex flex-col max-w-xl mx-auto w-full px-3 py-3 gap-3">
+    <div id="first-song-card" class="hidden bg-slate-900 border border-amber-500/50 rounded-2xl p-3 text-xs">
+      <div id="fs-intro" class="flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <div class="font-semibold text-amber-300 text-sm" data-i18n="fs.title">เล่นเพลงแรกใน 5 นาที</div>
+          <div class="text-[12px] text-slate-300 leading-snug" data-i18n="fs.sub">ดาวส่องแสง · แตะคีย์ที่เรืองแสงทีละโน้ต ไม่ต้องรีบ</div>
         </div>
-        <div class="flex-1 space-y-1">
-          <div class="relative h-3 rounded-full bg-slate-800 overflow-hidden">
-            <div class="absolute inset-y-0 left-[40%] right-[40%] bg-emerald-600/40"></div>
-            <div id="mic-needle" class="absolute top-0 bottom-0 w-1 -ml-0.5 rounded bg-slate-500" style="left:50%"></div>
-          </div>
-          <div class="flex justify-between text-[10px] text-slate-400"><span>♭ ต่ำไป</span><span id="mic-cents">–</span><span>สูงไป ♯</span></div>
+        <div class="flex gap-1 shrink-0">
+          <button id="fs-start" class="h-10 px-4 rounded-full bg-amber-500 text-slate-950 font-semibold" data-i18n="fs.start">เริ่มเลย</button>
+          <button id="fs-close" aria-label="✕" class="w-10 h-10 rounded-full text-slate-400">✕</button>
         </div>
       </div>
-      <div class="text-[11px] text-slate-400">ดีดทีละโน้ต แอปบอกว่าเป็นโน้ตอะไรและเสียงตรงไหม ใช้กับ "เล่นเพลงแรก" บทเรียน และหน้าฝึกเพลงได้ · ระหว่างฟังเมโทรนอมจะเงียบ · ดีดเร็วได้ถึงราว 4 โน้ต/วินาที</div>
-    </div>
-  </div>
-
-  <!-- หน้าที่ 1: แป้นดนตรี (Play View) -->
-  <div id="section-play" class="flex-1 flex flex-col justify-between max-w-xl mx-auto w-full px-2 py-2">
-    <section class="w-full space-y-2">
-      <div id="first-song-card" class="hidden bg-gradient-to-r from-amber-600/30 to-amber-500/10 border border-amber-500/50 rounded-xl p-2.5 text-xs">
-        <div id="fs-intro" class="flex items-center justify-between gap-2">
-          <div>
-            <div class="font-semibold text-amber-200 text-sm">🎵 เล่นเพลงแรกใน 5 นาที</div>
-            <div class="text-[11px] text-slate-300">ดาวส่องแสง · แตะคีย์ที่เรืองแสงทีละโน้ต ไม่ต้องรีบ</div>
-          </div>
+      <div id="fs-run" class="hidden space-y-2">
+        <div class="flex items-center justify-between gap-2">
+          <span id="fs-step" class="font-semibold text-amber-300 text-[13px]">-</span>
           <div class="flex gap-1 shrink-0">
-            <button id="fs-start" class="px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold">เริ่มเลย</button>
-            <button id="fs-close" aria-label="ปิด" class="px-2 py-1.5 rounded-lg text-slate-400">✕</button>
+            <button id="fs-listen" class="h-9 px-3 rounded-full border border-slate-700 text-slate-200" data-i18n="fs.listen">ฟังก่อน</button>
+            <button id="fs-stop" class="h-9 px-3 rounded-full border border-slate-700 text-slate-400" data-i18n="fs.stop">หยุด</button>
           </div>
         </div>
-        <div id="fs-run" class="hidden space-y-1.5">
-          <div class="flex items-center justify-between gap-2">
-            <span id="fs-step" class="font-semibold text-amber-200">-</span>
-            <div class="flex gap-1 shrink-0">
-              <button id="fs-listen" class="px-2 py-1 rounded-lg bg-slate-800 text-slate-200 border border-slate-700">🔊 ฟังก่อน</button>
-              <button id="fs-stop" class="px-2 py-1 rounded-lg bg-slate-800 text-slate-400 border border-slate-700">หยุด</button>
-            </div>
-          </div>
-          <div id="fs-notes" class="flex gap-1 overflow-x-auto no-scrollbar"></div>
-          <div id="fs-hint" class="text-[11px] text-slate-300">แตะคีย์สีทองที่กำลังกะพริบ</div>
-        </div>
+        <div id="fs-notes" class="flex gap-1 overflow-x-auto no-scrollbar"></div>
+        <div id="fs-hint" class="text-[12px] text-slate-300" data-i18n="fs.hint">แตะคีย์สีทองที่กำลังกะพริบ</div>
       </div>
-      <div class="bg-slate-900 p-1 rounded-xl border border-slate-800 flex items-center gap-1 text-xs">
-        <button id="tab-profile-kalimba13" class="flex-1 py-1.5 px-2 rounded-lg font-medium bg-amber-600 text-white text-center">คาลิมบา 13 คีย์</button>
-        <button id="tab-profile-kalimba17" class="flex-1 py-1.5 px-2 rounded-lg font-medium text-slate-400 text-center">คาลิมบา 17 คีย์</button>
-      </div>
-      <div class="grid grid-cols-2 gap-2 text-xs">
-        <div class="bg-slate-900/80 p-1.5 rounded-lg border border-slate-800 flex items-center justify-between">
-          <span class="text-[11px] text-slate-400 font-medium">ป้ายคีย์:</span>
-          <select id="select-label-mode" class="bg-slate-800 text-slate-200 text-xs rounded px-2 py-1 border border-slate-700">
-            <option value="both">เลข + โน้ต</option>
-            <option value="number">เฉพาะเลข</option>
-            <option value="note">เฉพาะโน้ต</option>
-            <option value="none">ซ่อนป้าย</option>
-          </select>
-        </div>
-        <div class="bg-slate-900/80 p-1.5 rounded-lg border border-slate-800 flex items-center justify-between">
-          <span class="text-[11px] text-slate-400 font-medium">ระบบชื่อ:</span>
-          <select id="select-note-system" class="bg-slate-800 text-slate-200 text-xs rounded px-2 py-1 border border-slate-700">
-            <option value="thai">ด ร ม ฟ ซ ล ท</option>
-            <option value="number">1-7</option>
-            <option value="western">C D E F G A B</option>
-          </select>
-        </div>
-      </div>
-      <div class="bg-slate-900/60 border border-slate-800/80 rounded-lg px-3 py-1.5 flex items-center justify-between text-xs">
-        <div class="flex items-center gap-1.5 truncate">
-          <span class="text-slate-400 text-[11px]">กำลังดีด:</span>
-          <span id="active-note-display" class="font-bold text-amber-400 text-sm tracking-wide">-</span>
-        </div>
-        <div id="two-hand-badge" class="hidden px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-medium flex items-center gap-1">
-          <span>✨ สองมือพร้อมกัน</span>
-          <span id="two-hand-ms" class="text-[9px] text-emerald-300"></span>
-        </div>
-        <div id="kalimba-tuning-badge" class="text-[11px] text-slate-400 flex items-center gap-1">
-          <span>จูน:</span>
-          <span id="current-tuning-name" class="text-amber-300 font-medium">Bb4</span>
-        </div>
-      </div>
-    </section>
+    </div>
 
-    <!-- ตัวเครื่องคาลิมบา -->
-    <main class="flex-1 flex flex-col justify-center items-center py-2 w-full overflow-hidden">
-      <div id="view-kalimba" class="w-full relative flex flex-col items-center">
-        <div class="kalimba-body w-full rounded-3xl p-3 sm:p-5 relative border-4 border-amber-950 flex flex-col items-center">
+    <div class="grid grid-cols-2 gap-1 p-1 rounded-full bg-slate-900 border border-slate-800 text-xs">
+      <button id="tab-profile-kalimba13" class="h-9 rounded-full font-medium" data-i18n="k13">คาลิมบา 13 คีย์</button>
+      <button id="tab-profile-kalimba17" class="h-9 rounded-full font-medium" data-i18n="k17">คาลิมบา 17 คีย์</button>
+    </div>
+    <div class="grid grid-cols-2 gap-2 text-xs">
+      <label class="bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 flex flex-col gap-0.5">
+        <span class="text-[11px] text-slate-400" data-i18n="labels">ป้ายคีย์</span>
+        <select id="select-label-mode" class="bg-transparent text-slate-100 text-[13px] -ml-1">
+          <option value="both" data-i18n="lab.both">เลข + โน้ต</option>
+          <option value="number" data-i18n="lab.number">เฉพาะเลข</option>
+          <option value="note" data-i18n="lab.note">เฉพาะโน้ต</option>
+          <option value="none" data-i18n="lab.none">ซ่อนป้าย</option>
+        </select>
+      </label>
+      <label class="bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 flex flex-col gap-0.5">
+        <span class="text-[11px] text-slate-400" data-i18n="names">ชื่อโน้ต</span>
+        <select id="select-note-system" class="bg-transparent text-slate-100 text-[13px] -ml-1">
+          <option value="thai">ด ร ม ฟ ซ ล ท</option>
+          <option value="number">1 2 3 4 5 6 7</option>
+          <option value="western">C D E F G A B</option>
+        </select>
+      </label>
+    </div>
+    <div class="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 flex items-center justify-between gap-2 text-xs">
+      <div class="flex items-center gap-1.5 min-w-0 truncate">
+        <span class="text-slate-400 text-[11px]" data-i18n="playing">กำลังดีด</span>
+        <span id="active-note-display" class="font-semibold text-amber-400 text-sm">-</span>
+      </div>
+      <div id="two-hand-badge" class="hidden px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 text-[11px] font-medium flex items-center gap-1">
+        <span data-i18n="twohand">สองมือพร้อมกัน</span>
+        <span id="two-hand-ms" class="text-emerald-300"></span>
+      </div>
+      <div id="kalimba-tuning-badge" class="text-[11px] text-slate-400 flex items-center gap-1 shrink-0">
+        <span data-i18n="tuning">จูน</span>
+        <span id="current-tuning-name" class="text-amber-300 font-medium">Bb4</span>
+      </div>
+    </div>
+
+    <div data-kslot="play" class="flex-1 flex flex-col justify-center w-full">
+      <div id="view-kalimba" class="kal w-full relative flex flex-col items-center">
+        <div class="kalimba-body w-full rounded-[28px] p-3 sm:p-5 relative flex flex-col items-center">
           <div class="w-full h-4 metal-bridge rounded-sm mb-1 flex items-center justify-around px-2">
             <div class="w-2 h-2 rounded-full bg-slate-400"></div>
             <div class="w-2 h-2 rounded-full bg-slate-400"></div>
             <div class="w-2 h-2 rounded-full bg-slate-400"></div>
             <div class="w-2 h-2 rounded-full bg-slate-400"></div>
           </div>
-          <div id="kalimba-tines-wrapper" class="w-full flex justify-center items-start gap-1 sm:gap-1.5 pt-1 pb-4 relative min-h-[250px] sm:min-h-[280px]"></div>
-          <div class="w-16 h-16 rounded-full sound-hole border-2 border-amber-900/60 flex items-center justify-center mt-1">
-            <span id="kalimba-hole-label" class="text-amber-800/40 text-xs font-mono">13 KEYS</span>
+          <div id="kalimba-tines-wrapper" class="w-full flex justify-center items-start gap-1 sm:gap-1.5 pt-1 pb-3 relative"></div>
+          <div class="kal-hole w-16 h-16 rounded-full sound-hole flex items-center justify-center mt-1">
+            <span id="kalimba-hole-label" class="text-amber-200/30 text-[10px] font-mono">13 KEYS</span>
           </div>
-          <div class="w-full flex justify-between items-center text-[10px] text-amber-200/50 px-4 mt-2">
-            <span>👈 ซ้าย (L)</span>
-            <span class="text-amber-400/80 font-medium">รูดนิ้ว (Glissando) ได้</span>
-            <span>ขวา (R) 👉</span>
+          <div class="kal-hint w-full flex justify-between items-center text-[11px] text-amber-100/60 px-3 mt-2">
+            <span>← <span data-i18n="left">ซ้าย</span></span>
+            <span class="text-amber-200/80" data-i18n="glide">รูดนิ้วได้</span>
+            <span><span data-i18n="right">ขวา</span> →</span>
           </div>
         </div>
       </div>
-    </main>
+    </div>
 
-    <div class="flex items-center justify-between pt-1 text-xs border-t border-slate-900">
-      <span class="text-slate-400 text-[11px]">สถานะ: พร้อมใช้งาน</span>
-      <button id="btn-toggle-tuning-quick" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 text-[11px] border border-slate-700">สลับจูน Bb4 ⇄ B4</button>
+    <div class="flex justify-end">
+      <button id="btn-toggle-tuning-quick" class="h-9 px-3 rounded-full border border-slate-700 text-amber-300 text-[12px]" data-i18n="swap.tuning">สลับจูน Bb4 ⇄ B4</button>
     </div>
   </div>
 
-  <!-- หน้าที่ 2: ฝึกเพลงตามจังหวะ (Practice View) -->
-  <div id="section-practice" class="hidden flex-1 max-w-xl mx-auto w-full px-3 py-3 space-y-3 overflow-y-auto">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-lg">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-        <div>
-          <h2 id="practice-current-song-title" class="text-sm font-semibold font-heading text-amber-300">เพลง: ดาวส่องแสง</h2>
-          <p class="text-[10px] text-slate-400">ฝึกเล่นตามจังหวะพร้อมเมโทรนอม</p>
-        </div>
-        <button id="btn-practice-change-song" class="text-xs px-2 py-1 rounded bg-slate-800 text-slate-300 hover:text-white border border-slate-700">เปลี่ยนเพลง</button>
+  <!-- Song player: falling notes over the kalimba, played by tapping or on a real kalimba -->
+  <div id="section-player" class="hidden player flex-col max-w-xl mx-auto w-full px-2 pt-2">
+    <div class="flex items-center gap-2 px-1">
+      <button id="pl-back" class="w-10 h-10 shrink-0 rounded-full border border-slate-700 flex items-center justify-center text-slate-300" data-i18n-aria="pl.songs"><i data-icon="arrow-left" class="w-5 h-5"></i></button>
+      <div class="flex-1 min-w-0">
+        <h2 id="pl-title" class="text-[15px] font-semibold truncate">-</h2>
+        <p id="pl-meta" class="text-[11px] text-slate-400 truncate">-</p>
       </div>
-
-      <div class="grid grid-cols-2 gap-2 text-xs">
-        <div class="bg-slate-800/70 p-2 rounded-xl border border-slate-700">
-          <label class="block text-slate-400 text-[10px] mb-1">ระดับตัวช่วย:</label>
-          <select id="select-help-level" class="w-full bg-slate-900 text-slate-200 rounded px-2 py-1 border border-slate-700 text-xs">
-            <option value="1">ระดับ 1: โน้ต + คีย์เรืองแสง</option>
-            <option value="2">ระดับ 2: เรืองแสงโน้ตแรกห้อง</option>
-            <option value="3">ระดับ 3: เฉพาะเนื้อร้อง</option>
-          </select>
-        </div>
-        <div class="bg-slate-800/70 p-2 rounded-xl border border-slate-700">
-          <div class="flex justify-between items-center mb-1">
-            <label class="text-slate-400 text-[10px]">ความเร็ว (BPM):</label>
-            <span id="practice-bpm-text" class="font-mono text-amber-400 font-bold">80</span>
+      <button id="pl-mic" aria-pressed="false" class="h-10 px-3 shrink-0 rounded-full border border-slate-700 text-slate-300 text-xs flex items-center gap-1.5"><i data-icon="microphone" class="w-4 h-4"></i><span data-i18n="pl.real">คาลิมบาจริง</span></button>
+    </div>
+    <div class="flex items-center gap-2 px-1 mt-2 text-xs">
+      <div class="flex p-0.5 rounded-full bg-slate-900 border border-slate-800" role="group">
+        <button data-plmode="wait" class="h-8 px-3 rounded-full" data-i18n="pl.wait">รอ</button>
+        <button data-plmode="rhythm" class="h-8 px-3 rounded-full" data-i18n="pl.rhythm">ตามจังหวะ</button>
+      </div>
+      <div class="flex items-center rounded-full bg-slate-900 border border-slate-800">
+        <button id="pl-slower" class="w-8 h-8 text-base text-slate-300" data-i18n-aria="pl.slower">−</button>
+        <span id="pl-speed" class="min-w-[3rem] text-center tabular-nums text-slate-100">100%</span>
+        <button id="pl-faster" class="w-8 h-8 text-base text-slate-300" data-i18n-aria="pl.faster">+</button>
+      </div>
+      <div class="ml-auto flex gap-1.5">
+        <button id="pl-loop" aria-pressed="false" class="w-9 h-9 rounded-full border border-slate-800 bg-slate-900 flex items-center justify-center text-slate-400" data-i18n-aria="pl.loop"><i data-icon="repeat" class="w-4 h-4"></i></button>
+        <button id="pl-listen" class="w-9 h-9 rounded-full border border-slate-800 bg-slate-900 flex items-center justify-center text-slate-300" data-i18n-aria="pl.listen"><i data-icon="headphones" class="w-4 h-4"></i></button>
+      </div>
+    </div>
+    <div id="pl-stage" class="relative flex-1 min-h-[120px] mt-2 rounded-2xl overflow-hidden bg-slate-950 border border-slate-800/80">
+      <canvas id="pl-canvas" class="absolute inset-0 w-full h-full"></canvas>
+      <div id="pl-msg" class="absolute inset-x-0 top-3 text-center text-[13px] text-slate-300 px-6 pointer-events-none leading-snug"></div>
+      <div id="pl-count" class="hidden absolute inset-0 flex items-center justify-center text-7xl font-semibold text-amber-400 pointer-events-none"></div>
+      <div id="pl-result" class="hidden absolute inset-0 bg-slate-950/95 flex items-center justify-center p-4">
+        <div class="w-full max-w-xs text-center space-y-2">
+          <div id="pl-stars" class="text-3xl tracking-[0.3em] text-amber-400">★★★</div>
+          <div class="text-base font-semibold" data-i18n="pl.done">จบเพลงแล้ว</div>
+          <div id="pl-res-acc" class="text-5xl font-semibold tabular-nums">-</div>
+          <div id="pl-res-detail" class="text-[13px] text-slate-400"></div>
+          <div id="pl-res-best" class="text-[12px] text-amber-300 min-h-[18px]"></div>
+          <div class="grid gap-2 pt-2">
+            <button id="pl-again" class="h-11 rounded-full bg-amber-500 text-slate-950 font-semibold" data-i18n="pl.again">เล่นอีกครั้ง</button>
+            <div class="grid grid-cols-2 gap-2">
+              <button id="pl-slow10" class="h-10 rounded-full border border-slate-700 text-slate-200 text-[13px]" data-i18n="pl.slow10">ช้าลง 10%</button>
+              <button id="pl-choose" class="h-10 rounded-full border border-slate-700 text-slate-200 text-[13px]" data-i18n="pl.choose">เลือกเพลงอื่น</button>
+            </div>
           </div>
-          <input id="range-practice-bpm" type="range" min="50" max="140" value="80" class="w-full accent-amber-500">
         </div>
       </div>
-
-      <div class="flex items-center justify-between bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700/60 text-xs">
-        <div class="flex items-center gap-1.5">
-          <input type="checkbox" id="check-auto-speed" class="accent-amber-500 rounded">
-          <label for="check-auto-speed" class="text-slate-300 text-[11px] cursor-pointer">เร่งความเร็วอัตโนมัติ (ถูก 3 รอบ +5%)</label>
-        </div>
-        <span id="speed-streak-count" class="text-[10px] text-amber-400 font-mono">รอบ: 0/3</span>
-      </div>
-
-      <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 text-center space-y-1 relative min-h-[100px] flex flex-col justify-center items-center">
-        <div id="practice-count-in" class="hidden text-3xl font-heading font-black text-amber-400 animate-bounce">1</div>
-        <div id="practice-note-box" class="space-y-1">
-          <div class="text-[10px] text-slate-500 uppercase tracking-wider">โน้ตเป้าหมาย</div>
-          <div id="practice-target-note" class="text-4xl font-black font-mono text-amber-300">-</div>
-          <div id="practice-target-sub" class="text-xs text-slate-400">-</div>
-        </div>
-        <div id="practice-feedback-text" class="text-xs font-bold mt-2 text-slate-400">กดเริ่มเพื่อเริ่มนับเข้า 1 ห้อง</div>
-      </div>
-
-      <div class="flex gap-2">
-        <button id="btn-practice-start" class="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md">▶ เริ่มฝึกเพลง (นับเข้า)</button>
-        <button id="btn-practice-stop" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs border border-slate-700">⏹ หยุด</button>
-      </div>
-
-      <div id="practice-score-summary" class="hidden bg-emerald-950/40 border border-emerald-500/40 p-3 rounded-xl text-xs space-y-2 text-slate-200">
-        <div class="font-bold text-emerald-400 flex items-center justify-between">
-          <span>🎉 สรุปผลการฝึกซ้อม:</span>
-          <span id="practice-grade-badge" class="px-2 py-0.5 rounded bg-emerald-500 text-slate-950 font-black">เกรด A</span>
-        </div>
-        <div class="grid grid-cols-2 gap-2 text-[11px] pt-1">
-          <div class="bg-slate-900/60 p-2 rounded">ความแม่นยำโน้ต: <strong id="score-note-pct" class="text-emerald-300 font-mono">100%</strong></div>
-          <div class="bg-slate-900/60 p-2 rounded">ความตรงจังหวะ: <strong id="score-timing-pct" class="text-amber-300 font-mono">92%</strong></div>
-        </div>
+    </div>
+    <div data-kslot="player" class="kal-compact w-full"></div>
+    <div class="flex items-center gap-3 px-1 py-2">
+      <button id="pl-play" class="h-12 px-5 shrink-0 rounded-full bg-amber-500 text-slate-950 font-semibold flex items-center gap-2"><span id="pl-play-icon"></span><span id="pl-play-label" data-i18n="pl.start">เริ่ม</span></button>
+      <div class="flex-1 min-w-0">
+        <div id="pl-lyric" class="text-[13px] text-slate-300 truncate h-5"></div>
+        <div id="pl-progress" class="relative h-2 rounded-full bg-slate-800 mt-1 cursor-pointer"><div id="pl-progress-fill" class="absolute inset-y-0 left-0 rounded-full bg-amber-500" style="width:0%"></div></div>
+        <div class="flex justify-between text-[11px] text-slate-400 mt-1 gap-2"><span id="pl-score" class="truncate"></span><span id="pl-pos" class="tabular-nums shrink-0"></span></div>
       </div>
     </div>
   </div>
 
-  <!-- หน้าที่ 3: บทเรียนจำโน้ต (Lesson View) -->
-  <div id="section-lesson" class="hidden flex-1 max-w-xl mx-auto w-full px-3 py-3 space-y-3 overflow-y-auto">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-lg">
-      <div class="border-b border-slate-800 pb-2">
-        <h2 class="text-sm font-semibold font-heading text-amber-300">📖 บทเรียนจำโน้ต (เริ่มจากศูนย์)</h2>
-        <p class="text-[10px] text-slate-400">ระบบจำโน้ตพร้อม Spaced Repetition นำโน้ตที่ผิดบ่อยมาถามซ้ำ</p>
-      </div>
-      <div class="bg-slate-950 p-5 rounded-xl border border-slate-800 text-center space-y-2">
-        <span class="text-slate-400 text-xs">จงหาและแตะคีย์:</span>
-        <div id="lesson-prompt-note" class="text-4xl font-black font-mono text-amber-400">1 (โด)</div>
-        <div id="lesson-feedback" class="text-xs text-slate-400 min-h-[16px]">-</div>
-      </div>
-      <div class="flex items-center justify-between text-xs px-2 text-slate-400">
-        <span>ตอบถูกสะสม: <strong id="lesson-correct-count" class="text-emerald-400">0</strong></span>
-        <span>โน้ตที่ตอบผิดบ่อย: <strong id="lesson-weak-note" class="text-amber-400">-</strong></span>
-      </div>
-      <button id="btn-lesson-next" class="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs">สุ่มคำถามถัดไป</button>
+  <!-- Learn: find the note on the kalimba -->
+  <div id="section-lesson" class="hidden flex-1 flex flex-col max-w-xl mx-auto w-full px-3 py-3 gap-3">
+    <div>
+      <h2 class="text-lg font-semibold" data-i18n="le.title">บทเรียนจำโน้ต</h2>
+      <p class="text-[12px] text-slate-400" data-i18n="le.sub">หาคีย์ให้ถูก โน้ตที่พลาดบ่อยจะถามซ้ำ</p>
     </div>
+    <div class="rounded-2xl bg-slate-900 border border-slate-800 p-4 text-center space-y-1">
+      <div class="text-[12px] text-slate-400" data-i18n="le.find">หาแล้วดีดโน้ตนี้</div>
+      <div id="lesson-prompt-note" class="text-4xl font-semibold text-amber-400">-</div>
+      <div id="lesson-feedback" class="text-[13px] text-slate-400 min-h-[20px]">-</div>
+      <div class="flex justify-between text-[12px] text-slate-400 pt-2">
+        <span><span data-i18n="le.correct">ตอบถูก</span> <strong id="lesson-correct-count" class="text-emerald-400">0</strong></span>
+        <span><span data-i18n="le.weak">พลาดบ่อย</span> <strong id="lesson-weak-note" class="text-amber-400">-</strong></span>
+      </div>
+    </div>
+    <div data-kslot="lesson" class="kal-compact w-full"></div>
+    <button id="btn-lesson-next" class="h-11 rounded-full border border-slate-700 text-slate-200" data-i18n="le.next">ข้อต่อไป</button>
+    <p class="text-[11px] text-slate-500 text-center" data-i18n="le.soon">บทเรียนเป็นขั้น กำลังมา</p>
+  </div>
+
+  <!-- Tuner: a real kalimba through the microphone -->
+  <div id="section-tuner" class="hidden flex-1 flex flex-col max-w-xl mx-auto w-full px-3 py-3 gap-3">
+    <div class="flex items-start justify-between gap-2">
+      <div>
+        <h2 class="text-lg font-semibold" data-i18n="tu.title">ตั้งเสียง</h2>
+        <p class="text-[12px] text-slate-400" data-i18n="tu.sub">ดีดทีละก้าน ดูว่าเสียงตรงไหม</p>
+      </div>
+      <span id="tu-kind" class="text-[11px] px-2.5 py-1 rounded-full border border-slate-700 text-slate-300 shrink-0">13 · Bb4</span>
+    </div>
+    <div class="rounded-2xl bg-slate-900 border border-slate-800 px-4 pt-4 pb-3 flex flex-col items-center">
+      <svg viewBox="0 0 240 136" class="w-full max-w-[300px]" role="img" aria-labelledby="tu-cents">
+        <path d="M20 126 A100 100 0 0 1 220 126" fill="none" stroke="#222C42" stroke-width="12" stroke-linecap="round"/>
+        <path d="M89.1 30.9 A100 100 0 0 1 150.9 30.9" fill="none" stroke="#3B7F5A" stroke-width="12"/>
+        <line x1="120" y1="14" x2="120" y2="22" stroke="#566176" stroke-width="2"/>
+        <line id="tu-needle" x1="120" y1="126" x2="120" y2="38" stroke="#566176" stroke-width="3" stroke-linecap="round" style="transform-origin:120px 126px;transition:transform .12s ease-out,stroke .12s"/>
+        <circle cx="120" cy="126" r="6" fill="#C9A46A"/>
+      </svg>
+      <div id="tu-note" class="text-5xl font-semibold leading-tight -mt-1">–</div>
+      <div id="tu-sub" class="text-[13px] text-slate-400 min-h-[20px]"></div>
+      <div id="tu-status" class="text-[14px] font-medium mt-1 min-h-[22px] text-center"></div>
+      <div class="w-full flex justify-between text-[11px] text-slate-400 mt-2"><span data-i18n="tu.flat">♭ ต่ำไป</span><span id="tu-cents" class="tabular-nums">–</span><span data-i18n="tu.sharp">สูงไป ♯</span></div>
+    </div>
+    <div class="rounded-2xl bg-slate-900 border border-slate-800 p-3 space-y-2">
+      <div id="tu-tines" class="flex items-start justify-center gap-[3px]"></div>
+      <div id="tu-summary" class="text-[12px] text-slate-300 text-center"></div>
+      <p class="text-[11px] text-slate-400 text-center leading-snug" data-i18n="tu.legend"></p>
+    </div>
+    <button id="tu-toggle" class="h-12 rounded-full bg-amber-500 text-slate-950 font-semibold flex items-center justify-center gap-2"><i data-icon="microphone" class="w-5 h-5"></i><span id="tu-toggle-label" data-i18n="tu.start">เริ่มฟัง</span></button>
+    <p class="text-[11px] text-slate-500 text-center leading-snug" data-i18n="tu.tips"></p>
   </div>
 
   <!-- หน้าที่ 4: เพิ่มเพลง & คลังเพลง (Add & Library View) — M2 -->
@@ -258,18 +247,18 @@
     <!-- 4a) คลังเพลง -->
     <div id="add-library" class="space-y-3">
       <div class="flex items-center justify-between">
-        <h2 class="text-sm font-semibold font-heading text-amber-300">📚 เพลงของฉัน</h2>
-        <button id="btn-lib-add" class="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold">➕ เพิ่มเพลง</button>
+        <h2 class="text-lg font-semibold text-slate-100" data-i18n="lib.mine">เพลงของฉัน</h2>
+        <button id="btn-lib-add" class="h-10 px-4 rounded-full bg-amber-500 text-slate-950 text-[13px] font-semibold">+ <span data-i18n="lib.add">เพิ่มเพลง</span></button>
       </div>
-      <div id="premium-card" class="hidden bg-gradient-to-r from-emerald-700/30 to-emerald-500/10 border border-emerald-600/50 rounded-xl p-2.5 text-xs flex items-center gap-2">
-        <span class="text-xl">⭐</span>
+      <div id="premium-card" class="hidden bg-slate-900 border border-amber-500/50 rounded-2xl p-3 text-xs flex items-center gap-3">
+        <span class="w-9 h-9 shrink-0 rounded-full border border-amber-500/60 text-amber-400 flex items-center justify-center text-lg">★</span>
         <div class="flex-1">
-          <div class="font-semibold text-emerald-200">รุ่นพรีเมียมกำลังมา</div>
+          <div class="font-semibold text-amber-300" data-i18n="premium.title">รุ่นพรีเมียมกำลังมา</div>
           <div class="text-[11px] text-slate-300">เพลงใหม่ทุกเดือน · บทเรียนเป็นขั้น · ตรวจโน้ตผ่านไมค์ · แปลงเพลงที่ชอบเป็นโน้ต · ไม่มีโฆษณา</div>
         </div>
-        <button id="btn-premium" class="px-3 py-1.5 rounded-lg bg-emerald-500 text-slate-950 font-bold shrink-0">ลงชื่อรอ</button>
+        <button id="btn-premium" class="h-9 px-3 rounded-full bg-amber-500 text-slate-950 font-semibold shrink-0" data-i18n="premium.join">ลงชื่อรอ</button>
       </div>
-      <input id="lib-search" type="search" enterkeyhint="search" placeholder="🔎 ค้นหาเพลง เช่น jingle, วันเกิด, ดาว"
+      <input id="lib-search" type="search" enterkeyhint="search" placeholder="ค้นหาเพลง เช่น jingle, วันเกิด, ดาว" data-i18n-ph="lib.search"
         class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-100">
       <div id="lib-noresult" class="hidden bg-slate-900 border border-amber-600/50 rounded-xl p-3 text-xs space-y-2">
         <div class="text-amber-200">ไม่พบ "<span id="lib-q"></span>" ในคลัง · หาไฟล์ MIDI ของเพลงนี้แล้วนำเข้าเองได้</div>
@@ -290,11 +279,11 @@
       </div>
       <p class="text-[10px] text-slate-500 leading-relaxed">เพลงเก็บใน IndexedDB ของเครื่องนี้เท่านั้น ถ้าล้างข้อมูลเบราว์เซอร์เพลงจะหาย แนะนำให้สำรองเป็นครั้งคราว</p>
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2">
-        <h3 class="text-[11px] font-bold text-emerald-300 tracking-wider">🎁 คลังเพลงฟรี (เพลงหมดลิขสิทธิ์) · <span id="free-count"></span></h3>
+        <h3 class="text-[13px] font-semibold text-slate-100"><span data-i18n="lib.free">คลังเพลงฟรี (เพลงหมดลิขสิทธิ์)</span> · <span id="free-count" class="text-slate-400 font-normal"></span></h3>
         <div id="lib-free" class="space-y-2"></div>
       </div>
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2">
-        <h3 class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">เพลงตัวอย่างในแอป (ฝึกอย่างเดียว)</h3>
+        <h3 class="text-[13px] font-semibold text-slate-100" data-i18n="lib.builtin">เพลงตัวอย่างในแอป</h3>
         <div id="lib-builtin" class="space-y-2"></div>
       </div>
     </div>
@@ -446,9 +435,18 @@
     </div>
   </div>
 
-  <div id="toast" class="hidden fixed left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-slate-100 text-slate-900 text-xs font-medium shadow-lg max-w-[90%] text-center" style="bottom: calc(1.5rem + env(safe-area-inset-bottom));"></div>
+  <nav id="bottom-nav" class="bottom-nav fixed bottom-0 inset-x-0 z-40 bg-slate-950/95 backdrop-blur border-t border-slate-800">
+    <div class="max-w-xl mx-auto grid grid-cols-4">
+      <button id="nav-tab-play" data-view="play" class="nav-btn"><i data-icon="music" class="w-6 h-6"></i><span data-i18n="nav.play">เล่น</span></button>
+      <button id="nav-tab-add" data-view="add" class="nav-btn"><i data-icon="playlist" class="w-6 h-6"></i><span data-i18n="nav.songs">เพลง</span></button>
+      <button id="nav-tab-lesson" data-view="lesson" class="nav-btn"><i data-icon="school" class="w-6 h-6"></i><span data-i18n="nav.learn">เรียน</span></button>
+      <button id="nav-tab-tuner" data-view="tuner" class="nav-btn"><i data-icon="gauge" class="w-6 h-6"></i><span data-i18n="nav.tuner">ตั้งเสียง</span></button>
+    </div>
+  </nav>
 
-  <div id="install-banner" class="hidden fixed inset-x-2 z-40 max-w-xl mx-auto bg-slate-900 border border-amber-500/60 rounded-xl p-2.5 shadow-2xl flex items-center gap-2 text-xs" style="bottom: calc(0.75rem + env(safe-area-inset-bottom));">
+  <div id="toast" class="hidden fixed left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-slate-100 text-slate-900 text-xs font-medium shadow-lg max-w-[90%] text-center" style="bottom: calc(var(--nav-h) + 1rem + env(safe-area-inset-bottom));"></div>
+
+  <div id="install-banner" class="hidden fixed inset-x-2 z-40 max-w-xl mx-auto bg-slate-900 border border-amber-500/60 rounded-xl p-2.5 shadow-2xl flex items-center gap-2 text-xs" style="bottom: calc(var(--nav-h) + 0.5rem + env(safe-area-inset-bottom));">
     <span class="text-xl">📲</span>
     <span id="install-banner-text" class="flex-1 text-slate-200">ติดตั้งเป็นแอปบนหน้าจอโฮม เปิดเร็ว ใช้ออฟไลน์ได้</span>
     <button id="install-banner-go" class="px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold shrink-0">ติดตั้ง</button>
@@ -521,10 +519,21 @@
   <div id="modal-settings" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-        <h3 class="text-base font-semibold font-heading text-amber-300">⚙️ การตั้งค่าระบบ</h3>
+        <h3 class="text-base font-semibold text-slate-100" data-i18n="set.title">ตั้งค่า</h3>
         <button id="btn-close-settings" class="text-slate-400 hover:text-white text-lg">✕</button>
       </div>
       <div class="space-y-3 text-xs">
+        <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700 space-y-2">
+          <span class="block font-medium text-slate-200" data-i18n="set.lang">ภาษา</span>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="flex items-center gap-2 p-2 rounded-lg bg-slate-800 border border-slate-700 cursor-pointer">
+              <input type="radio" name="app-lang" value="th" class="accent-amber-500"><span class="text-slate-100 font-semibold">ไทย</span>
+            </label>
+            <label class="flex items-center gap-2 p-2 rounded-lg bg-slate-800 border border-slate-700 cursor-pointer">
+              <input type="radio" name="app-lang" value="en" class="accent-amber-500"><span class="text-slate-100 font-semibold">English</span>
+            </label>
+          </div>
+        </div>
         <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700 space-y-2">
           <label class="block font-medium text-slate-200">การจูนคีย์ 13 คีย์ (คีย์ที่ 10 ฝั่งขวา):</label>
           <div class="grid grid-cols-2 gap-2">
@@ -548,10 +557,12 @@
           <div id="unlock-status" class="text-[11px] text-slate-400"></div>
         </div>
       </div>
-      <button id="btn-save-settings" class="w-full py-2.5 rounded-xl bg-amber-500 text-slate-950 font-bold">บันทึก</button>
+      <button id="btn-save-settings" class="w-full h-11 rounded-full bg-amber-500 text-slate-950 font-semibold" data-i18n="set.save">บันทึก</button>
     </div>
   </div>
 
+  <script src="js/i18n.js"></script>
+  <script src="js/icons.js"></script>
   <script src="js/core.js"></script>
   <script src="js/app.js"></script>
 </body>
