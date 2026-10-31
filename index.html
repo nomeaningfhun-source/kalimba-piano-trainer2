@@ -45,19 +45,20 @@
   <!-- แถบหัวแอป -->
   <header class="app-header bg-slate-900/95 backdrop-blur border-b border-slate-800 sticky top-0 z-30 px-3 py-2">
     <div class="max-w-xl mx-auto flex items-center justify-between gap-2">
-      <div class="flex items-center gap-2">
-        <div class="w-8 h-8 rounded-lg bg-amber-600 flex items-center justify-center shadow-md text-lg">🎵</div>
-        <div>
-          <h1 class="text-sm font-semibold font-heading leading-tight text-amber-300">ครูฝึกคาลิมบา</h1>
-          <p class="text-[10px] text-slate-400">ฝึกคาลิมบาฟรี • ใช้ออฟไลน์ได้</p>
+      <div class="flex items-center gap-2 min-w-0">
+        <div class="w-8 h-8 shrink-0 rounded-lg bg-amber-600 flex items-center justify-center shadow-md text-lg">🎵</div>
+        <div class="min-w-0">
+          <h1 class="text-sm font-semibold font-heading leading-tight text-amber-300 truncate">ครูฝึกคาลิมบา</h1>
+          <p class="text-[10px] text-slate-400 truncate">ฝึกคาลิมบาฟรี • ใช้ออฟไลน์ได้</p>
         </div>
       </div>
-      <div class="flex items-center gap-1.5">
+      <div class="flex items-center gap-1.5 shrink-0">
         <button id="btn-audio-status" class="px-2.5 py-1 text-xs rounded-full bg-amber-500 text-slate-950 font-medium flex items-center gap-1 shadow-sm">
           <span id="audio-indicator" class="inline-block w-2 h-2 rounded-full bg-red-600 animate-pulse"></span>
           <span id="audio-status-text">แตะเปิดเสียง</span>
         </button>
         <button id="btn-install" class="hidden px-2 py-1 text-xs rounded-full bg-slate-800 text-amber-300 border border-slate-700">📲 ติดตั้ง</button>
+        <button id="btn-mic" aria-label="ฟังคาลิมบาจริงผ่านไมค์" class="p-1.5 text-slate-300 rounded-lg bg-slate-800 hover:bg-slate-700">🎤</button>
         <button id="btn-open-settings" class="p-1.5 text-slate-300 rounded-lg bg-slate-800 hover:bg-slate-700">⚙️</button>
       </div>
     </div>
@@ -70,6 +71,29 @@
       <button id="nav-tab-add" class="py-1.5 rounded-lg font-medium transition text-slate-400 hover:text-slate-200 text-center">➕ เพิ่ม/คลัง</button>
     </div>
   </header>
+
+  <div id="mic-panel" class="hidden max-w-xl mx-auto w-full px-2 pt-2">
+    <div class="bg-slate-900 border border-sky-700/60 rounded-xl p-2.5 text-xs space-y-1.5">
+      <div class="flex items-center justify-between gap-2">
+        <span class="text-sky-300 font-semibold">🎤 กำลังฟังคาลิมบาจริง</span>
+        <button id="btn-mic-stop" class="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 border border-slate-700">ปิดไมค์</button>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="w-24 text-center">
+          <div id="mic-note" class="text-2xl font-black font-mono text-amber-300 leading-tight">–</div>
+          <div id="mic-note-sub" class="text-[10px] text-slate-400">ดีดได้เลย</div>
+        </div>
+        <div class="flex-1 space-y-1">
+          <div class="relative h-3 rounded-full bg-slate-800 overflow-hidden">
+            <div class="absolute inset-y-0 left-[40%] right-[40%] bg-emerald-600/40"></div>
+            <div id="mic-needle" class="absolute top-0 bottom-0 w-1 -ml-0.5 rounded bg-slate-500" style="left:50%"></div>
+          </div>
+          <div class="flex justify-between text-[10px] text-slate-400"><span>♭ ต่ำไป</span><span id="mic-cents">–</span><span>สูงไป ♯</span></div>
+        </div>
+      </div>
+      <div class="text-[11px] text-slate-400">ดีดทีละโน้ต แอปบอกว่าเป็นโน้ตอะไรและเสียงตรงไหม ใช้กับ "เล่นเพลงแรก" บทเรียน และหน้าฝึกเพลงได้ · ระหว่างฟังเมโทรนอมจะเงียบ · ดีดเร็วได้ถึงราว 4 โน้ต/วินาที</div>
+    </div>
+  </div>
 
   <!-- หน้าที่ 1: แป้นดนตรี (Play View) -->
   <div id="section-play" class="flex-1 flex flex-col justify-between max-w-xl mx-auto w-full px-2 py-2">
@@ -612,6 +636,7 @@
     // kalimba-app recording: low tines ring ~2 s with a metallic 6.5x partial at the pluck,
     // high tines decay fast (~45 dB/s at G5) with no audible overtone.
     function kalimbaVoice(ctx, dest, freq, t, vel) {
+      kalimbaVoice.lastT = Math.max(kalimbaVoice.lastT || 0, t);   // the mic ignores the app's own notes
       const midi = 69 + 12 * Math.log2(freq / 440);
       const rate = 9.5 * Math.pow(2, (midi - 60) / 8.4);          // tail decay, dB per second
       const l03 = -2.5 - Math.max(4.3, 0.22 * rate);              // level at 0.3 s, dB
@@ -660,7 +685,7 @@
         kalimbaVoice(this.ctx, this.kBus, freq, this.ctx.currentTime, 0.6);
       }
       playMetronome(isDownbeat = false) {
-        if (!this.ctx) return;
+        if (!this.ctx || window.KTMicOn) return;   // the click would be heard as a note while listening
         const now = this.ctx.currentTime;
         const osc = this.ctx.createOscillator(), g = this.ctx.createGain();
         osc.type = 'sine'; osc.frequency.setValueAtTime(isDownbeat ? 880 : 440, now);
@@ -755,6 +780,11 @@
         clearTimeout(activeTwoHandTimeout); activeTwoHandTimeout = setTimeout(() => $('two-hand-badge').classList.add('hidden'), 1200);
       }
       state.lastTriggerTime = now;
+      judgePitch(pitch);
+    }
+
+    // a note the player produced: a tapped tine, or a real kalimba heard through the microphone
+    function judgePitch(pitch) {
       if (window.KTFirst) KTFirst.onNote(pitch);
 
       // Lesson Interaction
@@ -1721,6 +1751,120 @@ function freeSong(f, tuning) {
   return r;
 }
 /* @@MIDI-END */
+
+/* @@PITCH-START  microphone note detection for a real kalimba. Pure: no DOM, testable in node. */
+// Tines keep ringing after they are plucked, so a plain pitch tracker sees a chord. Instead every frame
+// measures the energy at each semitone (Goertzel, Hann window) and a pluck is the semitone whose energy
+// jumps the most; the tuner then scans ±50 cents around it.
+const MIC_MIDI_LO = 55, MIC_MIDI_HI = 90;   // G3–F#6: covers 13- and 17-key kalimbas with room for detuning
+
+// 2nd-order Butterworth low-pass (same response as a Web Audio "lowpass" biquad at Q 0.7071); run twice it
+// tames the kalimba's metallic 6.5x partial
+function makeLowpass(sampleRate, fc) {
+  const w = 2 * Math.PI * fc / sampleRate, al = Math.sin(w) / (2 * Math.SQRT1_2), cw = Math.cos(w), a0 = 1 + al;
+  const b0 = (1 - cw) / 2 / a0, b1 = (1 - cw) / a0, a1 = -2 * cw / a0, a2 = (1 - al) / a0;
+  let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+  return x => { const y = b0 * x + b1 * x1 + b0 * x2 - a1 * y1 - a2 * y2; x2 = x1; x1 = x; y2 = y1; y1 = y; return y; };
+}
+const MIC_LOWPASS_HZ = 1600;
+const MIC_WINDOW = 4096;   // ≈85 ms at 48 kHz: long enough to tell C4 from C#4
+
+const hannCache = {};
+function hann(n) {
+  if (!hannCache[n]) { const w = new Float32Array(n); for (let i = 0; i < n; i++) w[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (n - 1)); hannCache[n] = w; }
+  return hannCache[n];
+}
+// amplitude of the sinusoid at freq in buf (Hann-windowed Goertzel)
+function toneAmp(buf, sampleRate, freq) {
+  const n = buf.length, w = hann(n), k = 2 * Math.cos(2 * Math.PI * freq / sampleRate);
+  let s1 = 0, s2 = 0;
+  for (let i = 0; i < n; i++) { const s = buf[i] * w[i] + k * s1 - s2; s2 = s1; s1 = s; }
+  return 4 * Math.sqrt(Math.max(0, s1 * s1 + s2 * s2 - k * s1 * s2)) / n;
+}
+function midiHz(m) { return 440 * Math.pow(2, (m - 69) / 12); }
+
+// cents offset of the strongest tone within ±50 cents of midi
+function centsNear(buf, sampleRate, midi) {
+  let best = -50, bestA = -1;
+  const amps = [];
+  for (let c = -50; c <= 50; c += 5) {
+    const a = toneAmp(buf, sampleRate, midiHz(midi) * Math.pow(2, c / 1200));
+    amps.push(a);
+    if (a > bestA) { bestA = a; best = c; }
+  }
+  const i = (best + 50) / 5, l = amps[i - 1], r = amps[i + 1];
+  if (l == null || r == null) return best;
+  const den = l + r - 2 * bestA;
+  return Math.round(best + (den ? 5 * (l - r) / (2 * den) : 0));
+}
+
+function rmsOf(buf) { let s = 0; for (let i = 0; i < buf.length; i++) s += buf[i] * buf[i]; return Math.sqrt(s / buf.length); }
+
+// feed() one analysis frame (Float32Array of MIC_WINDOW samples, low-passed) every hop seconds;
+// returns { midi, cents, t } for each pluck, about 0.1 s after it. level() reports the strongest
+// semitone right now for the tuner display.
+// A pluck is first noticed as energy growing anywhere; the note is decided once a whole window lies after
+// the pluck, by comparing it with the quietest level each semitone had since just before the pluck. That
+// lowest level also catches re-plucking a ringing tine: the finger damps it for a moment, then it rings again.
+function makeKeyListener(sampleRate, opt) {
+  opt = opt || {};
+  const lo = opt.lo || MIC_MIDI_LO, hi = opt.hi || MIC_MIDI_HI, minAmp = opt.minAmp || 0.006;
+  const hop = opt.hop || 0.025, win = (opt.win || MIC_WINDOW) / sampleRate;
+  const settle = Math.ceil(win / hop) + 1;    // frames until a window holds only post-pluck sound
+  const hist = [];                            // { e, top } per frame, newest last
+  let pending = null, now = null, frameNo = 0, decided = -1;
+  return {
+    feed(frame, t) {
+      const e = new Float32Array(hi - lo + 1);
+      let top = 0;
+      for (let m = lo; m <= hi; m++) { e[m - lo] = toneAmp(frame, sampleRate, midiHz(m)); if (e[m - lo] > top) top = e[m - lo]; }
+      hist.push({ e, top, n: frameNo++ });
+      if (hist.length > settle + 4) hist.shift();
+      now = top > minAmp ? { e, top } : null;
+      const back = k => hist[hist.length - 1 - k];
+
+      if (pending) {
+        for (let i = 0; i < e.length; i++) if (e[i] < pending.low[i]) pending.low[i] = e[i];
+        if (frameNo - 1 - pending.at < settle) return null;
+        const low = pending.low, inc = e.map((v, i) => v - low[i]);
+        pending = null; decided = frameNo - 1;
+        let best = -1, bestInc = 0;
+        for (let i = 0; i < e.length; i++) {
+          // the plucked semitone grows more than its neighbours, which only pick up leakage from it
+          if (inc[i] > bestInc && inc[i] >= (i ? inc[i - 1] : 0) && inc[i] >= (i + 1 < e.length ? inc[i + 1] : 0)) { bestInc = inc[i]; best = i; }
+        }
+        if (best < 0 || bestInc < Math.max(minAmp, 0.2 * top)) return null;
+        return { midi: lo + best, cents: centsNear(frame, sampleRate, lo + best), t };
+      }
+      const bk = back(Math.min(settle - 1, 4));   // a window from before the pluck, ≈0.1 s back
+      if (!bk || bk.n < decided) return null;     // compare only with windows after the last pluck
+      let rise = 0;
+      for (let i = 0; i < e.length; i++) {
+        rise = Math.max(rise, e[i] - 1.2 * bk.e[i]);
+        // a dip and recovery counts only on a tine that was really ringing (a peak), not on the
+        // beating between two ringing neighbours
+        if (bk.e[i] >= (bk.e[i - 1] || 0) && bk.e[i] >= (bk.e[i + 1] || 0)) {
+          let dip = bk.e[i];
+          for (let k = 1; k < 4; k++) if (back(k) && back(k).e[i] < dip) dip = back(k).e[i];
+          rise = Math.max(rise, e[i] - 1.5 * dip);
+        }
+      }
+      if (rise > Math.max(minAmp, 0.12 * top)) {   // relative threshold: ringing tines wobble a little
+        const low = Float32Array.from(bk.e);
+        for (let k = 0; k < 4; k++) { const f = back(k); if (f) for (let i = 0; i < e.length; i++) if (f.e[i] < low[i]) low[i] = f.e[i]; }
+        pending = { at: frameNo - 1, low };
+      }
+      return null;
+    },
+    level(frame) {
+      if (!now) return null;
+      let bi = 0;
+      for (let i = 1; i < now.e.length; i++) if (now.e[i] > now.e[bi]) bi = i;
+      return { midi: lo + bi, cents: centsNear(frame, sampleRate, lo + bi), amp: now.top };
+    }
+  };
+}
+/* @@PITCH-END */
 
 /* ====================== M2 app code (import · review · IndexedDB library) ====================== */
 
@@ -2747,9 +2891,94 @@ async function isMemberCode(code) {
   const hex = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
   return MEMBER_CODE_SHA256.includes(hex);
 }
+
+/* ---- listen to a real kalimba through the microphone ---- */
+const Mic = {
+  on: false, stream: null, src: null, nodes: [], an: null, buf: null, timer: 0, L: null, quietSince: 0,
+  async start() {
+    if (this.on) return;
+    if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) { toast('เบราว์เซอร์นี้ใช้ไมค์ไม่ได้', 3000); return; }
+    unlockAudioUI();
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+    } catch (e) {
+      toast(e && e.name === 'NotAllowedError' ? 'ไม่ได้อนุญาตให้ใช้ไมค์ — เปิดได้ที่ ตั้งค่า › Safari › ไมโครโฟน' : 'เปิดไมค์ไม่ได้', 4500);
+      return;
+    }
+    this.listen(audio.ctx.createMediaStreamSource(stream), stream);
+  },
+  listen(src, stream) {                 // src: any AudioNode — the microphone, or a test signal
+    const c = audio.ctx;
+    this.stream = stream || null; this.src = src;
+    this.nodes = [0, 1].map(() => {
+      const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = MIC_LOWPASS_HZ; f.Q.value = Math.SQRT1_2; return f;
+    });
+    this.an = c.createAnalyser(); this.an.fftSize = 4096;
+    src.connect(this.nodes[0]); this.nodes[0].connect(this.nodes[1]); this.nodes[1].connect(this.an);
+    this.buf = new Float32Array(this.an.fftSize);
+    this.L = makeKeyListener(c.sampleRate, { hop: 0.025, win: this.an.fftSize });
+    this.timer = setInterval(() => this.tick(), 25);
+    this.on = true; window.KTMicOn = true;
+    byId('mic-panel').classList.remove('hidden');
+    byId('btn-mic').className = 'p-1.5 rounded-lg bg-sky-600 text-white';
+    setHdr();
+  },
+  stop() {
+    if (!this.on) return;
+    clearInterval(this.timer);
+    [this.src].concat(this.nodes).forEach(n => { try { n.disconnect(); } catch (e) { /* already gone */ } });
+    if (this.stream) this.stream.getTracks().forEach(tr => tr.stop());
+    this.on = false; window.KTMicOn = false; this.stream = null;
+    byId('mic-panel').classList.add('hidden');
+    byId('btn-mic').className = 'p-1.5 text-slate-300 rounded-lg bg-slate-800 hover:bg-slate-700';
+    setHdr();
+  },
+  tick() {
+    const t = audio.ctx.currentTime;
+    this.an.getFloatTimeDomainData(this.buf);
+    const ev = this.L.feed(this.buf, t), lv = this.L.level(this.buf);
+    // the app's own sound (a tapped tine, a preview) reaches the mic as well
+    const own = kalimbaVoice.lastT != null && t - kalimbaVoice.lastT > -0.2 && t - kalimbaVoice.lastT < 0.35;
+    if (lv) { this.quietSince = 0; this.show(lv.midi, lv.cents); }
+    else if (!this.quietSince) this.quietSince = t;
+    else if (t - this.quietSince > 0.6) this.show(null);
+    if (ev && !own) this.heard(ev);
+  },
+  show(midi, cents) {
+    const needle = byId('mic-needle');
+    if (midi == null) {
+      byId('mic-note').textContent = '–'; byId('mic-note-sub').textContent = 'ดีดได้เลย'; byId('mic-cents').textContent = '–';
+      needle.style.left = '50%'; needle.className = 'absolute top-0 bottom-0 w-1 -ml-0.5 rounded bg-slate-500';
+      return;
+    }
+    const pitch = midiToPitch(midi), onKey = !!document.querySelector('#kalimba-tines-wrapper [data-pitch="' + pitch + '"]');
+    const c = clamp(cents, -50, 50), inTune = Math.abs(c) <= 10;
+    byId('mic-note').textContent = pitchToThai(pitch) + ' ' + pitchToNumber(pitch);
+    byId('mic-note-sub').textContent = pitch + (onKey ? '' : ' · ไม่มีบนแป้น');
+    byId('mic-cents').textContent = inTune ? 'ตรง ✓' : (c > 0 ? '+' : '') + c + ' เซนต์';
+    needle.style.left = (50 + c) + '%';
+    needle.className = 'absolute top-0 bottom-0 w-1 -ml-0.5 rounded ' + (inTune ? 'bg-emerald-400' : 'bg-amber-400');
+  },
+  heard(ev) {
+    const pitch = midiToPitch(ev.midi);
+    const tine = document.querySelector('#kalimba-tines-wrapper [data-pitch="' + pitch + '"]');
+    if (tine) { tine.classList.add('active'); setTimeout(() => tine.classList.remove('active'), 160); }
+    byId('active-note-display').textContent = '🎤 ' + pitch + ' (' + pitchToThai(pitch) + ' / ' + pitchToNumber(pitch) + ')';
+    judgePitch(pitch);
+  }
+};
+
+function initMic() {
+  byId('btn-mic').onclick = () => (Mic.on ? Mic.stop() : Mic.start());
+  byId('btn-mic-stop').onclick = () => Mic.stop();
+  document.addEventListener('visibilitychange', () => { if (document.hidden) Mic.stop(); });
+  window.KTMic = Mic;
+}
 initM2();
 initGrowth();
 initMidi();
+initMic();
 
     })();
   </script>
