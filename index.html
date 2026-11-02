@@ -106,16 +106,16 @@
       </div>
     </div>
 
-    <div data-kslot="play" class="flex-1 flex flex-col justify-center w-full">
+    <div data-kslot="play" class="flex-1 flex flex-col justify-center -mx-2">
       <div id="view-kalimba" class="kal w-full relative flex flex-col items-center">
-        <div class="kalimba-body w-full rounded-[28px] p-3 sm:p-5 relative flex flex-col items-center">
+        <div class="kalimba-body w-full rounded-[28px] px-1.5 py-3 sm:p-5 relative flex flex-col items-center">
           <div class="w-full h-4 metal-bridge rounded-sm mb-1 flex items-center justify-around px-2">
             <div class="w-2 h-2 rounded-full bg-slate-400"></div>
             <div class="w-2 h-2 rounded-full bg-slate-400"></div>
             <div class="w-2 h-2 rounded-full bg-slate-400"></div>
             <div class="w-2 h-2 rounded-full bg-slate-400"></div>
           </div>
-          <div id="kalimba-tines-wrapper" class="w-full flex justify-center items-start gap-1 sm:gap-1.5 pt-1 pb-3 relative"></div>
+          <div id="kalimba-tines-wrapper" class="w-full flex justify-center items-start gap-[3px] pt-1 pb-3 relative"></div>
           <div class="kal-hole w-16 h-16 rounded-full sound-hole flex items-center justify-center mt-1">
             <span id="kalimba-hole-label" class="text-amber-200/30 text-[10px] font-mono">13 KEYS</span>
           </div>
@@ -134,8 +134,8 @@
   </div>
 
   <!-- Song player: falling notes over the kalimba, played by tapping or on a real kalimba -->
-  <div id="section-player" class="hidden player flex-col max-w-xl mx-auto w-full px-2 pt-2">
-    <div class="flex items-center gap-2 px-1">
+  <div id="section-player" class="hidden player flex-col max-w-xl mx-auto w-full px-1 pt-2">
+    <div id="pl-top" class="flex items-center gap-2 px-1">
       <button id="pl-back" class="w-10 h-10 shrink-0 rounded-full border border-slate-700 flex items-center justify-center text-slate-300" data-i18n-aria="pl.songs"><i data-icon="arrow-left" class="w-5 h-5"></i></button>
       <div class="flex-1 min-w-0">
         <h2 id="pl-title" class="text-[15px] font-semibold truncate">-</h2>
@@ -143,7 +143,7 @@
       </div>
       <button id="pl-mic" aria-pressed="false" class="h-10 px-3 shrink-0 rounded-full border border-slate-700 text-slate-300 text-xs flex items-center gap-1.5"><i data-icon="microphone" class="w-4 h-4"></i><span data-i18n="pl.real">คาลิมบาจริง</span></button>
     </div>
-    <div class="flex items-center gap-2 px-1 mt-2 text-xs">
+    <div id="pl-ctrl" class="flex items-center gap-2 px-1 mt-2 text-xs">
       <div class="flex p-0.5 rounded-full bg-slate-900 border border-slate-800" role="group">
         <button data-plmode="wait" class="h-8 px-3 rounded-full" data-i18n="pl.wait">รอ</button>
         <button data-plmode="rhythm" class="h-8 px-3 rounded-full" data-i18n="pl.rhythm">ตามจังหวะ</button>
@@ -160,7 +160,7 @@
     </div>
     <div id="pl-stage" class="relative flex-1 min-h-[120px] mt-2 rounded-2xl overflow-hidden bg-slate-950 border border-slate-800/80">
       <canvas id="pl-canvas" class="absolute inset-0 w-full h-full"></canvas>
-      <div id="pl-msg" class="absolute inset-x-0 top-3 text-center text-[13px] text-slate-300 px-6 pointer-events-none leading-snug"></div>
+      <div id="pl-msg" class="absolute inset-x-0 top-3 text-center text-[13px] text-slate-300 px-6 pointer-events-none leading-snug whitespace-pre-line"></div>
       <div id="pl-count" class="hidden absolute inset-0 flex items-center justify-center text-7xl font-semibold text-amber-400 pointer-events-none"></div>
       <div id="pl-result" class="hidden absolute inset-0 bg-slate-950/95 flex items-center justify-center p-4">
         <div class="w-full max-w-xs text-center space-y-2">
@@ -180,7 +180,7 @@
       </div>
     </div>
     <div data-kslot="player" class="kal-compact w-full"></div>
-    <div class="flex items-center gap-3 px-1 py-2">
+    <div id="pl-bottom" class="flex items-center gap-3 px-1 py-2">
       <button id="pl-play" class="h-12 px-5 shrink-0 rounded-full bg-amber-500 text-slate-950 font-semibold flex items-center gap-2"><span id="pl-play-icon"></span><span id="pl-play-label" data-i18n="pl.start">เริ่ม</span></button>
       <div class="flex-1 min-w-0">
         <div id="pl-lyric" class="text-[13px] text-slate-300 truncate h-5"></div>

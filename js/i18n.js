@@ -79,6 +79,7 @@ const I18N = {
     'pl.mic.on': 'กำลังฟังคาลิมบาจริง',
     'pl.mic.fast': 'เพลงนี้เร็วเกินที่ไมค์ตามทัน แอปลดความเร็วให้',
     'pl.count': 'นับเข้า',
+    'pl.rotate': 'หมุนมือถือเป็นแนวนอน คีย์จะใหญ่ขึ้น',
 
     'tu.title': 'ตั้งเสียง',
     'tu.sub': 'ดีดทีละก้าน ดูว่าเสียงตรงไหม',
@@ -206,6 +207,7 @@ const I18N = {
     'pl.mic.on': 'Listening to your kalimba',
     'pl.mic.fast': 'This song is too fast for the microphone, so it plays slower',
     'pl.count': 'Count-in',
+    'pl.rotate': 'Turn your phone sideways for bigger keys',
 
     'tu.title': 'Tuner',
     'tu.sub': 'Pluck one tine at a time to check it',

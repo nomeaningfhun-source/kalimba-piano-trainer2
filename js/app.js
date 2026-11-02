@@ -206,7 +206,6 @@ function renderKalimba() {
     tine.dataset.pitch = k.pitch;
     tine.dataset.hand = k.hand;
     tine.style.height = `calc(var(--tine-h) * ${k.lengthPct / 100} + 30px)`;
-    tine.style.width = state.currentProfile === 'kalimba17' ? 'calc(5.8% - 2px)' : 'calc(7.6% - 2px)';
     const labels = getNoteLabel(k.pitch);
     tine.innerHTML = `<div class="pointer-events-none flex flex-col items-center leading-none">
       <span class="text-[11px] font-bold text-slate-950 font-mono">${labels.top}</span>
@@ -255,30 +254,52 @@ function judgePitch(pitch, at) {
   }
 }
 
-function attachTouch(container) {
-  const getTarget = touch => { const el = document.elementFromPoint(touch.clientX, touch.clientY); return el ? el.closest('[data-pitch]') : null; };
+// the tine nearest to a screen x: every point across the kalimba (and the note lanes above it) plays a key,
+// so the gaps between the thin tines are never dead
+function nearestTine(x) {
+  let best = null, bd = Infinity;
+  document.querySelectorAll('#kalimba-tines-wrapper [data-pitch]').forEach(t => {
+    const r = t.getBoundingClientRect(), d = Math.abs(r.left + r.width / 2 - x);
+    if (d < bd) { bd = d; best = t; }
+  });
+  return best;
+}
+
+// skip(e) lets buttons inside the area keep working
+function attachTouch(container, skip) {
   container.addEventListener('touchstart', e => {
+    if (skip && skip(e)) return;
     e.preventDefault(); unlockAudioUI();
     for (let i = 0; i < e.changedTouches.length; i++) {
-      const t = e.changedTouches[i], target = getTarget(t);
+      const t = e.changedTouches[i], target = nearestTine(t.clientX);
       if (target) { state.activeTouches.set(t.identifier, target); triggerNotePlay(target); }
     }
   }, { passive: false });
   container.addEventListener('touchmove', e => {
+    if (skip && skip(e)) return;
     e.preventDefault();
     for (let i = 0; i < e.changedTouches.length; i++) {
-      const t = e.changedTouches[i], cur = getTarget(t), prev = state.activeTouches.get(t.identifier);
+      const t = e.changedTouches[i], cur = nearestTine(t.clientX), prev = state.activeTouches.get(t.identifier);
       if (cur && cur !== prev) { state.activeTouches.set(t.identifier, cur); triggerNotePlay(cur); }
     }
   }, { passive: false });
   const end = e => { for (let i = 0; i < e.changedTouches.length; i++) state.activeTouches.delete(e.changedTouches[i].identifier); };
   container.addEventListener('touchend', end); container.addEventListener('touchcancel', end);
-  let isDown = false;
-  container.addEventListener('mousedown', e => { isDown = true; const t = e.target.closest('[data-pitch]'); if (t) triggerNotePlay(t); });
-  window.addEventListener('mouseup', () => isDown = false);
-  container.addEventListener('mouseover', e => { if (isDown) { const t = e.target.closest('[data-pitch]'); if (t) triggerNotePlay(t); } });
+  let down = null;
+  container.addEventListener('mousedown', e => {
+    if (skip && skip(e)) return;
+    down = nearestTine(e.clientX); if (down) triggerNotePlay(down);
+  });
+  window.addEventListener('mouseup', () => { down = null; });
+  container.addEventListener('mousemove', e => {
+    if (!down) return;
+    const t = nearestTine(e.clientX);
+    if (t && t !== down) { down = t; triggerNotePlay(t); }
+  });
 }
-attachTouch($('kalimba-tines-wrapper'));
+attachTouch($('view-kalimba'));
+// in the song player the whole lane a note falls down is that note's key
+attachTouch($('pl-stage'), e => !$('pl-result').classList.contains('hidden') || !(window.KTFall && KTFall.src));
 
 function switchProfile(pid) {
   state.currentProfile = pid;
@@ -1615,7 +1636,9 @@ const Fall = {
     const m = byId('pl-msg');
     if (txt != null) { m.textContent = txt; return; }
     if (this.running || this.done) { m.textContent = ''; return; }
-    m.textContent = !this.src ? t('pl.nosong') : this.pos > this.startAt + 0.01 ? '' : t(Real.on ? 'pl.ready.mic' : 'pl.ready');
+    const narrow = window.innerWidth < 600 && window.innerHeight > window.innerWidth;
+    m.textContent = !this.src ? t('pl.nosong') : this.pos > this.startAt + 0.01 ? ''
+      : t(Real.on ? 'pl.ready.mic' : 'pl.ready') + (narrow ? '\n' + t('pl.rotate') : '');
   },
   relabel() { if (this.src) { this.meta(); this.controls(); this.message(); this.lyric(true); this.draw(); } },
 
@@ -1906,7 +1929,7 @@ function initPlayer() {
   byId('pl-progress').onclick = e => { const r = e.currentTarget.getBoundingClientRect(); Fall.seek((e.clientX - r.left) / r.width); };
   byId('tu-toggle').onclick = () => Tuner.toggle();
   byId('tu-tines').addEventListener('click', e => { const b = e.target.closest('[data-tu]'); if (b) audio.playPitch(b.dataset.tu); });
-  window.addEventListener('resize', () => Fall.layout());
+  window.addEventListener('resize', () => { Fall.layout(); Fall.message(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden) { Fall.pause(); Mic.stop(); } else micSync(); });
   window.KTFall = Fall; window.KTMic = Mic; window.KTTuner = Tuner; window.KTMicSync = micSync;
   Fall.controls(); Fall.message(); Tuner.render(); micUI();
