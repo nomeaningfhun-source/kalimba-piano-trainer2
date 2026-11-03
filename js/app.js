@@ -211,7 +211,7 @@ function renderKalimba() {
     tine.style.height = `calc(var(--tine-h) * ${k.lengthPct / 100} + 30px)`;
     const labels = getNoteLabel(k.pitch);
     tine.innerHTML = `<div class="pointer-events-none flex flex-col items-center leading-none">
-      <span class="text-[11px] font-bold text-[#2D3A47] font-mono">${labels.top}</span>
+      <span class="text-[11px] font-bold text-[#3A402F] font-mono">${labels.top}</span>
       <span class="text-[9px] font-semibold text-[#5E6975] mt-0.5">${labels.bottom}</span>
     </div>`;
     wrapper.appendChild(tine);
@@ -1537,7 +1537,7 @@ const Tuner = {
       byId('tu-cents').textContent = '–';
       byId('tu-status').textContent = Mic.on ? t('tu.pluck') : (this.on ? '' : t('tu.idle'));
       byId('tu-status').className = 'text-[14px] font-medium mt-1 min-h-[22px] text-center text-slate-300';
-      needle.style.transform = 'rotate(0deg)'; needle.setAttribute('stroke', '#B9B4AA');
+      needle.style.transform = 'rotate(0deg)'; needle.setAttribute('stroke', '#C3BBA9');
       this.run = 0;
       return;
     }
@@ -1549,7 +1549,7 @@ const Tuner = {
     byId('tu-status').textContent = inTune ? '✓ ' + t('tu.in') : t(c < 0 ? 'tu.low' : 'tu.high', { c: Math.abs(c) });
     byId('tu-status').className = 'text-[14px] font-medium mt-1 min-h-[22px] text-center ' + (inTune ? 'text-emerald-400' : 'text-red-400');
     needle.style.transform = 'rotate(' + (c / 50 * 90) + 'deg)';
-    needle.setAttribute('stroke', inTune ? '#5E6C42' : '#A35A63');
+    needle.setAttribute('stroke', inTune ? '#5B634B' : '#A9603F');
     // a steady tone for ~0.2 s becomes that tine's reading
     if (lv.midi === this.runMidi) { this.run++; this.runCents.push(c); } else { this.runMidi = lv.midi; this.run = 1; this.runCents = [c]; }
     if (onKey && this.run >= 8 && this.run % 4 === 0) {
@@ -1568,7 +1568,7 @@ const Tuner = {
 };
 
 /* ---- song player: falling notes over the kalimba, judged from taps or a real kalimba ---- */
-const HAND_COLOR = { L: '#A9B7C6', R: '#F7C8D3', C: '#E8B4BC' };
+const HAND_COLOR = { L: '#B7C6D6', R: '#E7B9B2', C: '#E6B9A3' };
 // the player runs on the page clock: iOS can suspend or interrupt the audio clock, which would freeze the notes
 const clock = () => performance.now() / 1000;
 const Fall = {
@@ -1729,7 +1729,7 @@ const Fall = {
         if (e.res) continue;
         e.res = 'demo';
         if (Synth.ensure()) Synth.kalimba(Synth.master, e.midi, Synth.ctx.currentTime, 0.85);
-        this.flash(e, '#E8B4BC', now);
+        this.flash(e, '#E6B9A3', now);
         const ln = this.lanes[e.pitch];
         if (ln) { ln.el.classList.add('active'); setTimeout(() => ln.el.classList.remove('active'), 160); }
       }
@@ -1762,7 +1762,7 @@ const Fall = {
       if (!e0 || p < e0.beat - 0.75) return;   // too early to count
       const hit = this.events.find((e, i) => i >= this.next && !e.res && Math.abs(e.beat - e0.beat) < 0.01 && e.pitch === pitch);
       if (hit) {
-        hit.res = 'hit'; this.stats.hit++; this.flash(hit, '#A8B58A', now);
+        hit.res = 'hit'; this.stats.hit++; this.flash(hit, '#A7B59C', now);
         this.next = this.firstOpenFrom(this.next);
       } else this.wrong(pitch, now);
       this.score();
@@ -1779,7 +1779,7 @@ const Fall = {
     if (best) {
       const perfect = bestD <= w.perfect;
       best.res = perfect ? 'perfect' : 'good'; this.stats[best.res]++;
-      this.flash(best, perfect ? '#A8B58A' : '#A9B7C6', now);
+      this.flash(best, perfect ? '#A7B59C' : '#B7C6D6', now);
       this.next = this.firstOpenFrom(this.next);
     } else this.wrong(pitch, now);
     this.score();
@@ -1789,7 +1789,7 @@ const Fall = {
     this.stats.wrong++;
     const ln = this.lanes[pitch];
     if (ln) {
-      this.flashes.push({ x: ln.x, w: ln.w, t: now, color: '#B46A72' });
+      this.flashes.push({ x: ln.x, w: ln.w, t: now, color: '#C47A5C' });
       ln.el.classList.add('wrong'); setTimeout(() => ln.el.classList.remove('wrong'), 220);
     }
   },
@@ -1844,12 +1844,12 @@ const Fall = {
     now = now != null ? now : clock();
     g.clearRect(0, 0, W, H);
     // lanes
-    Object.values(this.lanes).forEach((ln, i) => { g.fillStyle = i % 2 ? '#FBF1DF' : '#FFFAF0'; g.fillRect(ln.x - ln.w / 2, 0, ln.w, H); });
+    Object.values(this.lanes).forEach((ln, i) => { g.fillStyle = i % 2 ? '#F6F1E7' : '#FBF9F4'; g.fillRect(ln.x - ln.w / 2, 0, ln.w, H); });
     // beats and measures
     for (let b = Math.ceil(this.pos); ; b++) {
       const y = hitY - (b - this.pos) * pxb;
       if (y < 0) break;
-      g.fillStyle = b % this.beats === 0 ? '#E4D7C3' : '#F1E7D5';
+      g.fillStyle = b % this.beats === 0 ? '#E0D8C8' : '#ECE5D8';
       g.fillRect(0, Math.round(y), W, 1);
     }
     // notes
@@ -1863,14 +1863,14 @@ const Fall = {
       const ln = this.lanes[e.pitch];
       if (!ln) continue;
       const w = Math.max(10, Math.min(ln.w - 2, 44)), x = ln.x - w / 2;
-      g.fillStyle = e.res === 'miss' ? '#E4DED3' : HAND_COLOR[ln.hand] || HAND_COLOR.C;
+      g.fillStyle = e.res === 'miss' ? '#E5DFD3' : HAND_COLOR[ln.hand] || HAND_COLOR.C;
       this.round(x, y - h, w, h, Math.min(7, h / 2));
       g.fill();
-      if (i === this.next && !this.demo) { g.lineWidth = 2; g.strokeStyle = '#2D3A47'; g.stroke(); }
-      if (w >= 14) { g.fillStyle = e.res === 'miss' ? '#8A929C' : '#2D3A47'; g.fillText(pitchToNumber(e.pitch), ln.x, y - h / 2 + 0.5); }
+      if (i === this.next && !this.demo) { g.lineWidth = 2; g.strokeStyle = '#3A402F'; g.stroke(); }
+      if (w >= 14) { g.fillStyle = e.res === 'miss' ? '#8A8F80' : '#3A402F'; g.fillText(pitchToNumber(e.pitch), ln.x, y - h / 2 + 0.5); }
     }
     // hit line and flashes
-    g.fillStyle = '#B46A72'; g.fillRect(0, hitY, W, 2);
+    g.fillStyle = '#C47A5C'; g.fillRect(0, hitY, W, 2);
     this.flashes.forEach(f => {
       const a = Math.max(0, 1 - (now - f.t) / 0.35);
       g.globalAlpha = a * 0.85; g.fillStyle = f.color;

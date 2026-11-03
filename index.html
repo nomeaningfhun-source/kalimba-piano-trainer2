@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#FFF7E6">
+  <meta name="theme-color" content="#F2EDE2">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -13,21 +13,21 @@
   <title>ครูฝึกคาลิมบา</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script>
-    // Pastel theme on a light cream page (Vanilla Cream #FFF7E6, Blush Petal #F7C8D3, Rosewood #B46A72,
-    // Sage Leaf #A8B58A, Misty Sky #A9B7C6, Midnight Lagoon #2D3A47). The markup was written for a dark theme
+    // "Nature" theme on a light oat page (Oat Milk #F2EDE2, Blush Petal #E7B9B2, Terracotta Clay #C47A5C,
+    // Sage Whisper #A7B59C, Misty Sky #B7C6D6, Olive Grove #6E775C). The markup was written for a dark theme
     // with Tailwind's slate/amber/emerald/red/sky classes, so those ramps are remapped and slate is inverted:
-    // slate-950 = page, slate-900 = card, slate-100 = main text. amber = rosewood (accent), emerald = sage
-    // (correct), red/rose = rosewood (wrong), sky = misty blue. Text shades are darkened to pass WCAG AA.
+    // slate-950 = page, slate-900 = card, slate-100 = main text. amber = terracotta (accent), emerald = sage/olive
+    // (correct), red/rose = terracotta red (wrong), sky = misty blue. Text shades are darkened to pass WCAG AA.
     tailwind.config = {
       theme: {
         extend: {
           colors: {
-            slate: { 50: '#24303B', 100: '#2D3A47', 200: '#3B4856', 300: '#4A5664', 400: '#5E6975', 500: '#646E79', 600: '#B9B4AA', 700: '#E4D7C3', 800: '#F3E9D7', 900: '#FFFDF7', 950: '#FFF7E6' },
-            amber: { 50: '#3D2226', 100: '#5E2F35', 200: '#6E3840', 300: '#8A4650', 400: '#9A505A', 500: '#A35A63', 600: '#A35A63', 700: '#C98891', 800: '#E8B4BC', 900: '#F7C8D3', 950: '#FBEFF2' },
-            emerald: { 50: '#2F3822', 100: '#3F492C', 200: '#4F5B37', 300: '#5E6D42', 400: '#56653C', 500: '#5E6C42', 600: '#4F5B37', 700: '#A8B58A', 800: '#CDD6B8', 900: '#E6EBDA', 950: '#F1F4EA' },
-            red: { 50: '#4A2026', 100: '#6E3038', 200: '#8E4A53', 300: '#9A4650', 400: '#A24E58', 500: '#B46A72', 600: '#A35A63', 700: '#8E4A53', 800: '#E8B4BC', 900: '#F7DDE3', 950: '#FBEFF2' },
-            rose: { 300: '#9A4650', 400: '#A24E58', 500: '#B46A72', 600: '#A35A63', 700: '#8E4A53', 900: '#F7DDE3', 950: '#FBEFF2' },
-            sky: { 300: '#4D6075', 400: '#55697F', 500: '#7F93A8', 600: '#5E7389', 700: '#4D6075', 800: '#DCE3EB', 900: '#E9EEF3' }
+            slate: { 50: '#2E3325', 100: '#3A402F', 200: '#41473A', 300: '#4A5040', 400: '#5A6150', 500: '#5F6652', 600: '#C3BBA9', 700: '#E0D8C8', 800: '#EAE3D5', 900: '#FAF7F0', 950: '#F2EDE2' },
+            amber: { 50: '#4A2716', 100: '#6B3820', 200: '#7E4227', 300: '#8E4B2E', 400: '#9E5636', 500: '#A9603F', 600: '#A9603F', 700: '#C47A5C', 800: '#E0B49F', 900: '#F0D7CB', 950: '#F8ECE6' },
+            emerald: { 50: '#2C3222', 100: '#3A4130', 200: '#4A523D', 300: '#556043', 400: '#4F5A3E', 500: '#5B634B', 600: '#4F5741', 700: '#A7B59C', 800: '#CBD4C2', 900: '#E4E9DE', 950: '#F0F3EC' },
+            red: { 50: '#4A231B', 100: '#6E3428', 200: '#8E4B2E', 300: '#9A4A3A', 400: '#A24F3E', 500: '#C47A5C', 600: '#A9603F', 700: '#8E4B2E', 800: '#E7B9B2', 900: '#F5E0DC', 950: '#FAEFEC' },
+            rose: { 300: '#9A4A3A', 400: '#A24F3E', 500: '#C47A5C', 600: '#A9603F', 700: '#8E4B2E', 900: '#F5E0DC', 950: '#FAEFEC' },
+            sky: { 300: '#4F6274', 400: '#56697C', 500: '#8597AA', 600: '#5E7389', 700: '#4F6274', 800: '#DDE5EE', 900: '#EBF0F5' }
           },
           fontFamily: {
             sans: ['"IBM Plex Sans Thai"', '-apple-system', 'system-ui', 'sans-serif'],
@@ -43,6 +43,14 @@
   <link rel="stylesheet" href="css/app.css">
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col overflow-x-hidden">
+  <!-- liquid-glass refraction for the kalimba box (Chromium bends the backdrop; Safari shows plain frosted blur) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <filter id="liquid-glass" x="0%" y="0%" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.008 0.008" numOctaves="2" seed="92" result="noise"/>
+      <feGaussianBlur in="noise" stdDeviation="2" result="smooth"/>
+      <feDisplacementMap in="SourceGraphic" in2="smooth" scale="60" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </svg>
   <audio id="ios-silent-audio" playsinline loop preload="auto" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=" class="hidden"></audio>
 
   <header class="app-header bg-slate-950/95 backdrop-blur border-b border-slate-800 sticky top-0 z-30 px-3 py-2">
@@ -133,6 +141,7 @@
     <div data-kslot="play" class="flex-1 flex flex-col justify-center -mx-2">
       <div id="view-kalimba" class="kal w-full relative flex flex-col items-center">
         <div class="kalimba-body w-full rounded-[28px] px-1.5 py-3 sm:p-5 relative flex flex-col items-center">
+          <div class="glass-filter" aria-hidden="true"></div><div class="glass-tint" aria-hidden="true"></div><div class="glass-specular" aria-hidden="true"></div>
           <div class="w-full h-4 metal-bridge rounded-sm mb-1 flex items-center justify-around px-2">
             <div class="w-2 h-2 rounded-full bg-slate-400"></div>
             <div class="w-2 h-2 rounded-full bg-slate-400"></div>
@@ -277,11 +286,11 @@
     </div>
     <div class="rounded-2xl bg-slate-900 border border-slate-800 px-4 pt-4 pb-3 flex flex-col items-center">
       <svg viewBox="0 0 240 136" class="w-full max-w-[300px]" role="img" aria-labelledby="tu-cents">
-        <path d="M20 126 A100 100 0 0 1 220 126" fill="none" stroke="#F3E9D7" stroke-width="12" stroke-linecap="round"/>
-        <path d="M89.1 30.9 A100 100 0 0 1 150.9 30.9" fill="none" stroke="#A8B58A" stroke-width="12"/>
-        <line x1="120" y1="14" x2="120" y2="22" stroke="#B9B4AA" stroke-width="2"/>
-        <line id="tu-needle" x1="120" y1="126" x2="120" y2="38" stroke="#B9B4AA" stroke-width="3" stroke-linecap="round" style="transform-origin:120px 126px;transition:transform .12s ease-out,stroke .12s"/>
-        <circle cx="120" cy="126" r="6" fill="#B46A72"/>
+        <path d="M20 126 A100 100 0 0 1 220 126" fill="none" stroke="#EAE3D5" stroke-width="12" stroke-linecap="round"/>
+        <path d="M89.1 30.9 A100 100 0 0 1 150.9 30.9" fill="none" stroke="#A7B59C" stroke-width="12"/>
+        <line x1="120" y1="14" x2="120" y2="22" stroke="#C3BBA9" stroke-width="2"/>
+        <line id="tu-needle" x1="120" y1="126" x2="120" y2="38" stroke="#C3BBA9" stroke-width="3" stroke-linecap="round" style="transform-origin:120px 126px;transition:transform .12s ease-out,stroke .12s"/>
+        <circle cx="120" cy="126" r="6" fill="#C47A5C"/>
       </svg>
       <div id="tu-note" class="text-5xl font-semibold leading-tight -mt-1">–</div>
       <div id="tu-sub" class="text-[13px] text-slate-400 min-h-[20px]"></div>
