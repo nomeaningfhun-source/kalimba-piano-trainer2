@@ -81,7 +81,6 @@ const I18N = {
     'pl.count': 'นับเข้า',
     'pl.more': 'ตั้งค่าการฝึก',
     'pl.mode': 'โหมด',
-    'pl.allkeys': 'แสดงทุกคีย์',
     'rotate.back': 'หมุนมือถือกลับเป็นแนวตั้ง',
 
     'tu.title': 'ตั้งเสียง',
@@ -244,7 +243,6 @@ const I18N = {
     'pl.count': 'Count-in',
     'pl.more': 'Practice options',
     'pl.mode': 'Mode',
-    'pl.allkeys': 'All keys',
     'rotate.back': 'Turn your phone back upright',
 
     'tu.title': 'Tuner',

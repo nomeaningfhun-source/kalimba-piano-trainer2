@@ -20,8 +20,8 @@ button { -webkit-tap-highlight-color: transparent; }
 @keyframes pulse { from { filter: brightness(1); } to { filter: brightness(1.2); } }
 .kal-compact { --tine-h: 110px; }
 .kal-compact .kal-hole, .kal-compact .kal-hint { display: none; }
-.kal-compact .kalimba-body { padding: 0.5rem 0.5rem 0.25rem; border-radius: 0 0 22px 22px; border-top: 0; }
-.kal-compact .metal-bridge { display: none; }
+.kal-compact .kalimba-body { padding: 0.375rem 0.375rem 0.25rem; border-radius: 0 0 22px 22px; border-top: 0; }
+.kal-compact .metal-bridge { height: 10px; margin-bottom: 2px; }
 
 /* bottom navigation */
 .bottom-nav { padding-bottom: env(safe-area-inset-bottom); }

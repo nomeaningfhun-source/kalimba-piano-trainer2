@@ -172,7 +172,6 @@ function switchView(viewName) {
   document.body.classList.toggle('no-nav', viewName === 'review');
   document.body.classList.toggle('in-player', viewName === 'player');
   if (KALIMBA_SLOT[viewName]) mountKalimba(KALIMBA_SLOT[viewName]);
-  if (window.KTFall) KTFall.focusKeys();
   if (viewName === 'lesson') startNextLessonQuestion();
   else if (viewName === 'add') renderLibrary();
   if (window.KTMicSync) KTMicSync();
@@ -1576,7 +1575,7 @@ const HAND_COLOR = { L: '#B7C6D6', R: '#E7B9B2', C: '#E6B9A3' };
 const clock = () => performance.now() / 1000;
 const Fall = {
   src: null, events: [], skipped: 0, tempo: 80, beats: 4, totalBeats: 0, minGap: 1,
-  mode: ls.get('fall.mode', 'wait'), speed: ls.get('fall.speed', 1), loop: false, allKeys: ls.get('fall.allkeys', false),
+  mode: ls.get('fall.mode', 'wait'), speed: ls.get('fall.speed', 1), loop: false,
   pos: 0, startAt: 0, running: false, demo: false, done: false, raf: 0, last: 0, next: 0, clickBeat: null,
   stats: null, lanes: {}, cv: null, g: null, W: 0, H: 0, flashes: [], t0: 0, guided: null, lyricM: -1,
 
@@ -1631,7 +1630,6 @@ const Fall = {
     $$('[data-plmode]').forEach(b => { b.className = 'h-8 px-3 rounded-full ' + (b.dataset.plmode === this.mode ? 'seg-on' : 'seg-off'); });
     byId('pl-speed').textContent = Math.round(this.speed * 100) + '%';
     byId('pl-loop').classList.toggle('tog-on', this.loop); byId('pl-loop').setAttribute('aria-pressed', String(this.loop));
-    byId('pl-allkeys').classList.toggle('tog-on', this.allKeys); byId('pl-allkeys').setAttribute('aria-pressed', String(this.allKeys));
     byId('pl-listen').classList.toggle('tog-on', this.demo && this.running);
     const playing = this.running && !this.demo;
     byId('pl-play-icon').innerHTML = icon(playing ? 'player-pause' : 'player-play', 'w-5 h-5');
@@ -1648,13 +1646,7 @@ const Fall = {
   relabel() { if (this.src) { this.meta(); this.controls(); this.message(); this.lyric(true); this.draw(); } },
 
   /* lanes line up with the tines below the stage */
-  // the player shows only the tines the song uses, so they are wide enough to tap; other pages show them all
-  focusKeys() {
-    const used = state.currentView === 'player' && this.src && !this.allKeys ? new Set((this.all || []).map(e => e.pitch)) : null;
-    $$('#kalimba-tines-wrapper [data-pitch]').forEach(tn => tn.classList.toggle('hidden', !!used && used.size > 0 && !used.has(tn.dataset.pitch)));
-  },
   layout() {
-    this.focusKeys();
     const cv = byId('pl-canvas'), stage = byId('pl-stage');
     if (!cv || stage.offsetParent === null) return;
     const r = stage.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -2272,7 +2264,6 @@ function initPlayer() {
   byId('pl-slower').onclick = () => Fall.setSpeed(-0.05);
   byId('pl-faster').onclick = () => Fall.setSpeed(0.05);
   byId('pl-loop').onclick = () => { Fall.loop = !Fall.loop; Fall.controls(); };
-  byId('pl-allkeys').onclick = () => { Fall.allKeys = !Fall.allKeys; ls.set('fall.allkeys', Fall.allKeys); Fall.controls(); Fall.layout(); };
   byId('pl-more').onclick = e => {
     e.stopPropagation();
     const open = byId('pl-ctrl').classList.toggle('hidden') === false;
