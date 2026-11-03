@@ -7,18 +7,11 @@ h1, h2, h3, h4, .font-heading { font-family: 'IBM Plex Sans Thai', -apple-system
 button { -webkit-tap-highlight-color: transparent; }
 :focus-visible { outline: 2px solid #A9603F; outline-offset: 2px; }
 
-/* kalimba: a liquid-glass box over soft colour blobs (the glass needs something behind it to bend) */
-#view-kalimba { isolation: isolate; }
-#view-kalimba::before { content: ''; position: absolute; inset: 0; border-radius: 28px; overflow: hidden; z-index: 0; pointer-events: none;
-  background: radial-gradient(circle at 12% 30%, #E7B9B2 0 20%, transparent 21%), radial-gradient(circle at 88% 55%, #B7C6D6 0 19%, transparent 20%),
-    radial-gradient(circle at 48% 96%, #A7B59C 0 17%, transparent 18%), radial-gradient(circle at 70% 8%, #E0B49F 0 11%, transparent 12%); }
-.kalimba-body { position: relative; z-index: 1; overflow: hidden; contain: paint; box-shadow: 0 8px 24px rgba(58, 64, 47, .12); }
-.kalimba-body > .glass-filter { position: absolute; inset: 0; z-index: 0; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); filter: url(#liquid-glass); }
-.kalimba-body > .glass-tint { position: absolute; inset: 0; z-index: 1; background: rgba(255, 255, 255, .26); }
-.kalimba-body > .glass-specular { position: absolute; inset: 0; z-index: 2; border-radius: inherit; pointer-events: none; box-shadow: inset 1px 1px 0 rgba(255, 255, 255, .85), inset 0 0 8px rgba(255, 255, 255, .7); }
-.kalimba-body > :not(.glass-filter):not(.glass-tint):not(.glass-specular) { position: relative; z-index: 3; }
-@media (prefers-reduced-transparency: reduce) { .kalimba-body > .glass-filter { display: none; } .kalimba-body > .glass-tint { background: #FAF7F0; } }
-.sound-hole { background: rgba(110, 119, 92, .5); box-shadow: inset 0 2px 6px rgba(0, 0, 0, .18); }
+/* kalimba: walnut body with silver tines */
+.kalimba-body { background: linear-gradient(180deg, #7A5440 0%, #6B4936 55%, #5E3F2E 100%); border: 1px solid #4E3426; box-shadow: 0 8px 22px rgba(58, 64, 47, .16); }
+.kal-hint, .kal-hint * { color: rgba(242, 237, 226, .82) !important; }
+#kalimba-hole-label { color: rgba(242, 237, 226, .35) !important; }
+.sound-hole { background: #3B281D; border: 1px solid #4E3426; box-shadow: inset 0 3px 8px rgba(0, 0, 0, .35); }
 .metal-bridge { background: linear-gradient(180deg, #E3E6EA 0%, #9AA2AD 100%); }
 .kalimba-tine { flex: 1 1 0; min-width: 0; max-width: 88px; background: linear-gradient(90deg, #B4BBC6 0%, #F4F6F8 40%, #C2C8D1 75%, #8E96A3 100%); transition: transform 0.05s ease, filter 0.05s ease; transform-origin: top center; }
 .kalimba-tine.active { transform: scaleY(0.97) translateY(2px); filter: brightness(1.1); background: linear-gradient(90deg, #7F8A6C 0%, #E4E9DE 45%, #A7B59C 100%); }
