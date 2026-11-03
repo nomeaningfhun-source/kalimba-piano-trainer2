@@ -171,6 +171,9 @@ function switchView(viewName) {
   });
   document.body.classList.toggle('no-nav', viewName === 'review');
   document.body.classList.toggle('in-player', viewName === 'player');
+  document.body.classList.toggle('on-play', viewName === 'play');
+  const hdr = document.querySelector('header');   // the Play page hides the header; keep --hdr for the others
+  if (hdr && hdr.offsetHeight) document.documentElement.style.setProperty('--hdr', (hdr.offsetHeight + 4) + 'px');
   if (KALIMBA_SLOT[viewName]) mountKalimba(KALIMBA_SLOT[viewName]);
   if (viewName === 'lesson') startNextLessonQuestion();
   else if (viewName === 'add') renderLibrary();
@@ -186,37 +189,72 @@ function mountKalimba(slot) {
   if (host && k.parentNode !== host) host.appendChild(k);
 }
 
-function getNoteLabel(pitch) {
-  if (state.labelMode === 'none') return { top: '', bottom: '' };
-  const numStr = pitchToNumber(pitch);
-  if (state.labelMode === 'number') return { top: numStr, bottom: '' };
-  if (state.labelMode === 'note') return { top: noteName(pitch), bottom: '' };
-  return { top: numStr, bottom: state.noteSystem === 'number' ? pitch : noteName(pitch) };
-}
-
 function currentProfile() { return state.currentProfile === 'kalimba17' ? PROFILE_KALIMBA_17 : PROFILE_KALIMBA_13; }
 function profileKeys() {
   return currentProfile().keys.map(k => Object.assign({}, k, { pitch: state.currentProfile === 'kalimba13' && k.tunable ? state.tuning13 : k.pitch }));
 }
 
+// tine colours: the left hand's tines are warm (blush to terracotta), the right hand's cool (misty to olive),
+// darker towards the edges like the reference design; the middle tine is cream
+const TINE_COLORS = { L: ['#EDCBC2', '#B4613F'], R: ['#CDD8E3', '#5F6B50'], C: '#FBF8F2' };
+function mixHex(a, b, t) {
+  const p = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  const x = p(a), y = p(b);
+  return '#' + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join('');
+}
+function hexLum(h) {
+  const c = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255).map(v => (v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)));
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+}
+function tineColor(k, i, keys) {
+  if (k.hand === 'C') return TINE_COLORS.C;
+  const ci = keys.findIndex(x => x.hand === 'C'), d = Math.abs(i - ci);
+  const max = k.hand === 'L' ? ci : keys.length - 1 - ci, [near, far] = TINE_COLORS[k.hand];
+  return mixHex(near, far, max > 1 ? (d - 1) / (max - 1) : 0);
+}
+// "5" with octave dots above (higher) or below (lower), as kalimba tabs write it
+function numberParts(pitch) {
+  const n = pitchToNumber(pitch), up = (n.match(/'/g) || []).length, dn = n[0] === '.' ? 1 : 0;
+  let d = n.replace(/'/g, '').replace(/^\./, '');
+  if (/b$/.test(d)) d = '♭' + d.slice(0, -1); else if (/#$/.test(d)) d = '♯' + d.slice(0, -1);
+  return { d, up, dn };
+}
+function tineLabel(pitch) {
+  if (state.labelMode === 'none') return '';
+  const p = numberParts(pitch), dots = n => '<span class="tl-dots">' + '•'.repeat(n) + '</span>';
+  const name = state.noteSystem === 'number' ? pitch : noteName(pitch);
+  if (state.labelMode === 'note') return '<div class="tl"><span class="tl-num">' + name + '</span></div>';
+  const num = dots(p.up) + '<span class="tl-num">' + p.d + '</span>' + dots(p.dn);
+  return '<div class="tl">' + num + (state.labelMode === 'both' ? '<span class="tl-name">' + name + '</span>' : '') + '</div>';
+}
+
 function renderKalimba() {
   const wrapper = $('kalimba-tines-wrapper'); wrapper.innerHTML = '';
   $('kalimba-hole-label').textContent = state.currentProfile === 'kalimba17' ? '17 KEYS' : '13 KEYS';
-  profileKeys().forEach(k => {
+  $('play-keys-n').textContent = state.currentProfile === 'kalimba17' ? '17' : '13';
+  const keys = profileKeys();
+  keys.forEach((k, i) => {
     const tine = document.createElement('div');
-    tine.className = 'kalimba-tine rounded-b-xl flex flex-col justify-end items-center pb-2 cursor-pointer select-none';
+    tine.className = 'kalimba-tine flex flex-col justify-end items-center pb-2 cursor-pointer select-none';
     tine.dataset.pitch = k.pitch;
     tine.dataset.hand = k.hand;
     tine.style.height = `calc(var(--tine-h) * ${k.lengthPct / 100} + 30px)`;
-    const labels = getNoteLabel(k.pitch);
-    tine.innerHTML = `<div class="pointer-events-none flex flex-col items-center leading-none">
-      <span class="text-[11px] font-bold text-[#3A402F] font-mono">${labels.top}</span>
-      <span class="text-[9px] font-semibold text-[#5E6975] mt-0.5">${labels.bottom}</span>
-    </div>`;
+    const c = tineColor(k, i, keys), tip = mixHex(c, '#FFFFFF', 0.35);
+    tine.style.background = `linear-gradient(180deg, ${c} 0, ${c} calc(100% - var(--tip)), ${tip} calc(100% - var(--tip)), ${tip} 100%)`;
+    tine.style.color = hexLum(tip) > 0.32 ? '#3A402F' : '#FFF9F0';
+    tine.innerHTML = tineLabel(k.pitch);
     wrapper.appendChild(tine);
   });
   if (window.KTFall) KTFall.layout();
   if (window.KTTuner) KTTuner.render();
+}
+
+// the sound hole on the Play page shows the note just played
+function showPlayed(pitch) {
+  const p = numberParts(pitch), el = $('active-note-display');
+  el.innerHTML = '<div class="an-dots">' + '•'.repeat(p.up) + '</div><div class="an-num">' + p.d + '</div><div class="an-dots">' + '•'.repeat(p.dn) + '</div>' +
+    '<div class="an-name">' + noteName(pitch) + (state.noteSystem === 'western' ? '' : ' · ' + pitch) + '</div>';
+  el.classList.remove('hidden'); $('hole-idle').classList.add('hidden');
 }
 
 let activeTwoHandTimeout = null;
@@ -225,7 +263,7 @@ function triggerNotePlay(el) {
   const pitch = el.dataset.pitch;
   audio.playPitch(pitch);
   el.classList.add('active'); setTimeout(() => el.classList.remove('active'), 140);
-  $('active-note-display').textContent = `${pitch} (${pitchToThai(pitch)} / ${pitchToNumber(pitch)})`;
+  showPlayed(pitch);
 
   const now = performance.now(), diff = now - state.lastTriggerTime;
   if (diff > 5 && diff <= state.timingToleranceMs) {
@@ -394,6 +432,20 @@ applyI18n();
 switchProfile(state.currentProfile);
 mountKalimba('play');
 document.querySelector('#nav-tab-play').setAttribute('aria-current', 'page');
+document.body.classList.add('on-play');
+
+// Play page: round buttons and the options sheet
+$('play-keys').onclick = () => switchProfile(state.currentProfile === 'kalimba13' ? 'kalimba17' : 'kalimba13');
+function playSheet(open) {
+  $('play-sheet').classList.toggle('hidden', !open);
+  if (open) $('play-sheet').querySelector('[data-close].w-10').focus(); else $('play-menu').focus();
+}
+$('play-menu').onclick = () => playSheet(true);
+$('play-sheet').querySelectorAll('[data-close]').forEach(b => { b.onclick = () => playSheet(false); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('play-sheet').classList.contains('hidden')) playSheet(false); });
+$('ps-sound').onclick = () => { unlockAudioUI(); audio.playPitch('C5'); };
+$('ps-lang').onclick = () => setLang(LANG === 'th' ? 'en' : 'th');
+$('ps-settings').onclick = () => { playSheet(false); $('btn-open-settings').click(); };
 
 /* ============================ Milestone 2 ============================ */
 (() => {
@@ -1481,7 +1533,7 @@ const Mic = {
     const pitch = midiToPitch(ev.midi);
     const tine = document.querySelector('#kalimba-tines-wrapper [data-pitch="' + pitch + '"]');
     if (tine) { tine.classList.add('active'); setTimeout(() => tine.classList.remove('active'), 160); }
-    byId('active-note-display').textContent = pitch + ' (' + noteName(pitch) + ' / ' + pitchToNumber(pitch) + ')';
+    showPlayed(pitch);
     Tuner.pluck(ev);
     judgePitch(pitch, ev.t - MIC_LAG);
   }
@@ -1570,7 +1622,7 @@ const Tuner = {
 };
 
 /* ---- song player: falling notes over the kalimba, judged from taps or a real kalimba ---- */
-const HAND_COLOR = { L: '#B7C6D6', R: '#E7B9B2', C: '#E6B9A3' };
+const HAND_COLOR = { L: '#E7B9B2', R: '#B7C6D6', C: '#EFE6D6' };
 // the player runs on the page clock: iOS can suspend or interrupt the audio clock, which would freeze the notes
 const clock = () => performance.now() / 1000;
 const Fall = {

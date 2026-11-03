@@ -66,9 +66,10 @@
     </div>
   </header>
 
-  <!-- Play: the kalimba, free play and the first-song onboarding -->
-  <div id="section-play" class="flex-1 flex flex-col max-w-xl mx-auto w-full px-3 py-3 gap-3">
-    <div id="first-song-card" class="hidden bg-slate-900 border border-amber-500/50 rounded-2xl p-3 text-xs">
+  <!-- Play: a full-screen kalimba. Left tines are warm, right tines cool, the middle one cream; the sound hole
+       shows the note just played. Kalimba options sit behind the two round buttons. -->
+  <div id="section-play">
+    <div id="first-song-card" class="hidden play-card bg-slate-900/95 border border-amber-500/50 rounded-2xl p-3 text-xs">
       <div id="fs-intro" class="flex items-center justify-between gap-3">
         <div class="min-w-0">
           <div class="font-semibold text-amber-300 text-sm" data-i18n="fs.title">เล่นเพลงแรกใน 5 นาที</div>
@@ -92,45 +93,7 @@
       </div>
     </div>
 
-    <div class="grid grid-cols-2 gap-1 p-1 rounded-full bg-slate-900 border border-slate-800 text-xs">
-      <button id="tab-profile-kalimba13" class="h-9 rounded-full font-medium" data-i18n="k13">คาลิมบา 13 คีย์</button>
-      <button id="tab-profile-kalimba17" class="h-9 rounded-full font-medium" data-i18n="k17">คาลิมบา 17 คีย์</button>
-    </div>
-    <div class="grid grid-cols-2 gap-2 text-xs">
-      <label class="bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 flex flex-col gap-0.5">
-        <span class="text-[11px] text-slate-400" data-i18n="labels">ป้ายคีย์</span>
-        <select id="select-label-mode" class="bg-transparent text-slate-100 text-[13px] -ml-1">
-          <option value="both" data-i18n="lab.both">เลข + โน้ต</option>
-          <option value="number" data-i18n="lab.number">เฉพาะเลข</option>
-          <option value="note" data-i18n="lab.note">เฉพาะโน้ต</option>
-          <option value="none" data-i18n="lab.none">ซ่อนป้าย</option>
-        </select>
-      </label>
-      <label class="bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 flex flex-col gap-0.5">
-        <span class="text-[11px] text-slate-400" data-i18n="names">ชื่อโน้ต</span>
-        <select id="select-note-system" class="bg-transparent text-slate-100 text-[13px] -ml-1">
-          <option value="thai">ด ร ม ฟ ซ ล ท</option>
-          <option value="number">1 2 3 4 5 6 7</option>
-          <option value="western">C D E F G A B</option>
-        </select>
-      </label>
-    </div>
-    <div class="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 flex items-center justify-between gap-2 text-xs">
-      <div class="flex items-center gap-1.5 min-w-0 truncate">
-        <span class="text-slate-400 text-[11px]" data-i18n="playing">กำลังดีด</span>
-        <span id="active-note-display" class="font-semibold text-amber-400 text-sm">-</span>
-      </div>
-      <div id="two-hand-badge" class="hidden px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 text-[11px] font-medium flex items-center gap-1">
-        <span data-i18n="twohand">สองมือพร้อมกัน</span>
-        <span id="two-hand-ms" class="text-emerald-300"></span>
-      </div>
-      <div id="kalimba-tuning-badge" class="text-[11px] text-slate-400 flex items-center gap-1 shrink-0">
-        <span data-i18n="tuning">จูน</span>
-        <span id="current-tuning-name" class="text-amber-300 font-medium">Bb4</span>
-      </div>
-    </div>
-
-    <div data-kslot="play" class="flex-1 flex flex-col justify-center -mx-2">
+    <div data-kslot="play">
       <div id="view-kalimba" class="kal w-full relative flex flex-col items-center">
         <div class="kalimba-body w-full rounded-[28px] px-1.5 py-3 sm:p-5 relative flex flex-col items-center">
           <div class="w-full h-4 metal-bridge rounded-sm mb-1 flex items-center justify-around px-2">
@@ -139,21 +102,63 @@
             <div class="w-2 h-2 rounded-full bg-slate-400"></div>
             <div class="w-2 h-2 rounded-full bg-slate-400"></div>
           </div>
-          <div id="kalimba-tines-wrapper" class="w-full flex justify-center items-start gap-[3px] pt-1 pb-3 relative"></div>
+          <div id="kalimba-tines-wrapper" class="w-full flex justify-center items-start gap-[3px] pb-2 relative"></div>
           <div class="kal-hole w-16 h-16 rounded-full sound-hole flex items-center justify-center mt-1">
-            <span id="kalimba-hole-label" class="text-amber-200/30 text-[10px] font-mono">13 KEYS</span>
-          </div>
-          <div class="kal-hint w-full flex justify-between items-center text-[11px] text-amber-100/60 px-3 mt-2">
-            <span>← <span data-i18n="left">ซ้าย</span></span>
-            <span class="text-amber-200/80" data-i18n="glide">รูดนิ้วได้</span>
-            <span><span data-i18n="right">ขวา</span> →</span>
+            <span id="kalimba-hole-label" class="text-[10px] font-mono">13 KEYS</span>
           </div>
         </div>
       </div>
     </div>
+    <div id="play-hole" class="play-hole" aria-live="polite">
+      <div id="hole-idle" class="text-[#E9D9C6]"><i data-icon="music" class="w-10 h-10"></i></div>
+      <div id="active-note-display" class="hidden"></div>
+      <div id="two-hand-badge" class="hidden text-[11px] font-medium text-[#CBD4C2] mt-1"><span data-i18n="twohand">สองมือพร้อมกัน</span> <span id="two-hand-ms"></span></div>
+    </div>
+    <button id="play-keys" class="play-fab left-4" data-i18n-aria="play.keys"><span id="play-keys-n">13</span><small data-i18n="play.keyword">คีย์</small></button>
+    <button id="play-menu" class="play-fab right-4" aria-haspopup="dialog" data-i18n-aria="play.menu"><span class="fab-lines"><i></i><i></i><i></i></span></button>
+  </div>
 
-    <div class="flex justify-end">
-      <button id="btn-toggle-tuning-quick" class="h-9 px-3 rounded-full border border-slate-700 text-amber-300 text-[12px]" data-i18n="swap.tuning">สลับจูน Bb4 ⇄ B4</button>
+  <!-- kalimba options for the Play page -->
+  <div id="play-sheet" class="hidden fixed inset-0 z-50" role="dialog" aria-modal="true" aria-labelledby="play-sheet-title">
+    <div class="absolute inset-0 bg-black/40" data-close></div>
+    <div class="absolute inset-x-0 bottom-0 max-w-xl mx-auto bg-slate-900 rounded-t-3xl px-4 pt-3 space-y-3 text-xs" style="padding-bottom: calc(16px + env(safe-area-inset-bottom))">
+      <div class="mx-auto w-10 h-1 rounded-full bg-slate-700"></div>
+      <div class="flex items-center justify-between">
+        <h2 id="play-sheet-title" class="text-base font-semibold" data-i18n="play.menu">ตั้งค่าคาลิมบา</h2>
+        <button data-close class="w-10 h-10 rounded-full border border-slate-700 text-slate-300" aria-label="✕">✕</button>
+      </div>
+      <div class="grid grid-cols-2 gap-1 p-1 rounded-full bg-slate-950 border border-slate-800">
+        <button id="tab-profile-kalimba13" class="h-10 rounded-full font-medium" data-i18n="k13">คาลิมบา 13 คีย์</button>
+        <button id="tab-profile-kalimba17" class="h-10 rounded-full font-medium" data-i18n="k17">คาลิมบา 17 คีย์</button>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <label class="bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 flex flex-col gap-0.5">
+          <span class="text-[11px] text-slate-400" data-i18n="labels">ป้ายคีย์</span>
+          <select id="select-label-mode" class="bg-transparent text-slate-100 text-[13px] -ml-1">
+            <option value="both" data-i18n="lab.both">เลข + โน้ต</option>
+            <option value="number" data-i18n="lab.number">เฉพาะเลข</option>
+            <option value="note" data-i18n="lab.note">เฉพาะโน้ต</option>
+            <option value="none" data-i18n="lab.none">ซ่อนป้าย</option>
+          </select>
+        </label>
+        <label class="bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 flex flex-col gap-0.5">
+          <span class="text-[11px] text-slate-400" data-i18n="names">ชื่อโน้ต</span>
+          <select id="select-note-system" class="bg-transparent text-slate-100 text-[13px] -ml-1">
+            <option value="thai">ด ร ม ฟ ซ ล ท</option>
+            <option value="number">1 2 3 4 5 6 7</option>
+            <option value="western">C D E F G A B</option>
+          </select>
+        </label>
+      </div>
+      <div class="flex items-center justify-between gap-2 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2">
+        <div id="kalimba-tuning-badge" class="text-[12px] text-slate-400 flex items-center gap-1"><span data-i18n="tuning">จูน</span> <span id="current-tuning-name" class="text-amber-300 font-semibold">Bb4</span></div>
+        <button id="btn-toggle-tuning-quick" class="h-9 px-3 rounded-full border border-slate-700 text-amber-300 text-[12px]" data-i18n="swap.tuning">สลับจูน Bb4 ⇄ B4</button>
+      </div>
+      <div class="grid grid-cols-3 gap-2">
+        <button id="ps-sound" class="h-11 rounded-full border border-slate-700 text-slate-200 flex items-center justify-center gap-1.5"><i data-icon="volume" class="w-4 h-4"></i><span data-i18n="play.sound">เปิดเสียง</span></button>
+        <button id="ps-lang" class="h-11 rounded-full border border-slate-700 text-slate-200 font-semibold" data-i18n="lang.switch">EN</button>
+        <button id="ps-settings" class="h-11 rounded-full border border-slate-700 text-slate-200 flex items-center justify-center gap-1.5"><i data-icon="settings" class="w-4 h-4"></i><span data-i18n="settings">ตั้งค่า</span></button>
+      </div>
     </div>
   </div>
 

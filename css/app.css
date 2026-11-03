@@ -13,15 +13,46 @@ button { -webkit-tap-highlight-color: transparent; }
 #kalimba-hole-label { color: rgba(242, 237, 226, .35) !important; }
 .sound-hole { background: #3B281D; border: 1px solid #4E3426; box-shadow: inset 0 3px 8px rgba(0, 0, 0, .35); }
 .metal-bridge { background: linear-gradient(180deg, #E3E6EA 0%, #9AA2AD 100%); }
-.kalimba-tine { flex: 1 1 0; min-width: 0; max-width: 88px; background: linear-gradient(90deg, #B4BBC6 0%, #F4F6F8 40%, #C2C8D1 75%, #8E96A3 100%); transition: transform 0.05s ease, filter 0.05s ease; transform-origin: top center; }
-.kalimba-tine.active { transform: scaleY(0.97) translateY(2px); filter: brightness(1.1); background: linear-gradient(90deg, #7F8A6C 0%, #E4E9DE 45%, #A7B59C 100%); }
-.kalimba-tine.guide-target { background: linear-gradient(90deg, #9E5636 0%, #E6B49D 45%, #C47A5C 100%) !important; animation: pulse 0.7s infinite alternate; }
-.kalimba-tine.wrong { background: linear-gradient(90deg, #8E4B2E 0%, #E7B9B2 45%, #A9603F 100%) !important; }
+.kalimba-tine { position: relative; flex: 1 1 0; min-width: 0; max-width: 88px; --tip: 46px; border-radius: 0 0 999px 999px; box-shadow: inset 2px 0 0 rgba(255, 255, 255, .22), inset -2px 0 0 rgba(0, 0, 0, .06); transition: transform 0.05s ease, filter 0.05s ease; transform-origin: top center; }
+/* a soft glow at the tip when a tine is played */
+.kalimba-tine::after { content: ''; position: absolute; inset: auto 0 0 0; height: 45%; border-radius: inherit; background: radial-gradient(ellipse at 50% 100%, rgba(255, 255, 255, .8), transparent 70%); opacity: 0; transition: opacity .3s; pointer-events: none; }
+.kalimba-tine.active::after { opacity: 1; transition: none; }
+.tl { pointer-events: none; display: flex; flex-direction: column; align-items: center; line-height: 1; }
+.tl-dots { font-size: 9px; height: 7px; letter-spacing: -1px; }
+.tl-num { font-size: 13px; font-weight: 700; }
+.tl-name { font-size: 10px; font-weight: 600; margin-top: 2px; }
+.kalimba-tine.active { transform: scaleY(0.985); filter: brightness(1.08); }
+.kalimba-tine.guide-target { box-shadow: 0 0 0 3px #FFF9F0, 0 0 16px 5px rgba(255, 249, 240, .85); animation: pulse 0.7s infinite alternate; z-index: 1; }
+.kalimba-tine.wrong { box-shadow: 0 0 0 3px #A24F3E; z-index: 1; }
 @keyframes pulse { from { filter: brightness(1); } to { filter: brightness(1.2); } }
 .kal-compact { --tine-h: 110px; }
+.kal-compact .kalimba-tine { --tip: 28px; }
+.kal-compact .tl-num { font-size: 12px; } .kal-compact .tl-name { font-size: 9px; }
 .kal-compact .kal-hole, .kal-compact .kal-hint { display: none; }
 .kal-compact .kalimba-body { padding: 0.375rem 0.375rem 0.25rem; border-radius: 0 0 22px 22px; border-top: 0; }
 .kal-compact .metal-bridge { height: 10px; margin-bottom: 2px; }
+
+/* Play page: a full-screen kalimba, tines from the top edge, a big sound hole, two round buttons */
+#section-play { --H: calc(100dvh - var(--nav-h) - env(safe-area-inset-bottom)); position: relative; overflow: hidden; height: var(--H); width: 100%;
+  background: radial-gradient(120% 70% at 50% 78%, #7A5440 0%, #5E3F2E 60%, #4E3426 100%); }
+#section-play.hidden { display: none; }
+body.on-play header.app-header { display: none; }
+#section-play [data-kslot="play"] { position: absolute; inset: 0 0 auto 0; --tine-h: calc(var(--H) * 0.58 - 30px); }
+#section-play .kalimba-body { background: none; border: 0; box-shadow: none; border-radius: 0; padding: 0 3px; }
+#section-play .metal-bridge, #section-play .kal-hole { display: none; }
+#section-play .kalimba-tine { padding-bottom: 14px; --tip: 52px; }
+#section-play .tl-num { font-size: 18px; } #section-play .tl-name { font-size: 12px; } #section-play .tl-dots { font-size: 11px; height: 9px; }
+.play-card { position: absolute; z-index: 5; top: max(10px, env(safe-area-inset-top)); left: 10px; right: 10px; }
+.play-hole { position: absolute; z-index: 2; left: 50%; top: calc(var(--H) * 0.64); width: min(40vw, 21dvh); aspect-ratio: 1; transform: translateX(-50%); border-radius: 50%;
+  background: radial-gradient(circle at 50% 40%, #3B281D 0%, #2A1C14 72%); box-shadow: inset 0 6px 16px rgba(0, 0, 0, .45), 0 1px 0 rgba(255, 255, 255, .08);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: #F2EDE2; }
+#active-note-display .an-dots { font-size: 12px; height: 10px; letter-spacing: -1px; color: #E6B49D; }
+#active-note-display .an-num { font-size: 42px; font-weight: 600; line-height: 1; }
+#active-note-display .an-name { font-size: 13px; color: #E9D9C6; margin-top: 4px; }
+.play-fab { position: absolute; z-index: 3; bottom: 16px; width: 56px; height: 56px; border-radius: 50%; background: #F2EDE2; color: #3A402F;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0, 0, 0, .25); font-weight: 700; font-size: 18px; line-height: 1; }
+.play-fab small { font-size: 9px; font-weight: 600; margin-top: 2px; }
+.fab-lines { display: flex; flex-direction: column; gap: 4px; } .fab-lines i { display: block; width: 22px; height: 3px; border-radius: 2px; background: #3A402F; }
 
 /* bottom navigation */
 .bottom-nav { padding-bottom: env(safe-area-inset-bottom); }
