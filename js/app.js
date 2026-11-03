@@ -154,13 +154,15 @@ function noteName(pitch) {
   return state.noteSystem === 'thai' ? pitchToThai(pitch) : state.noteSystem === 'number' ? pitchToNumber(pitch) : pitch;
 }
 
-const VIEW_SECTIONS = { play: 'section-play', player: 'section-player', lesson: 'section-lesson', tuner: 'section-tuner', add: 'section-add', review: 'section-review' };
-const NAV_OF = { play: 'play', player: 'add', lesson: 'lesson', tuner: 'tuner', add: 'add', review: 'add' };
+const VIEW_SECTIONS = { play: 'section-play', player: 'section-player', sheet: 'section-sheet', lesson: 'section-lesson', tuner: 'section-tuner', add: 'section-add', review: 'section-review' };
+const NAV_OF = { play: 'play', player: 'add', sheet: 'add', lesson: 'lesson', tuner: 'tuner', add: 'add', review: 'add' };
 const KALIMBA_SLOT = { play: 'play', player: 'player', lesson: 'lesson' };
 function switchView(viewName) {
   if (state.currentView === 'review' && viewName !== 'review' && window.M2 && !M2.leaveReview()) return;
   const from = state.currentView;
   if (from === 'player' && viewName !== 'player' && window.KTFall) KTFall.pause();
+  if (from === 'sheet' && viewName !== 'sheet' && window.KTSheet) KTSheet.stop();
+  $('pl-ctrl').classList.add('hidden');
   state.currentView = viewName;
   Object.values(VIEW_SECTIONS).forEach(id => $(id).classList.add('hidden'));
   $(VIEW_SECTIONS[viewName]).classList.remove('hidden');
@@ -170,6 +172,7 @@ function switchView(viewName) {
   document.body.classList.toggle('no-nav', viewName === 'review');
   document.body.classList.toggle('in-player', viewName === 'player');
   if (KALIMBA_SLOT[viewName]) mountKalimba(KALIMBA_SLOT[viewName]);
+  if (window.KTFall) KTFall.focusKeys();
   if (viewName === 'lesson') startNextLessonQuestion();
   else if (viewName === 'add') renderLibrary();
   if (window.KTMicSync) KTMicSync();
@@ -260,6 +263,7 @@ function nearestTine(x) {
   let best = null, bd = Infinity;
   document.querySelectorAll('#kalimba-tines-wrapper [data-pitch]').forEach(t => {
     const r = t.getBoundingClientRect(), d = Math.abs(r.left + r.width / 2 - x);
+    if (!r.width) return;   // hidden in the player
     if (d < bd) { bd = d; best = t; }
   });
   return best;
@@ -584,7 +588,7 @@ function renderLibrary() {
       '<div class="text-[10px] text-slate-400">' + s.measures.length + ' ห้อง • ' + s.tempo + ' BPM • ' + s.beats + ' จังหวะ • ' + esc(fmtDate(s.updated)) + '</div></div>' + badge + '</div>' +
       '<div class="flex flex-wrap gap-1.5 text-xs">' +
       '<button data-lib="prac" class="h-9 px-4 rounded-full bg-amber-500 text-slate-950 font-semibold">' + esc(t('lib.practice')) + '</button>' +
-      '<button data-lib="play" class="h-9 px-3 rounded-full border border-slate-700 text-slate-200">' + esc(t('lib.listen')) + '</button>' +
+      '<button data-lib="sheet" class="h-9 px-3 rounded-full border border-slate-700 text-slate-200">' + esc(t('lib.sheet')) + '</button>' +
       '<button data-lib="edit" class="h-9 px-3 rounded-full border border-slate-700 text-slate-200">' + esc(t('lib.edit')) + '</button>' +
       '<button data-lib="copy" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 border border-slate-700">📋</button>' +
       '<button data-lib="del" class="ml-auto px-3 py-1.5 rounded-lg bg-slate-800 text-rose-300 border border-slate-700">🗑</button></div></div>';
@@ -612,6 +616,7 @@ function setupLibrary() {
     if (!b) return;
     const id = b.closest('[data-id]').dataset.id, act = b.dataset.lib;
     if (act === 'prac') { practiceWith(id); return; }
+    if (act === 'sheet') { const x = state.library.find(y => y.id === id); if (x) Sheet.open(x); return; }
     const s = S.songs.find(x => x.id === id);
     if (!s) return;
     if (act === 'play' || act === 'edit') openReview(JSON.parse(JSON.stringify(s)), { from: 'library', autoplay: act === 'play' });
@@ -1212,7 +1217,7 @@ function renderFree() {
     '<div class="p-2.5 bg-slate-800/80 border border-slate-700 rounded-xl flex items-center gap-2 text-xs" data-id="' + esc(x.song.id) + '" data-tags="' + esc(x.meta.tags.toLowerCase()) + '">' +
     '<div class="flex-1 min-w-0"><h4 class="font-bold text-slate-100 truncate">' + esc(x.meta.title) + '</h4>' +
     '<p class="text-[10px] text-slate-400 truncate">' + '★'.repeat(x.report.level) + ' · ' + esc(x.meta.origin) + '</p></div>' +
-    '<button data-lib="fplay" aria-label="' + esc(t('lib.listen')) + '" class="w-9 h-9 rounded-full border border-slate-700 text-slate-200 flex items-center justify-center">' + icon('player-play', 'w-4 h-4') + '</button>' +
+    '<button data-lib="fplay" class="h-9 px-3 rounded-full border border-slate-700 text-slate-200">' + esc(t('lib.sheet')) + '</button>' +
     '<button data-lib="prac" class="h-9 px-4 rounded-full bg-amber-500 text-slate-950 font-semibold">' + esc(t('lib.practice')) + '</button></div>').join('');
 }
 function libQuery() { return (byId('lib-search').value || '').trim(); }
@@ -1384,9 +1389,7 @@ function initMidi() {
     if (!b) return;
     const x = freeList().find(f => f.song.id === b.closest('[data-id]').dataset.id);
     if (!x) return;
-    const song = JSON.parse(JSON.stringify(x.song));
-    delete song.id;                      // saving it makes the user's own copy
-    openReview(song, { from: 'library', autoplay: true, notes: [{ level: 'info', msg: 'เพลงฟรี: ' + x.meta.origin + ' · กด 💾 บันทึก ถ้าอยากแก้หรือเก็บเป็นเพลงของฉัน' }] });
+    Sheet.open({ id: x.song.id, title: x.meta.title, song: x.song });
   });
   Midi.refreshQuota();
   const showUnlock = () => {
@@ -1570,7 +1573,7 @@ const HAND_COLOR = { L: '#7FA3D6', R: '#E39A86', C: '#C9A46A' };
 const clock = () => performance.now() / 1000;
 const Fall = {
   src: null, events: [], skipped: 0, tempo: 80, beats: 4, totalBeats: 0, minGap: 1,
-  mode: ls.get('fall.mode', 'wait'), speed: ls.get('fall.speed', 1), loop: false,
+  mode: ls.get('fall.mode', 'wait'), speed: ls.get('fall.speed', 1), loop: false, allKeys: ls.get('fall.allkeys', false),
   pos: 0, startAt: 0, running: false, demo: false, done: false, raf: 0, last: 0, next: 0, clickBeat: null,
   stats: null, lanes: {}, cv: null, g: null, W: 0, H: 0, flashes: [], t0: 0, guided: null, lyricM: -1,
 
@@ -1625,6 +1628,7 @@ const Fall = {
     $$('[data-plmode]').forEach(b => { b.className = 'h-8 px-3 rounded-full ' + (b.dataset.plmode === this.mode ? 'seg-on' : 'seg-off'); });
     byId('pl-speed').textContent = Math.round(this.speed * 100) + '%';
     byId('pl-loop').classList.toggle('tog-on', this.loop); byId('pl-loop').setAttribute('aria-pressed', String(this.loop));
+    byId('pl-allkeys').classList.toggle('tog-on', this.allKeys); byId('pl-allkeys').setAttribute('aria-pressed', String(this.allKeys));
     byId('pl-listen').classList.toggle('tog-on', this.demo && this.running);
     const playing = this.running && !this.demo;
     byId('pl-play-icon').innerHTML = icon(playing ? 'player-pause' : 'player-play', 'w-5 h-5');
@@ -1636,14 +1640,18 @@ const Fall = {
     const m = byId('pl-msg');
     if (txt != null) { m.textContent = txt; return; }
     if (this.running || this.done) { m.textContent = ''; return; }
-    const narrow = window.innerWidth < 600 && window.innerHeight > window.innerWidth;
-    m.textContent = !this.src ? t('pl.nosong') : this.pos > this.startAt + 0.01 ? ''
-      : t(Real.on ? 'pl.ready.mic' : 'pl.ready') + (narrow ? '\n' + t('pl.rotate') : '');
+    m.textContent = !this.src ? t('pl.nosong') : this.pos > this.startAt + 0.01 ? '' : t(Real.on ? 'pl.ready.mic' : 'pl.ready');
   },
   relabel() { if (this.src) { this.meta(); this.controls(); this.message(); this.lyric(true); this.draw(); } },
 
   /* lanes line up with the tines below the stage */
+  // the player shows only the tines the song uses, so they are wide enough to tap; other pages show them all
+  focusKeys() {
+    const used = state.currentView === 'player' && this.src && !this.allKeys ? new Set((this.all || []).map(e => e.pitch)) : null;
+    $$('#kalimba-tines-wrapper [data-pitch]').forEach(tn => tn.classList.toggle('hidden', !!used && used.size > 0 && !used.has(tn.dataset.pitch)));
+  },
   layout() {
+    this.focusKeys();
     const cv = byId('pl-canvas'), stage = byId('pl-stage');
     if (!cv || stage.offsetParent === null) return;
     const r = stage.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -1653,6 +1661,7 @@ const Fall = {
     this.lanes = {};
     $$('#kalimba-tines-wrapper [data-pitch]').forEach(tn => {
       const tr = tn.getBoundingClientRect();
+      if (!tr.width) return;
       this.lanes[tn.dataset.pitch] = { x: tr.left - r.left + tr.width / 2, w: tr.width, hand: tn.dataset.hand || 'C', el: tn };
     });
     if (this.src) { this.pickPlayable(); this.next = Math.min(this.next, this.events.length); }
@@ -1907,7 +1916,126 @@ const Fall = {
   }
 };
 
+/* ---- song sheet: kalimba numbers over the lyrics, the tune plays and the note being played lights up ---- */
+const SH_DEG = ['1', '#1', '2', 'b3', '3', '4', '#4', '5', '#5', '6', 'b7', '7'];
+const Sheet = {
+  src: null, notes: [], speed: ls.get('sheet.speed', 1), playing: false, from: 0, cur: -1, bus: null, timer: 0, raf: 0, T0: 0, base: 0,
+  get spb() { return 60 / (((this.src && this.src.song && this.src.song.tempo) || 90) * this.speed); },
+  open(src) {
+    this.stop();
+    this.src = src; this.from = 0; this.cur = -1;
+    byId('sh-title').textContent = src.title || '-';
+    switchView('sheet');
+    this.render();
+  },
+  cell(n, k) {
+    const rel = n.midi - 60, oct = Math.floor(rel / 12), d = SH_DEG[((rel % 12) + 12) % 12];
+    const num = d.length > 1 ? '<small>' + d[0] + '</small>' + d.slice(1) : d;
+    return '<button class="sh-n" data-k="' + k + '"><span class="sh-up">' + '•'.repeat(Math.max(0, oct)) + '</span>' +
+      '<span class="sh-d">' + num + '</span><span class="sh-dn">' + '•'.repeat(Math.max(0, -oct)) + '</span>' +
+      '<span class="sh-l">' + esc(n.lyric || '') + '</span></button>';
+  },
+  render() {
+    const song = this.src.song;
+    if (!song.measures) {   // built-in samples are plain pitch lists, one per beat
+      const notes = this.src.notes.map((p, i) => ({ beat: i % 4, midi: pitchToMidi(p), lyric: '' }));
+      this.parsed = { measures: [] };
+      for (let i = 0; i < notes.length; i += 4) this.parsed.measures.push({ start: i, notes: notes.slice(i, i + 4) });
+    } else this.parsed = parseSong(song, state.tuning13);
+    const lines = [];
+    let k = 0, line = [];
+    this.notes = [];
+    this.parsed.measures.forEach((pm, i) => {
+      if (i && song.measures && song.measures[i] && song.measures[i].br && line.length) { lines.push(line); line = []; }
+      line.push('<div class="sh-bar">' + pm.notes.map(n => { this.notes.push({ t: pm.start + n.beat, midi: n.midi }); return this.cell(n, k++); }).join('') + '</div>');
+    });
+    if (line.length) lines.push(line);
+    byId('sh-body').innerHTML = lines.map(l => '<div class="sh-line">' + l.join('') + '</div>').join('');
+    $$('#sh-body .sh-n').forEach((el, i) => { this.notes[i].el = el; });
+    const lyr = this.notes.length && $$('#sh-body .sh-l').some(x => x.textContent);
+    byId('sh-meta').textContent = Math.round(((song.tempo || this.src.bpm || 90)) * this.speed) + ' BPM · ' + t('lib.notes', { n: this.notes.length }) + (lyr ? '' : ' · ' + (LANG === 'th' ? 'ไม่มีเนื้อร้อง' : 'no lyrics'));
+    this.mark(); this.controls();
+  },
+  controls() {
+    byId('sh-play-icon').innerHTML = icon(this.playing ? 'player-stop' : 'player-play', 'w-5 h-5');
+    const l = byId('sh-play-label'); l.dataset.i18n = this.playing ? 'sh.stop' : 'sh.play'; l.textContent = t(l.dataset.i18n);
+    byId('sh-speed').textContent = Math.round(this.speed * 100) + '%';
+  },
+  mark() {
+    this.notes.forEach((n, i) => {
+      n.el.classList.toggle('on', this.playing && i === this.cur);
+      n.el.classList.toggle('done', this.playing && i < this.cur);
+      n.el.classList.toggle('sel', !this.playing && i === this.from && this.from > 0);
+    });
+  },
+  play(from) {
+    if (!this.notes.length) return;
+    unlockAudioUI();
+    if (!Synth.ensure()) return;
+    this.stop();
+    from = clamp(from || 0, 0, this.notes.length - 1);
+    const c = Synth.ctx, spb = this.spb, notes = this.notes, bus = c.createGain();
+    bus.connect(Synth.master); this.bus = bus;
+    this.playing = true; this.from = from; this.cur = -1;
+    this.base = notes[from].t; this.T0 = c.currentTime + 0.15;
+    const at = i => this.T0 + (notes[i].t - this.base) * spb, end = at(notes.length - 1) + 1.2;
+    let idx = from;
+    this.timer = setInterval(() => {
+      const now = c.currentTime;
+      while (idx < notes.length && at(idx) < now + 0.25) { Synth.kalimba(bus, notes[idx].midi, at(idx), 0.85); idx++; }
+      if (idx >= notes.length && now > end) { this.stop(); this.from = 0; this.mark(); }
+    }, 25);
+    const step = () => {
+      if (!this.playing) return;
+      const now = c.currentTime;
+      let k = this.cur < from ? from - 1 : this.cur;
+      while (k + 1 < notes.length && at(k + 1) <= now) k++;
+      if (k !== this.cur && k >= from) {
+        this.cur = k; this.mark();
+        const r = notes[k].el.getBoundingClientRect(), top = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hdr')) + 110 || 170;
+        if (r.top < top || r.bottom > window.innerHeight - 90) window.scrollBy({ top: r.top - top - 40, behavior: 'smooth' });
+      }
+      this.raf = requestAnimationFrame(step);
+    };
+    this.raf = requestAnimationFrame(step);
+    this.controls();
+  },
+  stop() {
+    clearInterval(this.timer); this.timer = 0; cancelAnimationFrame(this.raf);
+    if (this.bus && Synth.ctx) {
+      const b = this.bus;
+      b.gain.setTargetAtTime(0, Synth.ctx.currentTime, 0.03);
+      setTimeout(() => { try { b.disconnect(); } catch (e) { /* gone */ } }, 400);
+    }
+    this.bus = null;
+    if (this.playing) { this.playing = false; if (this.cur > 0) this.from = this.cur; }
+    if (this.src) { this.mark(); this.controls(); }
+  },
+  tap(k) {
+    const n = this.notes[k];
+    if (!n) return;
+    if (this.playing) { this.play(k); return; }
+    this.from = k; this.mark();
+    unlockAudioUI();
+    if (Synth.ensure()) Synth.kalimba(Synth.master, n.midi, Synth.ctx.currentTime, 0.85);
+  },
+  setSpeed(d) {
+    this.speed = Math.round(clamp(this.speed + d, 0.3, 1.5) * 100) / 100;
+    ls.set('sheet.speed', this.speed);
+    const was = this.playing, at = Math.max(this.cur, this.from);
+    this.render();
+    if (was) this.play(at);
+  }
+};
+
 function initPlayer() {
+  byId('sh-back').onclick = () => switchView('add');
+  byId('sh-play').onclick = () => (Sheet.playing ? Sheet.stop() : Sheet.play(Sheet.from));
+  byId('sh-slower').onclick = () => Sheet.setSpeed(-0.1);
+  byId('sh-faster').onclick = () => Sheet.setSpeed(0.1);
+  byId('sh-practice').onclick = () => { if (Sheet.src) { Sheet.stop(); Fall.open(Sheet.src); } };
+  byId('sh-body').addEventListener('click', e => { const b = e.target.closest('[data-k]'); if (b) Sheet.tap(+b.dataset.k); });
+  window.KTSheet = Sheet;
   byId('pl-back').onclick = () => switchView('add');
   byId('pl-choose').onclick = () => switchView('add');
   byId('pl-play').onclick = () => {
@@ -1925,6 +2053,15 @@ function initPlayer() {
   byId('pl-slower').onclick = () => Fall.setSpeed(-0.05);
   byId('pl-faster').onclick = () => Fall.setSpeed(0.05);
   byId('pl-loop').onclick = () => { Fall.loop = !Fall.loop; Fall.controls(); };
+  byId('pl-allkeys').onclick = () => { Fall.allKeys = !Fall.allKeys; ls.set('fall.allkeys', Fall.allKeys); Fall.controls(); Fall.layout(); };
+  byId('pl-more').onclick = e => {
+    e.stopPropagation();
+    const open = byId('pl-ctrl').classList.toggle('hidden') === false;
+    byId('pl-more').setAttribute('aria-expanded', String(open));
+  };
+  document.addEventListener('click', e => {
+    if (!byId('pl-ctrl').classList.contains('hidden') && !e.target.closest('#pl-ctrl')) { byId('pl-ctrl').classList.add('hidden'); byId('pl-more').setAttribute('aria-expanded', 'false'); }
+  });
   byId('pl-mic').onclick = () => { Real.on = !Real.on; ls.set('real', Real.on); micSync(); };
   byId('pl-progress').onclick = e => { const r = e.currentTarget.getBoundingClientRect(); Fall.seek((e.clientX - r.left) / r.width); };
   byId('tu-toggle').onclick = () => Tuner.toggle();

@@ -11,7 +11,7 @@ button { -webkit-tap-highlight-color: transparent; }
 .kalimba-body { background: #3A2616; border: 1px solid #5A3A22; }
 .sound-hole { background: #1A0F07; border: 1px solid #5A3A22; }
 .metal-bridge { background: linear-gradient(180deg, #A3ACBC 0%, #566176 100%); }
-.kalimba-tine { flex: 1 1 0; min-width: 0; max-width: 64px; background: linear-gradient(90deg, #AEB6C4 0%, #EEF1F5 40%, #B9C1CD 75%, #8590A4 100%); transition: transform 0.05s ease, filter 0.05s ease; transform-origin: top center; }
+.kalimba-tine { flex: 1 1 0; min-width: 0; max-width: 88px; background: linear-gradient(90deg, #AEB6C4 0%, #EEF1F5 40%, #B9C1CD 75%, #8590A4 100%); transition: transform 0.05s ease, filter 0.05s ease; transform-origin: top center; }
 .kalimba-tine.active { transform: scaleY(0.97) translateY(2px); filter: brightness(1.15); background: linear-gradient(90deg, #4A976C 0%, #B5E2C8 45%, #63B487 100%); }
 .kalimba-tine.guide-target { background: linear-gradient(90deg, #A9884F 0%, #F3E6CB 45%, #C9A46A 100%) !important; animation: pulse 0.7s infinite alternate; }
 .kalimba-tine.wrong { background: linear-gradient(90deg, #B4513F 0%, #F3C0B4 45%, #D9705E 100%) !important; }
@@ -37,25 +37,22 @@ button { -webkit-tap-highlight-color: transparent; }
 #section-player:not(.hidden) { display: flex; height: calc(100dvh - var(--hdr, 60px) - var(--nav-h) - env(safe-area-inset-bottom)); }
 #section-player .kalimba-body { border-radius: 0 0 22px 22px; }
 
-/* phone on its side: the keys get 2-3x wider; the player drops the header and nav and uses the whole screen */
-@media (orientation: landscape) and (max-height: 540px) {
-  #section-play, #section-lesson { max-width: none; }
-  #section-play [data-kslot="play"] { --tine-h: 120px; }
-  body.in-player { padding-bottom: 0; }
-  body.in-player header.app-header, body.in-player .bottom-nav { display: none; }
-  #section-player:not(.hidden) {
-    max-width: none; height: 100dvh; display: grid; column-gap: 8px;
-    grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto minmax(0, 1fr) auto auto;
-    padding: max(4px, env(safe-area-inset-top)) max(6px, env(safe-area-inset-right)) 0 max(6px, env(safe-area-inset-left));
-  }
-  #pl-top { grid-column: 1; grid-row: 1; }
-  #pl-meta { display: none; }
-  #pl-ctrl { grid-column: 2; grid-row: 1; margin-top: 0; }
-  #pl-stage { grid-column: 1 / -1; grid-row: 2; margin-top: 4px; min-height: 90px; }
-  #section-player [data-kslot="player"] { grid-column: 1 / -1; grid-row: 3; --tine-h: 64px; }
-  #pl-bottom { grid-column: 1 / -1; grid-row: 4; padding: 4px 4px max(4px, env(safe-area-inset-bottom)); }
-  #pl-play { height: 40px; }
-}
+/* portrait only: on a phone turned sideways the screen is too short to see the notes and the keys at once */
+#rotate-note { display: none; }
+@media (orientation: landscape) and (max-height: 540px) { #rotate-note { display: flex; } }
+
+/* song sheet: numbers over lyrics, like the kalimba tabs people share online */
+.sh-line { display: flex; flex-wrap: wrap; row-gap: 14px; }
+.sh-bar { display: flex; align-items: flex-start; padding: 0 4px; border-left: 1px solid #34405A; }
+.sh-n { display: flex; flex-direction: column; align-items: center; min-width: 1.85rem; padding: 2px 3px 3px; border-radius: 10px; transition: background .1s; }
+.sh-up, .sh-dn { height: 8px; font-size: 10px; line-height: 8px; letter-spacing: -1px; color: #DEBF87; }
+.sh-d { font-size: 21px; font-weight: 600; line-height: 1.15; color: #F2EDE3; font-variant-numeric: tabular-nums; }
+.sh-d small { font-size: 12px; font-weight: 500; }
+.sh-l { font-size: 12px; line-height: 18px; min-height: 18px; color: #A3ACBC; white-space: nowrap; }
+.sh-n.done .sh-d { color: #8590A4; }
+.sh-n.sel { box-shadow: inset 0 0 0 1.5px #C9A46A; }
+.sh-n.on { background: #C9A46A; }
+.sh-n.on .sh-d, .sh-n.on .sh-l, .sh-n.on .sh-up, .sh-n.on .sh-dn { color: #0F1522; }
 
 /* tuner tine strip */
 .tu-tine { width: 14px; border-radius: 0 0 6px 6px; background: #34405A; transition: background .2s; }

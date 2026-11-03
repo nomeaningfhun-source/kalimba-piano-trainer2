@@ -134,28 +134,35 @@
   </div>
 
   <!-- Song player: falling notes over the kalimba, played by tapping or on a real kalimba -->
-  <div id="section-player" class="hidden player flex-col max-w-xl mx-auto w-full px-1 pt-2">
+  <div id="section-player" class="hidden player relative flex-col max-w-xl mx-auto w-full px-1 pt-2">
     <div id="pl-top" class="flex items-center gap-2 px-1">
       <button id="pl-back" class="w-10 h-10 shrink-0 rounded-full border border-slate-700 flex items-center justify-center text-slate-300" data-i18n-aria="pl.songs"><i data-icon="arrow-left" class="w-5 h-5"></i></button>
       <div class="flex-1 min-w-0">
         <h2 id="pl-title" class="text-[15px] font-semibold truncate">-</h2>
         <p id="pl-meta" class="text-[11px] text-slate-400 truncate">-</p>
       </div>
-      <button id="pl-mic" aria-pressed="false" class="h-10 px-3 shrink-0 rounded-full border border-slate-700 text-slate-300 text-xs flex items-center gap-1.5"><i data-icon="microphone" class="w-4 h-4"></i><span data-i18n="pl.real">คาลิมบาจริง</span></button>
+      <button id="pl-more" aria-expanded="false" class="w-10 h-10 shrink-0 rounded-full border border-slate-700 text-slate-200 text-xl leading-none" data-i18n-aria="pl.more">⋯</button>
     </div>
-    <div id="pl-ctrl" class="flex items-center gap-2 px-1 mt-2 text-xs">
-      <div class="flex p-0.5 rounded-full bg-slate-900 border border-slate-800" role="group">
-        <button data-plmode="wait" class="h-8 px-3 rounded-full" data-i18n="pl.wait">รอ</button>
-        <button data-plmode="rhythm" class="h-8 px-3 rounded-full" data-i18n="pl.rhythm">ตามจังหวะ</button>
+    <div id="pl-ctrl" class="hidden absolute inset-x-2 top-14 z-30 bg-slate-900 border border-slate-700 rounded-2xl p-3 space-y-3 text-[13px]">
+      <div class="flex items-center justify-between gap-2">
+        <span class="text-slate-400" data-i18n="pl.mode">โหมด</span>
+        <div class="flex p-0.5 rounded-full bg-slate-950 border border-slate-800" role="group">
+          <button data-plmode="wait" class="h-9 px-4 rounded-full" data-i18n="pl.wait">รอ</button>
+          <button data-plmode="rhythm" class="h-9 px-4 rounded-full" data-i18n="pl.rhythm">ตามจังหวะ</button>
+        </div>
       </div>
-      <div class="flex items-center rounded-full bg-slate-900 border border-slate-800">
-        <button id="pl-slower" class="w-8 h-8 text-base text-slate-300" data-i18n-aria="pl.slower">−</button>
-        <span id="pl-speed" class="min-w-[3rem] text-center tabular-nums text-slate-100">100%</span>
-        <button id="pl-faster" class="w-8 h-8 text-base text-slate-300" data-i18n-aria="pl.faster">+</button>
+      <div class="flex items-center justify-between gap-2">
+        <span class="text-slate-400" data-i18n="pl.speed">ความเร็ว</span>
+        <div class="flex items-center rounded-full bg-slate-950 border border-slate-800">
+          <button id="pl-slower" class="w-10 h-9 text-lg text-slate-300" data-i18n-aria="pl.slower">−</button>
+          <span id="pl-speed" class="min-w-[3.5rem] text-center tabular-nums text-slate-100">100%</span>
+          <button id="pl-faster" class="w-10 h-9 text-lg text-slate-300" data-i18n-aria="pl.faster">+</button>
+        </div>
       </div>
-      <div class="ml-auto flex gap-1.5">
-        <button id="pl-loop" aria-pressed="false" class="w-9 h-9 rounded-full border border-slate-800 bg-slate-900 flex items-center justify-center text-slate-400" data-i18n-aria="pl.loop"><i data-icon="repeat" class="w-4 h-4"></i></button>
-        <button id="pl-listen" class="w-9 h-9 rounded-full border border-slate-800 bg-slate-900 flex items-center justify-center text-slate-300" data-i18n-aria="pl.listen"><i data-icon="headphones" class="w-4 h-4"></i></button>
+      <div class="flex flex-wrap gap-2">
+        <button id="pl-loop" aria-pressed="false" class="h-10 px-3 rounded-full border border-slate-700 text-slate-300 flex items-center gap-1.5"><i data-icon="repeat" class="w-4 h-4"></i><span data-i18n="pl.loop">วนซ้ำ</span></button>
+        <button id="pl-allkeys" aria-pressed="false" class="h-10 px-3 rounded-full border border-slate-700 text-slate-300" data-i18n="pl.allkeys">แสดงทุกคีย์</button>
+        <button id="pl-mic" aria-pressed="false" class="h-10 px-3 rounded-full border border-slate-700 text-slate-300 flex items-center gap-1.5"><i data-icon="microphone" class="w-4 h-4"></i><span data-i18n="pl.real">คาลิมบาจริง</span></button>
       </div>
     </div>
     <div id="pl-stage" class="relative flex-1 min-h-[120px] mt-2 rounded-2xl overflow-hidden bg-slate-950 border border-slate-800/80">
@@ -182,12 +189,37 @@
     <div data-kslot="player" class="kal-compact w-full"></div>
     <div id="pl-bottom" class="flex items-center gap-3 px-1 py-2">
       <button id="pl-play" class="h-12 px-5 shrink-0 rounded-full bg-amber-500 text-slate-950 font-semibold flex items-center gap-2"><span id="pl-play-icon"></span><span id="pl-play-label" data-i18n="pl.start">เริ่ม</span></button>
+      <button id="pl-listen" class="w-12 h-12 shrink-0 rounded-full border border-slate-700 flex items-center justify-center text-slate-200" data-i18n-aria="pl.listen"><i data-icon="headphones" class="w-5 h-5"></i></button>
       <div class="flex-1 min-w-0">
         <div id="pl-lyric" class="text-[13px] text-slate-300 truncate h-5"></div>
         <div id="pl-progress" class="relative h-2 rounded-full bg-slate-800 mt-1 cursor-pointer"><div id="pl-progress-fill" class="absolute inset-y-0 left-0 rounded-full bg-amber-500" style="width:0%"></div></div>
         <div class="flex justify-between text-[11px] text-slate-400 mt-1 gap-2"><span id="pl-score" class="truncate"></span><span id="pl-pos" class="tabular-nums shrink-0"></span></div>
       </div>
     </div>
+  </div>
+
+  <!-- Song sheet: kalimba numbers over the lyrics, with the tune playing along -->
+  <div id="section-sheet" class="hidden flex-1 flex flex-col max-w-xl mx-auto w-full">
+    <div class="sticky z-20 bg-slate-950/95 backdrop-blur border-b border-slate-800 px-3 pt-2 pb-2" style="top: calc(var(--hdr, 60px) - 4px)">
+      <div class="flex items-center gap-2">
+        <button id="sh-back" class="w-10 h-10 shrink-0 rounded-full border border-slate-700 flex items-center justify-center text-slate-300" data-i18n-aria="sh.back"><i data-icon="arrow-left" class="w-5 h-5"></i></button>
+        <div class="flex-1 min-w-0">
+          <h2 id="sh-title" class="text-[15px] font-semibold truncate">-</h2>
+          <p id="sh-meta" class="text-[11px] text-slate-400 truncate">-</p>
+        </div>
+        <button id="sh-practice" class="h-10 px-3 shrink-0 rounded-full border border-amber-500/70 text-amber-300 text-xs font-semibold" data-i18n="sh.practice">ฝึกเพลงนี้</button>
+      </div>
+      <div class="flex items-center gap-2 mt-2 text-xs">
+        <button id="sh-play" class="h-10 px-4 shrink-0 rounded-full bg-amber-500 text-slate-950 font-semibold flex items-center gap-2"><span id="sh-play-icon"></span><span id="sh-play-label" data-i18n="sh.play">ฟังเพลง</span></button>
+        <div class="flex items-center rounded-full bg-slate-900 border border-slate-800 shrink-0">
+          <button id="sh-slower" class="w-8 h-8 text-base text-slate-300" data-i18n-aria="pl.slower">−</button>
+          <span id="sh-speed" class="min-w-[3rem] text-center tabular-nums text-slate-100">100%</span>
+          <button id="sh-faster" class="w-8 h-8 text-base text-slate-300" data-i18n-aria="pl.faster">+</button>
+        </div>
+        <span class="text-[11px] text-slate-400 leading-tight" data-i18n="sh.hint">แตะโน้ตเพื่อเริ่มฟังตรงนั้น</span>
+      </div>
+    </div>
+    <div id="sh-body" class="px-2 py-4 space-y-5"></div>
   </div>
 
   <!-- Learn: find the note on the kalimba -->
@@ -433,6 +465,10 @@
         <button data-k="close" class="py-2 rounded-lg bg-slate-700 text-slate-200">ซ่อน</button>
       </div>
     </div>
+  </div>
+
+  <div id="rotate-note" class="fixed inset-0 z-[60] bg-slate-950 items-center justify-center text-center p-6">
+    <div class="space-y-3"><i data-icon="refresh" class="w-10 h-10 mx-auto text-amber-400"></i><p class="text-[15px] text-slate-100" data-i18n="rotate.back">หมุนมือถือกลับเป็นแนวตั้ง</p></div>
   </div>
 
   <nav id="bottom-nav" class="bottom-nav fixed bottom-0 inset-x-0 z-40 bg-slate-950/95 backdrop-blur border-t border-slate-800">
