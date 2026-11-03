@@ -195,6 +195,7 @@
       <div class="flex flex-wrap gap-2">
         <button id="pl-loop" aria-pressed="false" class="h-10 px-3 rounded-full border border-slate-700 text-slate-300 flex items-center gap-1.5"><i data-icon="repeat" class="w-4 h-4"></i><span data-i18n="pl.loop">วนซ้ำ</span></button>
         <button id="pl-allkeys" aria-pressed="false" class="h-10 px-3 rounded-full border border-slate-700 text-slate-300" data-i18n="pl.allkeys">แสดงทุกคีย์</button>
+        <button id="pl-sheet" class="h-10 px-3 rounded-full border border-slate-700 text-slate-300" data-i18n="pl.sheet">แผ่นโน้ต</button>
         <button id="pl-mic" aria-pressed="false" class="h-10 px-3 rounded-full border border-slate-700 text-slate-300 flex items-center gap-1.5"><i data-icon="microphone" class="w-4 h-4"></i><span data-i18n="pl.real">คาลิมบาจริง</span></button>
       </div>
     </div>
@@ -233,24 +234,32 @@
 
   <!-- Song sheet: kalimba numbers over the lyrics, with the tune playing along -->
   <div id="section-sheet" class="hidden flex-1 flex flex-col max-w-xl mx-auto w-full">
-    <div class="sticky z-20 bg-slate-950/95 backdrop-blur border-b border-slate-800 px-3 pt-2 pb-2" style="top: calc(var(--hdr, 60px) - 4px)">
+    <div id="sh-head" class="sticky z-20 bg-slate-950/95 backdrop-blur border-b border-slate-800 px-3 pt-2 pb-2" style="top: calc(var(--hdr, 60px) - 4px)">
       <div class="flex items-center gap-2">
         <button id="sh-back" class="w-10 h-10 shrink-0 rounded-full border border-slate-700 flex items-center justify-center text-slate-300" data-i18n-aria="sh.back"><i data-icon="arrow-left" class="w-5 h-5"></i></button>
         <div class="flex-1 min-w-0">
           <h2 id="sh-title" class="text-[15px] font-semibold truncate">-</h2>
           <p id="sh-meta" class="text-[11px] text-slate-400 truncate">-</p>
         </div>
-        <button id="sh-practice" class="h-10 px-3 shrink-0 rounded-full border border-amber-500/70 text-amber-300 text-xs font-semibold" data-i18n="sh.practice">ฝึกเพลงนี้</button>
+        <button id="sh-practice" class="h-10 px-3 shrink-0 rounded-full border border-slate-700 text-slate-200 text-xs" data-i18n="sh.falling">โน้ตตก</button>
       </div>
+      <div class="grid grid-cols-4 gap-1 p-0.5 mt-2 rounded-full bg-slate-900 border border-slate-800" role="group">
+        <button data-shmode="listen" class="h-9 rounded-full text-[12px]" data-i18n="sh.mode.listen">ฟัง</button>
+        <button data-shmode="follow" class="h-9 rounded-full text-[12px]" data-i18n="sh.mode.follow">ทีละโน้ต</button>
+        <button data-shmode="phrase" class="h-9 rounded-full text-[12px]" data-i18n="sh.mode.phrase">ทีละท่อน</button>
+        <button data-shmode="rhythm" class="h-9 rounded-full text-[12px]" data-i18n="sh.mode.rhythm">ตามจังหวะ</button>
+      </div>
+      <div id="sh-strip" class="flex items-start justify-center gap-[3px] mt-2" aria-label="kalimba"></div>
       <div class="flex items-center gap-2 mt-2 text-xs">
-        <button id="sh-play" class="h-10 px-4 shrink-0 rounded-full bg-amber-500 text-slate-950 font-semibold flex items-center gap-2"><span id="sh-play-icon"></span><span id="sh-play-label" data-i18n="sh.play">ฟังเพลง</span></button>
-        <div class="flex items-center rounded-full bg-slate-900 border border-slate-800 shrink-0">
-          <button id="sh-slower" class="w-8 h-8 text-base text-slate-300" data-i18n-aria="pl.slower">−</button>
+        <button id="sh-play" class="h-11 px-5 shrink-0 rounded-full bg-amber-500 text-slate-950 font-semibold flex items-center gap-2"><span id="sh-play-icon"></span><span id="sh-play-label" data-i18n="sh.start">เริ่ม</span></button>
+        <button id="sh-again" class="hidden h-11 px-3 shrink-0 rounded-full border border-slate-700 text-slate-200 text-[12px]" data-i18n="sh.again">ฟังท่อนนี้อีกครั้ง</button>
+        <div class="ml-auto flex items-center rounded-full bg-slate-900 border border-slate-800 shrink-0">
+          <button id="sh-slower" class="w-9 h-9 text-base text-slate-300" data-i18n-aria="pl.slower">−</button>
           <span id="sh-speed" class="min-w-[3rem] text-center tabular-nums text-slate-100">100%</span>
-          <button id="sh-faster" class="w-8 h-8 text-base text-slate-300" data-i18n-aria="pl.faster">+</button>
+          <button id="sh-faster" class="w-9 h-9 text-base text-slate-300" data-i18n-aria="pl.faster">+</button>
         </div>
-        <span class="text-[11px] text-slate-400 leading-tight" data-i18n="sh.hint">แตะโน้ตเพื่อเริ่มฟังตรงนั้น</span>
       </div>
+      <div id="sh-status" class="text-[13px] min-h-[20px] mt-1.5 text-center text-slate-300"></div>
     </div>
     <div id="sh-body" class="px-2 py-4 space-y-5"></div>
   </div>
@@ -500,6 +509,15 @@
     </div>
   </div>
 
+  <div id="modal-real" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full p-5 space-y-3 text-center">
+      <h3 class="text-base font-semibold text-slate-100" data-i18n="real.q">มีคาลิมบาจริงไหม</h3>
+      <p class="text-[13px] text-slate-400" data-i18n="real.sub">แอปจะเลือกวิธีฝึกที่เหมาะให้ เปลี่ยนได้ในตั้งค่า</p>
+      <button id="real-yes" class="w-full min-h-[48px] px-3 rounded-2xl bg-amber-500 text-slate-950 font-semibold text-[14px]" data-i18n="real.yes">มี · ฝึกกับแผ่นโน้ต แอปฟังผ่านไมค์</button>
+      <button id="real-no" class="w-full min-h-[48px] px-3 rounded-2xl border border-slate-700 text-slate-200 text-[14px]" data-i18n="real.no">ยังไม่มี · ฝึกบนจอ</button>
+    </div>
+  </div>
+
   <div id="rotate-note" class="fixed inset-0 z-[60] bg-slate-950 items-center justify-center text-center p-6">
     <div class="space-y-3"><i data-icon="refresh" class="w-10 h-10 mx-auto text-amber-400"></i><p class="text-[15px] text-slate-100" data-i18n="rotate.back">หมุนมือถือกลับเป็นแนวตั้ง</p></div>
   </div>
@@ -603,6 +621,10 @@
             </label>
           </div>
         </div>
+        <label class="bg-slate-800/60 p-3 rounded-xl border border-slate-700 flex items-center justify-between gap-2 cursor-pointer">
+          <span class="font-medium text-slate-200" data-i18n="set.real">ฉันมีคาลิมบาจริง</span>
+          <input id="set-real" type="checkbox" class="w-5 h-5 accent-amber-500">
+        </label>
         <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700 space-y-2">
           <label class="block font-medium text-slate-200">การจูนคีย์ 13 คีย์ (คีย์ที่ 10 ฝั่งขวา):</label>
           <div class="grid grid-cols-2 gap-2">

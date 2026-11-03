@@ -242,6 +242,7 @@ function triggerNotePlay(el) {
 function judgePitch(pitch, at) {
   if (window.KTFirst) KTFirst.onNote(pitch);
   if (state.currentView === 'player' && window.KTFall) KTFall.onNote(pitch, at);
+  if (state.currentView === 'sheet' && window.KTSheet) KTSheet.onNote(pitch, at);
 
   if (state.currentView === 'lesson' && state.lesson.currentTarget) {
     if (pitch === state.lesson.currentTarget) {
@@ -354,6 +355,7 @@ $('btn-open-settings').onclick = () => {
   if (r) r.checked = true;
   const l = document.querySelector('input[name="app-lang"][value="' + LANG + '"]');
   if (l) l.checked = true;
+  try { $('set-real').checked = JSON.parse(localStorage.getItem('kt.hasReal')) === true; } catch (e) { $('set-real').checked = false; }
   $('modal-settings').classList.remove('hidden');
 };
 $('btn-close-settings').onclick = () => $('modal-settings').classList.add('hidden');
@@ -361,6 +363,7 @@ $('btn-save-settings').onclick = () => {
   const lang = document.querySelector('input[name="app-lang"]:checked');
   if (lang && lang.value !== LANG) setLang(lang.value);
   setTuning13(document.querySelector('input[name="kalimba-tuning"]:checked').value);
+  try { localStorage.setItem('kt.hasReal', JSON.stringify($('set-real').checked)); } catch (e) { /* storage blocked */ }
   $('modal-settings').classList.add('hidden');
 };
 
@@ -546,7 +549,7 @@ function syncPracticeLibrary() {
 }
 function practiceWith(id) {
   const s = state.library.find(x => x.id === id);
-  if (s) Fall.open(s);
+  if (s) practiceRoute(s);
 }
 window.selectSongForPractice = practiceWith;
 
@@ -1489,7 +1492,7 @@ const Mic = {
 const Real = { on: ls.get('real', false) };
 function micWanted() {
   const v = state.currentView;
-  return !document.hidden && ((v === 'tuner' && Tuner.on) || ((v === 'player' || v === 'lesson') && Real.on));
+  return !document.hidden && ((v === 'tuner' && Tuner.on) || ((v === 'player' || v === 'lesson') && Real.on) || (v === 'sheet' && Sheet.listening));
 }
 function micSync() {
   if (micWanted()) { if (!Mic.on) Mic.start(); }
@@ -1916,14 +1919,22 @@ const Fall = {
   }
 };
 
-/* ---- song sheet: kalimba numbers over the lyrics, the tune plays and the note being played lights up ---- */
+/* ---- song sheet: kalimba numbers over the lyrics. Listen to the tune, then practise on a real kalimba:
+   note by note (the next note waits for you), line by line (hear a line, play it back) or the whole song in
+   rhythm. The microphone hears the kalimba; tapping the mini kalimba strip counts as playing too. ---- */
 const SH_DEG = ['1', '#1', '2', 'b3', '3', '4', '#4', '5', '#5', '6', 'b7', '7'];
+const SH_MODES = ['listen', 'follow', 'phrase', 'rhythm'];
+const HINT_AFTER = 3;   // seconds without the right note before the app plays it as a hint
 const Sheet = {
-  src: null, notes: [], speed: ls.get('sheet.speed', 1), playing: false, from: 0, cur: -1, bus: null, timer: 0, raf: 0, T0: 0, base: 0,
-  get spb() { return 60 / (((this.src && this.src.song && this.src.song.tempo) || 90) * this.speed); },
+  src: null, notes: [], lines: [], speed: ls.get('sheet.speed', 1), mode: ls.get('sheet.mode', 'follow'),
+  playing: false, running: false, listening: false, from: 0, cur: -1, bus: null, timer: 0, raf: 0, T0: 0, base: 0,
+  idx: 0, line: 0, phase: '', hintTimer: 0, stats: null, t0: 0,
+  get spb() { return 60 / ((((this.src && this.src.song && this.src.song.tempo) || (this.src && this.src.bpm)) || 90) * this.speed); },
+
   open(src) {
     this.stop();
     this.src = src; this.from = 0; this.cur = -1;
+    if (!SH_MODES.includes(this.mode)) this.mode = 'follow';
     byId('sh-title').textContent = src.title || '-';
     switchView('sheet');
     this.render();
@@ -1937,100 +1948,308 @@ const Sheet = {
   },
   render() {
     const song = this.src.song;
-    if (!song.measures) {   // built-in samples are plain pitch lists, one per beat
+    if (!song || !song.measures) {   // built-in samples are plain pitch lists, one per beat
       const notes = this.src.notes.map((p, i) => ({ beat: i % 4, midi: pitchToMidi(p), lyric: '' }));
       this.parsed = { measures: [] };
       for (let i = 0; i < notes.length; i += 4) this.parsed.measures.push({ start: i, notes: notes.slice(i, i + 4) });
     } else this.parsed = parseSong(song, state.tuning13);
-    const lines = [];
+    const keys = new Set(profileKeys().map(k => k.pitch)), html = [];
     let k = 0, line = [];
-    this.notes = [];
+    this.notes = []; this.lines = [];
+    const close = () => { if (line.length) { html.push('<div class="sh-line">' + line.join('') + '</div>'); line = []; } };
     this.parsed.measures.forEach((pm, i) => {
-      if (i && song.measures && song.measures[i] && song.measures[i].br && line.length) { lines.push(line); line = []; }
-      line.push('<div class="sh-bar">' + pm.notes.map(n => { this.notes.push({ t: pm.start + n.beat, midi: n.midi }); return this.cell(n, k++); }).join('') + '</div>');
+      if (i && song && song.measures && song.measures[i] && song.measures[i].br) close();
+      line.push('<div class="sh-bar">' + pm.notes.map(n => {
+        const pitch = midiToPitch(n.midi);
+        this.notes.push({ t: pm.start + n.beat, midi: n.midi, pitch, line: html.length, ok: keys.has(pitch) });
+        return this.cell(n, k++);
+      }).join('') + '</div>');
     });
-    if (line.length) lines.push(line);
-    byId('sh-body').innerHTML = lines.map(l => '<div class="sh-line">' + l.join('') + '</div>').join('');
+    close();
+    byId('sh-body').innerHTML = html.join('');
     $$('#sh-body .sh-n').forEach((el, i) => { this.notes[i].el = el; });
-    const lyr = this.notes.length && $$('#sh-body .sh-l').some(x => x.textContent);
-    byId('sh-meta').textContent = Math.round(((song.tempo || this.src.bpm || 90)) * this.speed) + ' BPM · ' + t('lib.notes', { n: this.notes.length }) + (lyr ? '' : ' · ' + (LANG === 'th' ? 'ไม่มีเนื้อร้อง' : 'no lyrics'));
-    this.mark(); this.controls();
+    // lines as note ranges, for line-by-line practice
+    this.notes.forEach((n, i) => { if (!this.lines[n.line]) this.lines[n.line] = [i, i + 1]; else this.lines[n.line][1] = i + 1; });
+    this.lines = this.lines.filter(Boolean);
+    const lyr = $$('#sh-body .sh-l').some(x => x.textContent);
+    byId('sh-meta').textContent = Math.round(((song && song.tempo) || this.src.bpm || 90) * this.speed) + ' BPM · ' + t('lib.notes', { n: this.notes.length }) + (lyr ? '' : ' · ' + t('sh.nolyrics'));
+    this.strip(); this.mark(); this.controls(); this.status(t('sh.idle.' + this.mode));
+  },
+  // a small kalimba: which tine to play, left or right of the middle
+  strip() {
+    byId('sh-strip').innerHTML = profileKeys().map(k =>
+      '<button class="ms-t" data-p="' + k.pitch + '" aria-label="' + k.pitch + '" style="height:' + Math.round(k.lengthPct * 0.42 + 12) + 'px"><span>' + pitchToNumber(k.pitch) + '</span></button>').join('');
+  },
+  stripMark(pitch, cls, ms) {
+    const b = document.querySelector('#sh-strip [data-p="' + pitch + '"]');
+    if (!b) return;
+    if (ms) { b.classList.add(cls); setTimeout(() => b.classList.remove(cls), ms); return; }
+    $$('#sh-strip .' + cls).forEach(x => x.classList.remove(cls));
+    b.classList.add(cls);
   },
   controls() {
-    byId('sh-play-icon').innerHTML = icon(this.playing ? 'player-stop' : 'player-play', 'w-5 h-5');
-    const l = byId('sh-play-label'); l.dataset.i18n = this.playing ? 'sh.stop' : 'sh.play'; l.textContent = t(l.dataset.i18n);
+    $$('[data-shmode]').forEach(b => { b.className = 'h-9 rounded-full text-[12px] ' + (b.dataset.shmode === this.mode ? 'seg-on' : 'seg-off'); });
+    const busy = this.playing || this.running;
+    byId('sh-play-icon').innerHTML = icon(busy ? 'player-stop' : (this.mode === 'listen' ? 'headphones' : 'player-play'), 'w-5 h-5');
+    const l = byId('sh-play-label'); l.dataset.i18n = busy ? 'sh.stop' : (this.mode === 'listen' ? 'sh.play' : 'sh.start'); l.textContent = t(l.dataset.i18n);
     byId('sh-speed').textContent = Math.round(this.speed * 100) + '%';
+    byId('sh-again').classList.toggle('hidden', !(this.running && this.mode === 'phrase'));
+  },
+  status(txt, tone) {
+    const s = byId('sh-status');
+    s.textContent = txt || '';
+    s.className = 'text-[13px] min-h-[20px] mt-1.5 text-center ' + (tone === 'ok' ? 'text-emerald-300 font-semibold' : tone === 'bad' ? 'text-red-400 font-semibold' : tone === 'go' ? 'text-amber-300 font-semibold' : 'text-slate-300');
   },
   mark() {
+    const tgt = this.running && this.mode !== 'rhythm' && this.phase !== 'listen' ? this.idx : -1;
     this.notes.forEach((n, i) => {
-      n.el.classList.toggle('on', this.playing && i === this.cur);
-      n.el.classList.toggle('done', this.playing && i < this.cur);
-      n.el.classList.toggle('sel', !this.playing && i === this.from && this.from > 0);
+      n.el.classList.toggle('on', i === this.cur && (this.playing || (this.running && this.mode === 'rhythm')));
+      n.el.classList.toggle('target', i === tgt);
+      n.el.classList.toggle('done', !!n.res || ((this.playing || (this.running && this.mode === 'rhythm')) && i < this.cur));
+      n.el.classList.toggle('sel', !this.playing && !this.running && i === this.from && this.from > 0);
     });
   },
-  play(from) {
-    if (!this.notes.length) return;
+  scrollTo(el) {
+    if (!el) return;
+    const r = el.getBoundingClientRect(), top = byId('sh-head').getBoundingClientRect().bottom + 12;
+    if (r.top < top || r.bottom > window.innerHeight - 90) window.scrollBy({ top: r.top - top - 30, behavior: 'smooth' });
+  },
+
+  /* playing notes [from, to) with the note being played lit up */
+  playRange(from, to, done) {
     unlockAudioUI();
     if (!Synth.ensure()) return;
-    this.stop();
-    from = clamp(from || 0, 0, this.notes.length - 1);
+    this.stopAudio();
     const c = Synth.ctx, spb = this.spb, notes = this.notes, bus = c.createGain();
     bus.connect(Synth.master); this.bus = bus;
-    this.playing = true; this.from = from; this.cur = -1;
+    this.playing = true; this.cur = -1;
     this.base = notes[from].t; this.T0 = c.currentTime + 0.15;
-    const at = i => this.T0 + (notes[i].t - this.base) * spb, end = at(notes.length - 1) + 1.2;
+    const at = i => this.T0 + (notes[i].t - this.base) * spb, end = at(to - 1) + 0.6;
     let idx = from;
     this.timer = setInterval(() => {
       const now = c.currentTime;
-      while (idx < notes.length && at(idx) < now + 0.25) { Synth.kalimba(bus, notes[idx].midi, at(idx), 0.85); idx++; }
-      if (idx >= notes.length && now > end) { this.stop(); this.from = 0; this.mark(); }
+      while (idx < to && at(idx) < now + 0.25) { Synth.kalimba(bus, notes[idx].midi, at(idx), 0.85); idx++; }
+      if (idx >= to && now > end) { this.stopAudio(); this.mark(); this.controls(); if (done) done(); }
     }, 25);
     const step = () => {
       if (!this.playing) return;
       const now = c.currentTime;
       let k = this.cur < from ? from - 1 : this.cur;
-      while (k + 1 < notes.length && at(k + 1) <= now) k++;
-      if (k !== this.cur && k >= from) {
-        this.cur = k; this.mark();
-        const r = notes[k].el.getBoundingClientRect(), top = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hdr')) + 110 || 170;
-        if (r.top < top || r.bottom > window.innerHeight - 90) window.scrollBy({ top: r.top - top - 40, behavior: 'smooth' });
-      }
+      while (k + 1 < to && at(k + 1) <= now) k++;
+      if (k !== this.cur && k >= from) { this.cur = k; this.mark(); this.scrollTo(notes[k].el); }
       this.raf = requestAnimationFrame(step);
     };
     this.raf = requestAnimationFrame(step);
     this.controls();
   },
-  stop() {
+  stopAudio() {
     clearInterval(this.timer); this.timer = 0; cancelAnimationFrame(this.raf);
     if (this.bus && Synth.ctx) {
       const b = this.bus;
       b.gain.setTargetAtTime(0, Synth.ctx.currentTime, 0.03);
       setTimeout(() => { try { b.disconnect(); } catch (e) { /* gone */ } }, 400);
     }
-    this.bus = null;
-    if (this.playing) { this.playing = false; if (this.cur > 0) this.from = this.cur; }
-    if (this.src) { this.mark(); this.controls(); }
+    this.bus = null; this.playing = false; this.cur = -1;
   },
+
+  /* start / stop */
+  go() {
+    if (this.playing || this.running) { this.stop(); return; }
+    if (!this.notes.length) return;
+    if (this.mode === 'listen') { this.playRange(this.from, this.notes.length, () => { this.from = 0; this.status(t('sh.idle.listen')); this.mark(); }); this.status(''); return; }
+    this.notes.forEach(n => { n.res = n.ok ? null : 'skip'; });
+    this.stats = { hit: 0, wrong: 0, perfect: 0, good: 0, miss: 0 };
+    this.running = true; this.listening = true; this.t0 = Date.now();
+    micSync();
+    const first = this.nextOpen(this.from);
+    if (this.mode === 'follow') { this.idx = first; this.phase = 'yours'; this.target(); }
+    else if (this.mode === 'phrase') { this.line = Math.max(0, this.lines.findIndex(l => first < l[1])); this.listenLine(); }
+    else this.rhythmStart(first);
+    this.controls();
+  },
+  stop() {
+    this.stopAudio();
+    clearTimeout(this.hintTimer); this.hintTimer = 0;
+    const was = this.running;
+    this.running = false; this.phase = '';
+    if (this.listening) { this.listening = false; micSync(); }
+    $$('#sh-strip .target').forEach(x => x.classList.remove('target'));
+    if (was && this.idx > 0 && this.idx < this.notes.length) this.from = this.idx;
+    if (this.src) { this.mark(); this.controls(); if (was) this.status(t('sh.idle.' + this.mode)); }
+  },
+  nextOpen(i) { while (i < this.notes.length && this.notes[i].res) i++; return i; },
+
+  /* note by note, and the "your turn" half of line by line */
+  target() {
+    clearTimeout(this.hintTimer);
+    const lineEnd = this.mode === 'phrase' && this.lines[this.line] ? this.lines[this.line][1] : this.notes.length;
+    this.idx = this.nextOpen(this.idx);
+    if (this.idx >= lineEnd) { this.mode === 'phrase' ? this.lineDone() : this.finish(); return; }
+    const n = this.notes[this.idx];
+    this.mark(); this.scrollTo(n.el); this.stripMark(n.pitch, 'target');
+    this.status(t(this.mode === 'phrase' ? 'sh.st.yours' : 'sh.st.follow', { note: noteName(n.pitch) + ' · ' + pitchToNumber(n.pitch) }), 'go');
+    this.hintTimer = setTimeout(() => this.hint(), HINT_AFTER * 1000);
+  },
+  hint() {
+    if (!this.running || this.phase !== 'yours') return;
+    const n = this.notes[this.idx];
+    if (!n) return;
+    unlockAudioUI();
+    if (Synth.ensure()) Synth.kalimba(Synth.master, n.midi, Synth.ctx.currentTime, 0.85);   // the mic ignores the app's own notes
+    this.stripMark(n.pitch, 'hint', 700);
+    this.status(t('sh.st.hint', { note: noteName(n.pitch) + ' · ' + pitchToNumber(n.pitch) }), 'go');
+    this.hintTimer = setTimeout(() => this.hint(), (HINT_AFTER + 1) * 1000);
+  },
+  listenLine() {
+    const l = this.lines[this.line];
+    if (!l) { this.finish(); return; }
+    this.phase = 'listen';
+    this.status(t('sh.st.listen', { i: this.line + 1, n: this.lines.length }));
+    $$('#sh-strip .target').forEach(x => x.classList.remove('target'));
+    this.mark();
+    this.playRange(l[0], l[1], () => {
+      if (!this.running) return;
+      setTimeout(() => {
+        if (!this.running) return;
+        this.phase = 'yours'; this.idx = l[0];
+        this.notes.slice(l[0], l[1]).forEach(n => { if (n.res !== 'skip') n.res = null; });
+        this.target(); this.controls();
+      }, 350);
+    });
+    this.controls();
+  },
+  lineDone() {
+    this.status('✓ ' + t('sh.st.lineok'), 'ok');
+    this.phase = 'between';
+    setTimeout(() => { if (!this.running) return; this.line++; this.line < this.lines.length ? this.listenLine() : this.finish(); }, 800);
+  },
+
+  /* whole song in rhythm: the highlight moves at the song's speed, no tune (the mic would hear it) */
+  rhythmStart(first) {
+    this.idx = first; this.phase = 'count';
+    this.base = (this.notes[first] || { t: 0 }).t;
+    const lead = (this.src.song && this.src.song.beats) || 4;
+    this.T0 = clock() + lead * this.spb;
+    const step = () => {
+      if (!this.running) return;
+      const now = clock();
+      if (now < this.T0) { this.status(t('sh.st.count', { n: Math.ceil((this.T0 - now) / this.spb) }), 'go'); this.raf = requestAnimationFrame(step); return; }
+      if (this.phase === 'count') { this.phase = 'rhythm'; this.status(t('sh.st.rhythm')); }
+      const pos = this.base + (now - this.T0) / this.spb, late = this.win().good;
+      while (this.idx < this.notes.length && (this.notes[this.idx].res || pos - this.notes[this.idx].t > late)) {
+        const n = this.notes[this.idx];
+        if (!n.res) { n.res = 'miss'; this.stats.miss++; n.el.classList.add('miss'); }
+        this.idx++;
+      }
+      let k = this.cur < first ? first - 1 : this.cur;
+      while (k + 1 < this.notes.length && this.notes[k + 1].t <= pos) k++;
+      if (k !== this.cur && k >= first) { this.cur = k; this.mark(); this.scrollTo(this.notes[k].el); const nx = this.notes[this.nextOpen(k)]; if (nx) this.stripMark(nx.pitch, 'target'); }
+      const last = this.notes[this.notes.length - 1];
+      if (this.idx >= this.notes.length && pos > last.t + 1) { this.finish(); return; }
+      this.raf = requestAnimationFrame(step);
+    };
+    this.raf = requestAnimationFrame(step);
+  },
+  win() { return { perfect: 0.15 / this.spb, good: 0.3 / this.spb }; },
+
+  /* a note heard by the mic (at = AudioContext time of the pluck) or tapped on the strip */
+  onNote(pitch, at) {
+    if (!this.running) return;
+    if (this.mode === 'rhythm') {
+      if (this.phase !== 'rhythm') return;
+      const c = audio.ctx, ago = at != null && c ? Math.max(0, c.currentTime - at) : 0;
+      const p = this.base + (clock() - ago - this.T0) / this.spb, w = this.win();
+      let best = null, bd = 1e9;
+      for (let i = this.idx; i < this.notes.length && this.notes[i].t - p <= w.good; i++) {
+        const n = this.notes[i], d = Math.abs(n.t - p);
+        if (!n.res && n.pitch === pitch && d <= w.good && d < bd) { best = n; bd = d; }
+      }
+      if (best) { best.res = bd <= w.perfect ? 'perfect' : 'good'; this.stats[best.res]++; this.stripMark(pitch, 'hit', 250); best.el.classList.add('done'); }
+      else { this.stats.wrong++; this.stripMark(pitch, 'bad', 300); }
+      return;
+    }
+    if (this.phase !== 'yours') return;
+    const n = this.notes[this.idx];
+    if (!n) return;
+    if (pitch === n.pitch) {
+      n.res = 'hit'; this.stats.hit++; this.stripMark(pitch, 'hit', 250);
+      this.idx++; this.target();
+    } else {
+      this.stats.wrong++; this.stripMark(pitch, 'bad', 300);
+      n.el.classList.add('wrong'); setTimeout(() => n.el.classList.remove('wrong'), 300);
+      this.status(t('sh.st.wrong', { note: noteName(n.pitch) + ' · ' + pitchToNumber(n.pitch) }), 'bad');
+    }
+  },
+  tapStrip(pitch) {
+    audio.playPitch(pitch);
+    if (this.running) this.onNote(pitch);
+  },
+  finish() {
+    const s = this.stats, mode = this.mode, secs = Math.round((Date.now() - this.t0) / 1000);
+    this.stop(); this.from = 0; this.mark();
+    let pct, stars, detail;
+    if (mode === 'rhythm') {
+      const n = Math.max(1, s.perfect + s.good + s.miss);
+      pct = Math.round((s.perfect + 0.7 * s.good) / n * 100);
+      stars = pct >= 95 ? 3 : pct >= 80 ? 2 : pct >= 50 ? 1 : 0;
+      detail = t('pl.perfect') + ' ' + s.perfect + ' · ' + t('pl.good') + ' ' + s.good + ' · ' + t('pl.miss') + ' ' + s.miss;
+    } else {
+      pct = Math.round(s.hit / Math.max(1, s.hit + s.wrong) * 100);
+      stars = s.wrong === 0 ? 3 : pct >= 80 ? 2 : 1;
+      detail = t('pl.correct') + ' ' + s.hit + ' · ' + t('pl.wrong') + ' ' + s.wrong + ' · ' + Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0');
+    }
+    this.status('★'.repeat(stars) + '☆'.repeat(3 - stars) + '  ' + t('pl.done') + ' · ' + t('pl.acc') + ' ' + pct + '% · ' + detail, 'ok');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  },
+
   tap(k) {
     const n = this.notes[k];
-    if (!n) return;
-    if (this.playing) { this.play(k); return; }
+    if (!n || this.running) return;
+    if (this.playing) { this.from = k; this.go(); this.go(); return; }
     this.from = k; this.mark();
     unlockAudioUI();
     if (Synth.ensure()) Synth.kalimba(Synth.master, n.midi, Synth.ctx.currentTime, 0.85);
   },
+  setMode(m) {
+    if (this.running || this.playing) this.stop();
+    this.mode = m; ls.set('sheet.mode', m);
+    this.controls(); this.status(t('sh.idle.' + m)); this.mark();
+  },
   setSpeed(d) {
     this.speed = Math.round(clamp(this.speed + d, 0.3, 1.5) * 100) / 100;
     ls.set('sheet.speed', this.speed);
-    const was = this.playing, at = Math.max(this.cur, this.from);
+    if (this.running || this.playing) this.stop();
     this.render();
-    if (was) this.play(at);
   }
 };
 
+// "Practise" goes to the sheet when the player has a real kalimba, to the falling notes when not; asked once
+function practiceRoute(src) {
+  const has = ls.get('hasReal', null);
+  if (has === null) {
+    byId('modal-real').classList.remove('hidden');
+    byId('modal-real').dataset.pending = JSON.stringify({ id: src.id });
+    return;
+  }
+  if (has) { Sheet.open(src); if (Sheet.mode === 'listen') Sheet.setMode('follow'); }
+  else Fall.open(src);
+}
+function answerReal(has) {
+  ls.set('hasReal', has);
+  const m = byId('modal-real'), p = m.dataset.pending ? JSON.parse(m.dataset.pending) : null;
+  m.classList.add('hidden'); m.dataset.pending = '';
+  if (p) practiceWith(p.id);
+}
+
 function initPlayer() {
   byId('sh-back').onclick = () => switchView('add');
-  byId('sh-play').onclick = () => (Sheet.playing ? Sheet.stop() : Sheet.play(Sheet.from));
+  byId('sh-play').onclick = () => Sheet.go();
+  byId('sh-again').onclick = () => { if (Sheet.running && Sheet.mode === 'phrase') { clearTimeout(Sheet.hintTimer); Sheet.stopAudio(); Sheet.listenLine(); } };
+  $$('[data-shmode]').forEach(b => { b.onclick = () => Sheet.setMode(b.dataset.shmode); });
+  byId('sh-strip').addEventListener('click', e => { const b = e.target.closest('[data-p]'); if (b) Sheet.tapStrip(b.dataset.p); });
+  byId('pl-sheet').onclick = () => { if (Fall.src) { byId('pl-ctrl').classList.add('hidden'); Sheet.open(Fall.src); } };
+  byId('real-yes').onclick = () => answerReal(true);
+  byId('real-no').onclick = () => answerReal(false);
   byId('sh-slower').onclick = () => Sheet.setSpeed(-0.1);
   byId('sh-faster').onclick = () => Sheet.setSpeed(0.1);
   byId('sh-practice').onclick = () => { if (Sheet.src) { Sheet.stop(); Fall.open(Sheet.src); } };
