@@ -3,16 +3,40 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#0F1522">
+  <meta name="theme-color" content="#FFF7E6">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="ครูฝึกคาลิมบา">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icons/icon-180.png">
   <title>ครูฝึกคาลิมบา</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
-  <script src="js/theme.js"></script>
+  <script>
+    // Pastel theme on a light cream page (Vanilla Cream #FFF7E6, Blush Petal #F7C8D3, Rosewood #B46A72,
+    // Sage Leaf #A8B58A, Misty Sky #A9B7C6, Midnight Lagoon #2D3A47). The markup was written for a dark theme
+    // with Tailwind's slate/amber/emerald/red/sky classes, so those ramps are remapped and slate is inverted:
+    // slate-950 = page, slate-900 = card, slate-100 = main text. amber = rosewood (accent), emerald = sage
+    // (correct), red/rose = rosewood (wrong), sky = misty blue. Text shades are darkened to pass WCAG AA.
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            slate: { 50: '#24303B', 100: '#2D3A47', 200: '#3B4856', 300: '#4A5664', 400: '#5E6975', 500: '#646E79', 600: '#B9B4AA', 700: '#E4D7C3', 800: '#F3E9D7', 900: '#FFFDF7', 950: '#FFF7E6' },
+            amber: { 50: '#3D2226', 100: '#5E2F35', 200: '#6E3840', 300: '#8A4650', 400: '#9A505A', 500: '#A35A63', 600: '#A35A63', 700: '#C98891', 800: '#E8B4BC', 900: '#F7C8D3', 950: '#FBEFF2' },
+            emerald: { 50: '#2F3822', 100: '#3F492C', 200: '#4F5B37', 300: '#5E6D42', 400: '#56653C', 500: '#5E6C42', 600: '#4F5B37', 700: '#A8B58A', 800: '#CDD6B8', 900: '#E6EBDA', 950: '#F1F4EA' },
+            red: { 50: '#4A2026', 100: '#6E3038', 200: '#8E4A53', 300: '#9A4650', 400: '#A24E58', 500: '#B46A72', 600: '#A35A63', 700: '#8E4A53', 800: '#E8B4BC', 900: '#F7DDE3', 950: '#FBEFF2' },
+            rose: { 300: '#9A4650', 400: '#A24E58', 500: '#B46A72', 600: '#A35A63', 700: '#8E4A53', 900: '#F7DDE3', 950: '#FBEFF2' },
+            sky: { 300: '#4D6075', 400: '#55697F', 500: '#7F93A8', 600: '#5E7389', 700: '#4D6075', 800: '#DCE3EB', 900: '#E9EEF3' }
+          },
+          fontFamily: {
+            sans: ['"IBM Plex Sans Thai"', '-apple-system', 'system-ui', 'sans-serif'],
+            heading: ['"IBM Plex Sans Thai"', '-apple-system', 'system-ui', 'sans-serif']
+          }
+        }
+      }
+    };
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -253,11 +277,11 @@
     </div>
     <div class="rounded-2xl bg-slate-900 border border-slate-800 px-4 pt-4 pb-3 flex flex-col items-center">
       <svg viewBox="0 0 240 136" class="w-full max-w-[300px]" role="img" aria-labelledby="tu-cents">
-        <path d="M20 126 A100 100 0 0 1 220 126" fill="none" stroke="#222C42" stroke-width="12" stroke-linecap="round"/>
-        <path d="M89.1 30.9 A100 100 0 0 1 150.9 30.9" fill="none" stroke="#3B7F5A" stroke-width="12"/>
-        <line x1="120" y1="14" x2="120" y2="22" stroke="#566176" stroke-width="2"/>
-        <line id="tu-needle" x1="120" y1="126" x2="120" y2="38" stroke="#566176" stroke-width="3" stroke-linecap="round" style="transform-origin:120px 126px;transition:transform .12s ease-out,stroke .12s"/>
-        <circle cx="120" cy="126" r="6" fill="#C9A46A"/>
+        <path d="M20 126 A100 100 0 0 1 220 126" fill="none" stroke="#F3E9D7" stroke-width="12" stroke-linecap="round"/>
+        <path d="M89.1 30.9 A100 100 0 0 1 150.9 30.9" fill="none" stroke="#A8B58A" stroke-width="12"/>
+        <line x1="120" y1="14" x2="120" y2="22" stroke="#B9B4AA" stroke-width="2"/>
+        <line id="tu-needle" x1="120" y1="126" x2="120" y2="38" stroke="#B9B4AA" stroke-width="3" stroke-linecap="round" style="transform-origin:120px 126px;transition:transform .12s ease-out,stroke .12s"/>
+        <circle cx="120" cy="126" r="6" fill="#B46A72"/>
       </svg>
       <div id="tu-note" class="text-5xl font-semibold leading-tight -mt-1">–</div>
       <div id="tu-sub" class="text-[13px] text-slate-400 min-h-[20px]"></div>

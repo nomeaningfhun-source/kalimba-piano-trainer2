@@ -5,16 +5,16 @@ body.no-nav .bottom-nav { display: none; }
 body.in-player #install-banner { display: none !important; }
 h1, h2, h3, h4, .font-heading { font-family: 'IBM Plex Sans Thai', -apple-system, system-ui, sans-serif; }
 button { -webkit-tap-highlight-color: transparent; }
-:focus-visible { outline: 2px solid #C9A46A; outline-offset: 2px; }
+:focus-visible { outline: 2px solid #A35A63; outline-offset: 2px; }
 
 /* kalimba */
-.kalimba-body { background: #3A2616; border: 1px solid #5A3A22; }
-.sound-hole { background: #1A0F07; border: 1px solid #5A3A22; }
-.metal-bridge { background: linear-gradient(180deg, #A3ACBC 0%, #566176 100%); }
+.kalimba-body { background: #F7C8D3; border: 1px solid #E8B4BC; }
+.sound-hole { background: #C98891; border: 1px solid #B46A72; }
+.metal-bridge { background: linear-gradient(180deg, #D5D9DF 0%, #8E96A3 100%); }
 .kalimba-tine { flex: 1 1 0; min-width: 0; max-width: 88px; background: linear-gradient(90deg, #AEB6C4 0%, #EEF1F5 40%, #B9C1CD 75%, #8590A4 100%); transition: transform 0.05s ease, filter 0.05s ease; transform-origin: top center; }
-.kalimba-tine.active { transform: scaleY(0.97) translateY(2px); filter: brightness(1.15); background: linear-gradient(90deg, #4A976C 0%, #B5E2C8 45%, #63B487 100%); }
-.kalimba-tine.guide-target { background: linear-gradient(90deg, #A9884F 0%, #F3E6CB 45%, #C9A46A 100%) !important; animation: pulse 0.7s infinite alternate; }
-.kalimba-tine.wrong { background: linear-gradient(90deg, #B4513F 0%, #F3C0B4 45%, #D9705E 100%) !important; }
+.kalimba-tine.active { transform: scaleY(0.97) translateY(2px); filter: brightness(1.15); background: linear-gradient(90deg, #8C9A6C 0%, #E6EBDA 45%, #A8B58A 100%); }
+.kalimba-tine.guide-target { background: linear-gradient(90deg, #8E4A53 0%, #D99AA3 45%, #A35A63 100%) !important; animation: pulse 0.7s infinite alternate; }
+.kalimba-tine.wrong { background: linear-gradient(90deg, #8E4A53 0%, #E8B4BC 45%, #A35A63 100%) !important; }
 @keyframes pulse { from { filter: brightness(1); } to { filter: brightness(1.25); } }
 .kal-compact { --tine-h: 110px; }
 .kal-compact .kal-hole, .kal-compact .kal-hint { display: none; }
@@ -23,15 +23,15 @@ button { -webkit-tap-highlight-color: transparent; }
 
 /* bottom navigation */
 .bottom-nav { padding-bottom: env(safe-area-inset-bottom); }
-.nav-btn { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; height: var(--nav-h); font-size: 11px; font-weight: 500; color: #A3ACBC; transition: color .15s; }
-.nav-btn[aria-current="page"] { color: #C9A46A; }
-.nav-btn[aria-current="page"]::before { content: ''; position: absolute; top: 0; left: 30%; right: 30%; height: 2px; border-radius: 0 0 2px 2px; background: #C9A46A; }
+.nav-btn { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; height: var(--nav-h); font-size: 11px; font-weight: 500; color: #646E79; transition: color .15s; }
+.nav-btn[aria-current="page"] { color: #A35A63; }
+.nav-btn[aria-current="page"]::before { content: ''; position: absolute; top: 0; left: 30%; right: 30%; height: 2px; border-radius: 0 0 2px 2px; background: #A35A63; }
 
 /* segmented controls and toggles */
-.seg-on { background: #C9A46A; color: #0F1522; font-weight: 600; }
-.seg-off { color: #A3ACBC; }
-.tog-on { border-color: #C9A46A !important; color: #C9A46A !important; }
-#pl-mic.tog-on { background: #C9A46A; color: #0F1522 !important; }
+.seg-on { background: #2D3A47; color: #FFF7E6; font-weight: 600; }
+.seg-off { color: #646E79; }
+.tog-on { border-color: #A35A63 !important; color: #A35A63 !important; }
+#pl-mic.tog-on { background: #A35A63; color: #FFF7E6 !important; }
 
 /* player fills the space between the header and the bottom nav */
 #section-player:not(.hidden) { display: flex; height: calc(100dvh - var(--hdr, 60px) - var(--nav-h) - env(safe-area-inset-bottom)); }
@@ -43,22 +43,22 @@ button { -webkit-tap-highlight-color: transparent; }
 
 /* song sheet: numbers over lyrics, like the kalimba tabs people share online */
 .sh-line { display: flex; flex-wrap: wrap; row-gap: 14px; }
-.sh-bar { display: flex; align-items: flex-start; padding: 0 4px; border-left: 1px solid #34405A; }
+.sh-bar { display: flex; align-items: flex-start; padding: 0 4px; border-left: 1px solid #E4D7C3; }
 .sh-n { display: flex; flex-direction: column; align-items: center; min-width: 1.85rem; padding: 2px 3px 3px; border-radius: 10px; transition: background .1s; }
-.sh-up, .sh-dn { height: 8px; font-size: 10px; line-height: 8px; letter-spacing: -1px; color: #DEBF87; }
-.sh-d { font-size: 21px; font-weight: 600; line-height: 1.15; color: #F2EDE3; font-variant-numeric: tabular-nums; }
+.sh-up, .sh-dn { height: 8px; font-size: 10px; line-height: 8px; letter-spacing: -1px; color: #A35A63; }
+.sh-d { font-size: 21px; font-weight: 600; line-height: 1.15; color: #2D3A47; font-variant-numeric: tabular-nums; }
 .sh-d small { font-size: 12px; font-weight: 500; }
-.sh-l { font-size: 12px; line-height: 18px; min-height: 18px; color: #A3ACBC; white-space: nowrap; }
-.sh-n.done .sh-d { color: #8590A4; }
-.sh-n.sel { box-shadow: inset 0 0 0 1.5px #C9A46A; }
-.sh-n.on { background: #C9A46A; }
-.sh-n.on .sh-d, .sh-n.on .sh-l, .sh-n.on .sh-up, .sh-n.on .sh-dn { color: #0F1522; }
+.sh-l { font-size: 12px; line-height: 18px; min-height: 18px; color: #646E79; white-space: nowrap; }
+.sh-n.done .sh-d { color: #B9B4AA; }
+.sh-n.sel { box-shadow: inset 0 0 0 1.5px #A35A63; }
+.sh-n.on { background: #A35A63; }
+.sh-n.on .sh-d, .sh-n.on .sh-l, .sh-n.on .sh-up, .sh-n.on .sh-dn { color: #FFF7E6; }
 
 /* tuner tine strip */
-.tu-tine { width: 14px; border-radius: 0 0 6px 6px; background: #34405A; transition: background .2s; }
-.tu-tine.ok { background: #63B487; }
-.tu-tine.off { background: #D9705E; }
-.tu-tine.now { outline: 2px solid #F2EDE3; outline-offset: 1px; }
+.tu-tine { width: 14px; border-radius: 0 0 6px 6px; background: #E4D7C3; transition: background .2s; }
+.tu-tine.ok { background: #A8B58A; }
+.tu-tine.off { background: #B46A72; }
+.tu-tine.now { outline: 2px solid #2D3A47; outline-offset: 1px; }
 
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -67,9 +67,9 @@ input, textarea, select { -webkit-user-select: text; user-select: text; font-siz
 select#select-label-mode, select#select-note-system { font-size: 13px; }
 .mono { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; }
 header.app-header { padding-top: max(0.5rem, env(safe-area-inset-top)); }
-.strip-key { background: #34405A; transition: background .08s, transform .08s; }
-.strip-key.lit { background: #C9A46A; transform: scaleY(1.12); }
-.mcard.playing { box-shadow: 0 0 0 2px #C9A46A; }
+.strip-key { background: #E4D7C3; transition: background .08s, transform .08s; }
+.strip-key.lit { background: #B46A72; transform: scaleY(1.12); }
+.mcard.playing { box-shadow: 0 0 0 2px #A35A63; }
 .chip { min-width: 1.9rem; }
 #keypad button { touch-action: manipulation; }
 @media (prefers-reduced-motion: reduce) { .kalimba-tine.guide-target { animation: none; } * { transition: none !important; } }
