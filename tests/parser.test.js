@@ -222,4 +222,17 @@ t('retuned tines: #4 plays once the F4 tine is tuned up, and plain 4 then warns'
   assert(P.keySet('B4 65+1 83-1').has(66) && P.keySet('B4 65+1 83-1').has(82) && !P.keySet('B4 65+1 83-1').has(83));
   assert.strictEqual(P.checkNote(65, 'B4 65+1').msg, 'F4 ไม่มีบนเครื่อง (ก้านนี้จูนเป็น F♯4 อยู่)');
 });
+t('Thai words sung over several notes split into syllables', () => {
+  const cases = { 'เสมอ': 'ส|เมอ', 'ตลอด': 'ต|ลอด', 'พยายาม': 'พ|ยา|ยาม', 'สนุก': 'ส|นุก', 'บังเอิญ': 'บัง|เอิญ', 'เกรงใจ': 'เกรง|ใจ',
+    'จริง': 'จริง', 'ความ': 'ความ', 'หน้า': 'หน้า', 'อยู่': 'อยู่', 'เปลี่ยน': 'เปลี่ยน', 'ทั้งหมด': 'ทั้ง|หมด', 'ทรงจำ': 'ทรง|จำ',
+    'จะทวงชีวิต': 'จะ|ทวง|ชี|วิต', 'ของเธอ': 'ของ|เธอ', 'เท่าไร': 'เท่า|ไร', 'ร่วงโรยรา': 'ร่วง|โรย|รา', 'กลัว': 'กลัว', 'ถนน': 'ถ|นน', 'เวลา': 'เว|ลา', 'เฉพาะ': 'ฉ|เพาะ', 'แสดง': 'ส|แดง' };
+  Object.keys(cases).forEach(w => assert.strictEqual(P.thaiSyllables(w).join('|'), cases[w], w));
+  assert.strictEqual(P.splitSyllables(['อยู่', 'เสมอ', 'ตลอด', 'ไป'], 6).join('|'), 'อยู่|ส|เมอ|ต|ลอด|ไป');
+  assert.strictEqual(P.splitSyllables(['พยายาม'], 2).join('|'), 'พยา|ยาม');       // fewer notes: merge back
+  assert.strictEqual(P.lyricsByGroups(['เสมอ', 'สนุก'], [2, 2]).join('|'), 'ส|เมอ|ส|นุก');
+  assert.strictEqual(P.lyricsByGroups(['เสมอ'], [1]).join('|'), 'เสมอ');
+  // the 3-line importer gives each note its syllable
+  const p = P.parseSong(P.importText('เสมอ ตลอด\n1 2   3 4', {}).song, 'B4');
+  assert.deepStrictEqual(p.measures[0].notes.map(x => x.lyric), ['ส', 'เมอ', 'ต', 'ลอด']);
+});
 console.log(n + ' passed');

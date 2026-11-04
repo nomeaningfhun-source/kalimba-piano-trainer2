@@ -159,6 +159,78 @@ function parseChordToken(raw, shift) {
   };
 }
 
+// Thai written syllables, for spreading one word over several notes: บังเอิญ → บัง|เอิญ, พยายาม → พ|ยา|ยาม.
+// A first consonant with a hidden vowel stands alone (สนุก → ส|นุก, เสมอ → ส|เมอ); not a full dictionary,
+// so rare spellings can split oddly — the review page shows every syllable for checking.
+const TH_C = 'กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรลวศษสหฬอฮ', TH_LV = 'เแโใไ', TH_UV = 'ัิีึืุู็', TH_TONE = '่้๊๋', TH_FV = 'ะาำๅ';
+const thC = c => !!c && TH_C.includes(c);
+const thMark = c => !!c && (TH_UV.includes(c) || TH_TONE.includes(c) || c === '์' || c === 'ํ');
+function thaiSyllables(word) {
+  const ch = Array.from(word), n = ch.length, out = [];
+  const vowelAt = j => j < n && (TH_UV.includes(ch[j]) || TH_TONE.includes(ch[j]) || TH_FV.includes(ch[j]) || ch[j] === 'อ');
+  // a true cluster (กร, ปล, คว…), a silent ร (จริง, สร้าง) or a silent leader (หน, อย) reads as one onset
+  const onset2 = (a, b, lv, j) => ((a === 'ห' && 'งญนมยรลว'.includes(b)) || (a === 'อ' && b === 'ย') ||
+    (/^(?:[กขค][รลว]|ตร|[ปพบฟ][รล]|ผล|ดร|ทร|[จซศส]ร)$/.test(a + b) && (lv || vowelAt(j) || (thC(ch[j]) && !vowelAt(j + 1)))));
+  let i = 0, carry = '';
+  while (i < n) {
+    let lv = carry; carry = '';
+    if (TH_LV.includes(ch[i])) lv += ch[i++];
+    if (i >= n) { out.push(lv); break; }
+    if (!thC(ch[i])) { out.push(lv + ch[i++]); continue; }
+    let on = ch[i++];
+    if (thC(ch[i]) && onset2(on, ch[i], lv, i + 1)) on += ch[i++];
+    // hidden vowel: the next consonant carries the vowel (or, after เ/แ, is followed by its own final;
+    // or three bare consonants like ถนน, ขนม)
+    // (with a leading vowel the next consonant must take it: เสมอ = ส|เมอ, but เวลา = เว|ลา)
+    const takesLv = j => ch[j] === 'อ' || TH_UV.includes(ch[j]) || TH_TONE.includes(ch[j]) || (ch[j] === 'า' && ch[j + 1] === 'ะ');
+    if (on.length === 1 && thC(ch[i]) &&
+        ((lv ? takesLv(i + 1) : vowelAt(i + 1)) || (!'อวย'.includes(ch[i]) && thC(ch[i + 1]) && (i + 2 >= n || TH_LV.includes(ch[i + 2])) && (lv || !vowelAt(i + 2))))) {
+      out.push(on); carry = lv; continue;
+    }
+    let s = lv + on;
+    while (i < n && thMark(ch[i])) s += ch[i++];
+    if (i < n && TH_FV.includes(ch[i])) { s += ch[i++]; if (ch[i] === 'ะ') s += ch[i++]; }
+    else if (ch[i] === 'อ' && !vowelAt(i + 1)) s += ch[i++];                                 // -อ, เ-อ, เ-ือ
+    else if (ch[i] === 'ย' && /เ/.test(lv) && /[ี]/.test(s) && !vowelAt(i + 1)) s += ch[i++];   // เ-ีย
+    else if (ch[i] === 'ว' && thC(ch[i + 1]) && !vowelAt(i + 1) && !/[ิีึืุู]/.test(s)) s += ch[i++];  // -ัว- written without ั
+    else if (ch[i] === 'ว' && /ั/.test(s) && !vowelAt(i + 1)) s += ch[i++];                   // -ัว
+    // final consonant (plus a silenced one with ์), unless it starts the next syllable; -ะ -ำ ใ- ไ- เ-า have none
+    const open = /[ะำ]$/.test(s) || /ใ/.test(lv) || (/ไ/.test(lv) && !(ch[i] === 'ย' && i === n - 1)) || (/เ/.test(lv) && /า$/.test(s));
+    if (!open && thC(ch[i]) && !vowelAt(i + 1) && !(thC(ch[i + 1]) && onset2(ch[i], ch[i + 1], '', i + 2) && vowelAt(i + 2))) {
+      s += ch[i++];
+      while (i < n && (ch[i] === '์' || (thC(ch[i]) && ch[i + 1] === '์'))) s += ch[i++];
+    }
+    out.push(s);
+  }
+  return out.filter(Boolean);
+}
+
+// merge neighbouring syllables, shortest pair first, until there are k
+function mergeTo(parts, k) {
+  const p = parts.slice();
+  while (p.length > k) {
+    let best = 0;
+    for (let i = 1; i < p.length - 1; i++) if (p[i].length + p[i + 1].length < p[best].length + p[best + 1].length) best = i;
+    p.splice(best, 2, p[best] + p[best + 1]);
+  }
+  return p;
+}
+
+// words → n pieces by splitting the words with the most syllables first
+function splitSyllables(parts, n) {
+  if (parts.length >= n) return parts;
+  const out = parts.map(p => [p]), syl = parts.map(p => thaiSyllables(p));
+  let need = n - parts.length;
+  parts.map((p, i) => i).sort((a, b) => syl[b].length - syl[a].length || a - b).forEach(i => {
+    if (need <= 0) return;
+    let s = syl[i];
+    if (s.length < 2) return;
+    if (s.length - 1 > need) s = mergeTo(s, need + 1);
+    need -= s.length - 1; out[i] = s;
+  });
+  return [].concat(...out);
+}
+
 function lyricTokens(str) {
   return String(str || '').trim().split(/[\s\/]+/).filter(Boolean);
 }
@@ -278,7 +350,8 @@ function expandLyrics(toks, need) {
       const parts = Array.from(seg.segment(t)).filter(x => x.isWordLike).map(x => x.segment);
       out.push.apply(out, parts.length ? parts : [t]);
     });
-    return Math.abs(out.length - need) < Math.abs(toks.length - need) ? out : toks;
+    const syl = splitSyllables(out, need);
+    return Math.abs(syl.length - need) < Math.abs(toks.length - need) ? syl : toks;
   } catch (e) { return toks; }
 }
 
@@ -295,6 +368,8 @@ function lyricsByGroups(toks, counts) {
         if (seg.length) parts = seg;
       } catch (e) { /* keep whole word */ }
     }
+    // more notes than words: sing a word over several notes, one syllable each (เสมอ → ส|เมอ)
+    parts = splitSyllables(parts, n);
     if (parts.length > n) parts = parts.slice(0, n - 1).concat(parts.slice(n - 1).join(''));
     while (parts.length < n) parts.push('~');
     out.push.apply(out, parts);
