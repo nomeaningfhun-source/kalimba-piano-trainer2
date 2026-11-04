@@ -29,15 +29,25 @@ const SheetRead = (() => {
 
   // frames and rules (a page-number box, a link underline) would glue text rows together: wipe long straight runs
   function eraseRules(layer, w, h) {
-    const maxV = Math.max(40, Math.round(h * 0.04)), maxH = Math.max(60, Math.round(w * 0.12));
+    const maxV = Math.max(40, Math.round(h * 0.04)), maxH = Math.max(60, Math.round(w * 0.12)), vert = [];
     for (let x = 0; x < w; x++) {
       let y0 = -1;
       for (let y = 0; y <= h; y++) {
         const on = y < h && layer[y * w + x] > ON;
         if (on && y0 < 0) y0 = y;
-        if (!on && y0 >= 0) { if (y - y0 > maxV) for (let k = y0; k < y; k++) layer[k * w + x] = 0; y0 = -1; }
+        if (!on && y0 >= 0) {
+          if (y - y0 > maxV) { for (let k = y0; k < y; k++) layer[k * w + x] = 0; vert.push({ x, y0, y1: y - 1 }); }
+          y0 = -1;
+        }
       }
     }
+    // a box (page number, cover photo frame): two upright rules side by side over the same height —
+    // wipe what is inside too, or its contents would bridge the gaps between text rows
+    vert.forEach((a, i) => vert.slice(i + 1).forEach(b => {
+      const top = Math.max(a.y0, b.y0), bot = Math.min(a.y1, b.y1), span = Math.max(a.y1 - a.y0, b.y1 - b.y0);
+      if (b.x - a.x < 8 || b.x - a.x > w * 0.4 || bot - top < span * 0.8) return;
+      for (let y = top; y <= bot; y++) for (let x = a.x; x <= b.x; x++) layer[y * w + x] = 0;
+    }));
     for (let y = 0; y < h; y++) {
       let x0 = -1;
       for (let x = 0; x <= w; x++) {
@@ -188,10 +198,18 @@ const SheetRead = (() => {
     const { digits, lines, dh } = numberPieces(layer, w, r);
     const names = await readDigits(digits, dh, ocr);
     const toks = [];
-    let sharp = null;
+    let sharp = null, prev = null;
     digits.forEach((d, i) => {
-      // a sharp sign belongs to the number right after it (#4 = F#)
-      if (names[i] === '#') { sharp = d; return; }
+      // a sharp sign goes with the number it touches: before it (#4) or after it and its marks (4#, 5'#)
+      if (names[i] === '#') {
+        const next = digits.slice(i + 1).find((x, k) => names[i + 1 + k] !== '#');
+        const gPrev = prev ? d.x0 - prev.right : Infinity, gNext = next ? next.x0 - d.x1 : Infinity;
+        const last = toks[toks.length - 1];
+        if (last && gPrev < dh * 0.6 && gPrev <= gNext) { last.t = last.t.replace(/([1-7]'*)$/, '#$1'); last.right = Math.max(last.right, d.x1); }
+        else sharp = d;
+        return;
+      }
+      prev = d;
       const lead = sharp && d.x0 - sharp.x1 < dh * 0.6 ? sharp : null;
       sharp = null;
       const note = (lead ? '#' : '') + names[i] + (d.marks >= 2 ? "''" : d.marks === 1 ? "'" : '');

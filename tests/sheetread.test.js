@@ -53,6 +53,20 @@ t('a # sign joins the number after it; a lone digit is retried three times over'
   assert.strictEqual(calls, 4);
   assert.deepStrictEqual(t2.map(x => x.t), ['#4', "?'"]);   // a single vote is not enough: ? for the reviewer
 });
+t('a # written after a number (and its octave mark) is that number\'s sharp: 5\'# = #5\'', async () => {
+  const rects = [[10, 20, 19, 35, GREY], [21, 20, 22, 24, GREY], [25, 20, 34, 35, GREY], [60, 20, 69, 35, GREY]];
+  const L = SR.splitLayers(page(90, 50, rects), 90, 50, 4);
+  const r = SR.findRows(L.dark, 90, 50)[0];
+  const toks = await SR.readNumberRow(L.dark, 90, r, async () => [{ text: '5#6' }], false);
+  assert.deepStrictEqual(toks.map(x => x.t), ["#5'", '6']);
+});
+t('a boxed page number beside the text does not glue rows together', () => {
+  // three text rows 10 px apart, and a box (two upright rules) on the right whose contents fill the gaps
+  const rects = glyphs(10, 10, 25, 8, GREY).concat(glyphs(10, 36, 51, 8, GREY), glyphs(10, 62, 77, 8, GREY),
+    [[250, 5, 251, 85, GREY], [300, 5, 301, 85, GREY], [262, 20, 272, 30, GREY], [262, 32, 272, 42, GREY], [262, 44, 272, 54, GREY], [262, 56, 272, 66, GREY], [262, 68, 272, 78, GREY]]);
+  const L = SR.splitLayers(page(320, 100, rects), 320, 100, 4);
+  assert.deepStrictEqual(SR.findRows(L.dark, 320, 100).map(r => [r.y0, r.y1]), [[10, 25], [36, 51], [62, 77]]);
+});
 t('row kinds from OCR text', () => {
   assert.strictEqual(SR.classify("3' 5'5' 6' 2\"2\""), 'melody');
   assert.strictEqual(SR.classify('ก ล ั ว ว ่ า'), 'lyric');
