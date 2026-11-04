@@ -4,7 +4,7 @@
    The page is split by colour and into text rows here; number rows are cut into digits, octave marks and
    underlines by their shapes, so OCR only has to name digits 1-7 and read the Thai lyrics.
    OCR is passed in as ocr(kind, img) → [{ text, x0, x1, y0, y1 }] in img pixels, where kind is
-   'line' (one line of Thai/English), 'block' (a few lines), 'digits' (a row of digits 1-7) or 'digit' (one),
+   'line' (one line of Thai/English), 'block' (a few lines) or 'digits' (a row of digits 1-7 and # sharps),
    and img = { w, h, data } is greyscale, 0 = ink, 255 = paper. */
 const SheetRead = (() => {
   const RED = 16;          // r - max(g, b) above this = red ink
@@ -169,13 +169,16 @@ const SheetRead = (() => {
 
   async function readDigits(digits, dh, ocr) {
     if (!digits.length) return [];
-    const s = (await ocr('digits', digitStrip(digits, dh))).map(x => x.text).join('').replace(/[^1-7]/g, '');
+    const s = (await ocr('digits', digitStrip(digits, dh))).map(x => x.text).join('').replace(/[^1-7#]/g, '');
     if (s.length === digits.length) return s.split('');
-    // counts differ: read them one at a time
+    // counts differ: read them one at a time, each written three times (OCR names a lone character badly)
     const one = [];
     for (const d of digits) {
-      const t = (await ocr('digit', digitStrip([d], dh))).map(x => x.text).join('').replace(/[^1-7]/g, '');
-      one.push(t[0] || '?');
+      const t = (await ocr('digits', digitStrip([d, d, d], dh))).map(x => x.text).join('').replace(/[^1-7#]/g, '');
+      const votes = {};
+      t.split('').forEach(c => { votes[c] = (votes[c] || 0) + 1; });
+      const best = Object.keys(votes).sort((a, b) => votes[b] - votes[a])[0];
+      one.push(best && votes[best] >= 2 ? best : '?');
     }
     return one;
   }
@@ -185,13 +188,18 @@ const SheetRead = (() => {
     const { digits, lines, dh } = numberPieces(layer, w, r);
     const names = await readDigits(digits, dh, ocr);
     const toks = [];
+    let sharp = null;
     digits.forEach((d, i) => {
-      const note = names[i] + (d.marks >= 2 ? "''" : d.marks === 1 ? "'" : '');
-      const last = toks[toks.length - 1];
-      const gap = last ? d.x0 - last.right : Infinity;
+      // a sharp sign belongs to the number right after it (#4 = F#)
+      if (names[i] === '#') { sharp = d; return; }
+      const lead = sharp && d.x0 - sharp.x1 < dh * 0.6 ? sharp : null;
+      sharp = null;
+      const note = (lead ? '#' : '') + names[i] + (d.marks >= 2 ? "''" : d.marks === 1 ? "'" : '');
+      const x0 = lead ? lead.x0 : d.x0, last = toks[toks.length - 1];
+      const gap = last ? x0 - last.right : Infinity;
       // chords are written without spaces (135); melody numbers without a space share a beat
       if (last && gap < dh * (isChord ? 0.45 : 0.22)) { last.t += note; last.x1 = d.x1; last.right = d.right; }
-      else toks.push({ t: note, x0: d.x0, x1: d.x1, right: d.right });
+      else toks.push({ t: note, x0, x1: d.x1, right: d.right });
     });
     if (isChord) toks.forEach(t => { t.strum = lines.some(l => l.x0 <= t.x0 + 2 && l.x1 >= t.x1 - 2); });
     else {
@@ -324,6 +332,6 @@ const SheetRead = (() => {
     return { text: assemble(rows), title, rows };
   }
 
-  return { splitLayers, findRows, components, numberPieces, classify, lyricGroups, assemble, read };
+  return { splitLayers, findRows, components, numberPieces, readNumberRow, classify, lyricGroups, assemble, read };
 })();
 if (typeof module !== 'undefined') module.exports = SheetRead;

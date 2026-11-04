@@ -697,7 +697,7 @@ const PhotoOCR = {
       logger: m => onStatus && onStatus(m) };
     this.text = await Tesseract.createWorker(['tha', 'eng'], 1, opt);
     this.num = await Tesseract.createWorker('eng', 1, opt);
-    await this.num.setParameters({ tessedit_char_whitelist: '1234567' });
+    await this.num.setParameters({ tessedit_char_whitelist: '1234567#' });
     this.psm = {};
   },
   async stop() {
@@ -707,7 +707,7 @@ const PhotoOCR = {
   // img: greyscale { w, h, data } from SheetRead; lines and digits are read 3x enlarged
   async ocr(kind, img) {
     const sc = kind === 'block' ? 1 : 3, wk = kind === 'line' || kind === 'block' ? this.text : this.num;
-    const want = kind === 'block' ? '6' : kind === 'digit' ? '10' : '7', key = wk === this.text ? 't' : 'n';
+    const want = kind === 'block' ? '6' : '7', key = wk === this.text ? 't' : 'n';
     if (this.psm[key] !== want) { await wk.setParameters({ tessedit_pageseg_mode: want, preserve_interword_spaces: '1' }); this.psm[key] = want; }
     const src = el('canvas'); src.width = img.w; src.height = img.h;
     const sctx = src.getContext('2d'), id = sctx.createImageData(img.w, img.h);

@@ -1,7 +1,8 @@
 const assert = require('assert');
 const SR = require('../js/sheetread.js');
 const P = require('./parser.js');
-let n = 0; const t = (name, fn) => { try { fn(); n++; console.log('ok  ', name); } catch (e) { console.log('FAIL', name, '\n   ', e.message); process.exitCode = 1; } };
+let n = 0; const queue = [];
+const t = (name, fn) => queue.push([name, fn]);   // run in order at the end, so async tests are awaited
 
 // a tiny RGBA page: paint rectangles of a colour
 function page(w, h, rects) {
@@ -36,6 +37,22 @@ t('number row pieces: octave marks count per digit, an underline becomes a strum
   assert.deepStrictEqual(p.digits.map(d => d.marks), [1, 2]);
   assert.strictEqual(p.lines.length, 1);
 });
+t('a # sign joins the number after it; a lone digit is retried three times over', async () => {
+  // # (10 px), then 4 close by, a space, then 5 with a mark
+  const rects = [[10, 20, 19, 35, GREY], [22, 20, 31, 35, GREY], [50, 20, 59, 35, GREY], [61, 20, 62, 24, GREY]];
+  const L = SR.splitLayers(page(80, 50, rects), 80, 50, 4);
+  const r = SR.findRows(L.dark, 80, 50)[0];
+  const seen = [];
+  const ocr = async (kind, img) => { seen.push(img.w); return [{ text: seen.length === 1 ? '#45' : '5' }]; };
+  const toks = await SR.readNumberRow(L.dark, 80, r, ocr, false);
+  assert.deepStrictEqual(toks.map(x => x.t), ['#4', "5'"]);
+  assert.strictEqual(P.parseNoteToken('#4').midi, 66);
+  // the strip reading came back short: each digit is read again as three copies and needs two votes
+  let calls = 0;
+  const t2 = await SR.readNumberRow(L.dark, 80, r, async () => [{ text: ++calls === 1 ? '4' : calls === 2 ? '###' : calls === 3 ? '424' : '5' }], false);
+  assert.strictEqual(calls, 4);
+  assert.deepStrictEqual(t2.map(x => x.t), ['#4', "?'"]);   // a single vote is not enough: ? for the reviewer
+});
 t('row kinds from OCR text', () => {
   assert.strictEqual(SR.classify("3' 5'5' 6' 2\"2\""), 'melody');
   assert.strictEqual(SR.classify('ก ล ั ว ว ่ า'), 'lyric');
@@ -67,4 +84,9 @@ t('photo songs skip the bar-count warning', () => {
   assert(P.parseSong(s, 'B4').issues.some(i => i.code === 'beats'));
   assert(!P.parseSong(Object.assign(s, { source: 'photo' }), 'B4').issues.some(i => i.code === 'beats'));
 });
-console.log(n + ' passed');
+(async () => {
+  for (const [name, fn] of queue) {
+    try { await fn(); n++; console.log('ok  ', name); } catch (e) { console.log('FAIL', name, '\n   ', e.message); process.exitCode = 1; }
+  }
+  console.log(n + ' passed');
+})();
