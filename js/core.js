@@ -512,6 +512,8 @@ function importText(text, opts) {
     }
 
     melBars.forEach((s, i) => song.measures.push({ mel: s, lyr: lyrBars[i], chd: chdBars[i], br: i === 0 }));
+    // where this line sits in a source photo, so the review page can show it next to the notes
+    if (opts.blockMeta && opts.blockMeta[bi]) song.measures[song.measures.length - melBars.length].src = opts.blockMeta[bi];
   });
 
   if (!song.measures.length) msgs.push({ level: 'error', msg: 'ไม่พบโน้ตที่แปลงได้ — ตรวจรูปแบบ 3 บรรทัดอีกครั้ง' });

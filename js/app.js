@@ -788,7 +788,7 @@ async function importPhotos(list) {
   try {
     show(0.02, 'กำลังเปิดตัวอ่านรูป…');
     await PhotoOCR.start(m => { if (m && /load/.test(m.status || '')) show(0.02 + 0.08 * (m.progress || 0), 'กำลังโหลดตัวอ่านรูป (ครั้งแรกราว 8 MB)…'); });
-    const texts = [], photos = [];
+    const texts = [], photos = [], meta = [];
     let title = '';
     for (let i = 0; i < files.length; i++) {
       const page = await loadPage(files[i]);
@@ -797,11 +797,15 @@ async function importPhotos(list) {
         f => show(0.1 + 0.9 * (i + f) / files.length, 'กำลังอ่านหน้า ' + (i + 1) + '/' + files.length + '…'));
       if (!title) title = res.title;
       if (res.text) texts.push(res.text);
+      // each line's box as fractions of the page (a little margin around it)
+      const W = page.width, H = page.height, pad = Math.round(W * 0.012), padY = Math.round(W * 0.022);
+      res.rects.forEach(r => meta.push({ p: i, ar: +(W / H).toFixed(4),
+        x0: Math.max(0, r.x0 - pad) / W, x1: Math.min(W, r.x1 + pad) / W, y0: Math.max(0, r.y0 - padY) / H, y1: Math.min(H, r.y1 + padY) / H }));
     }
     if (!texts.length) throw new Error('ไม่พบเลขโน้ตในรูป — ลองรูปที่ชัดขึ้น หรือแคปหน้าจอแทนการถ่ายรูป');
     const text = texts.join('\n\n');
     byId('imp-text').value = text; byId('imp-title').value = title;
-    S.photoDraft = { photos };
+    S.photoDraft = { photos, meta };
     show(1, 'อ่านเสร็จ ✓ ตรวจโน้ตก่อนบันทึก');
     convertImport([{ level: 'info', msg: 'อ่านจากรูป ' + files.length + ' หน้า · ตัวที่อ่านไม่ออกเป็น ? ให้แก้ตามรูปต้นฉบับด้านล่าง' }]);
   } catch (e) {
@@ -818,7 +822,8 @@ function convertImport(extra) {
     title: byId('imp-title').value.trim(),
     tempo: clamp(parseInt(byId('imp-tempo').value, 10) || 100, 30, 240),
     beats: parseInt(byId('imp-beats').value, 10) || 4,
-    octaveShift: parseInt(byId('imp-shift').value, 10) || 0
+    octaveShift: parseInt(byId('imp-shift').value, 10) || 0,
+    blockMeta: S.photoDraft && S.photoDraft.meta
   });
   byId('imp-msg').innerHTML = r.msgs.map(m => '<div class="' + (m.level === 'error' ? 'text-red-300' : 'text-amber-300') + '">' + (m.level === 'error' ? '✖ ' : '⚠ ') + esc(m.msg) + '</div>').join('');
   if (!r.song.measures.length) return;
@@ -862,6 +867,7 @@ const Strip = {
 
 function openReview(song, opt) {
   song.measures = song.measures || [];
+  Fix.close(); Fix.cur = -1;
   S.review = { song, dirty: !!opt.isNew, from: opt.from || 'import', notes: opt.notes || [] };
   switchView('review');
   renderReview();
@@ -888,6 +894,8 @@ function renderReview() {
   byId('rv-photos-list').innerHTML = ph.map((u, i) => '<img src="' + esc(u) + '" alt="หน้า ' + (i + 1) + '" class="w-full rounded-lg border border-slate-800">').join('');
   renderCards();
   setPlayButton(false);
+  // the photo strips pin just below the sticky play bar
+  requestAnimationFrame(() => document.documentElement.style.setProperty('--rvbar', (byId('rv-bar').offsetHeight + 6) + 'px'));
 }
 
 function cardHTML(m, i) {
@@ -903,39 +911,184 @@ function cardHTML(m, i) {
     '<ul class="issues text-[11px] space-y-0.5"></ul></div>';
 }
 
+// the card of measure i (cards are grouped into lines, so not every child of #rv-list is a card)
+const cardEl = i => byId('rv-list').querySelector('.mcard[data-i="' + i + '"]');
+
+// a strip of the source photo showing just this line, kept in view while its measures scroll by
+function photoStripHTML(s, src) {
+  const u = src && s.photos && s.photos[src.p];
+  if (!u) return '';
+  const w = src.x1 - src.x0, h = src.y1 - src.y0;
+  return '<div class="rv-strip" style="aspect-ratio:' + (w * src.ar / h).toFixed(3) + '"><img src="' + esc(u) + '" alt="บรรทัดในรูปต้นฉบับ" style="width:' +
+    (100 / w).toFixed(3) + '%;left:' + (-src.x0 / w * 100).toFixed(3) + '%;top:' + (-src.y0 / h * 100).toFixed(3) + '%"></div>';
+}
+
 function renderCards() {
-  const s = S.review.song;
-  byId('rv-list').innerHTML = s.measures.map(cardHTML).join('');
+  const s = S.review.song, html = [];
+  let open = false;
+  s.measures.forEach((m, i) => {
+    if (i === 0 || m.br) { if (open) html.push('</div>'); html.push('<div class="rv-line space-y-2">' + photoStripHTML(s, m.src)); open = true; }
+    html.push(cardHTML(m, i));
+  });
+  if (open) html.push('</div>');
+  byId('rv-list').innerHTML = html.join('');
   reparse();
   s.measures.forEach((_, i) => refreshCard(i));
   renderSummary();
 }
 
-function chipsHTML(pm) {
+// the melody field as slots of notes, the way parseMelody reads it (2'2' and 1_2 are two notes in one slot)
+function melSlots(mel) {
+  return String(mel || '').trim().split(/\s+/).filter(Boolean).map(slot => {
+    let subs = slot.split('_').filter(Boolean), sep = '_';
+    if (subs.length === 1) {
+      const t = normTok(subs[0]), parts = t.match(/[#b]?[0-7](?:'{1,3}|,{1,3})?/g);
+      if (parts && parts.length > 1 && parts.join('') === t) { subs = parts; sep = ''; }
+    }
+    return { subs, sep };
+  });
+}
+const melJoin = slots => slots.filter(x => x.subs.length).map(x => x.subs.join(x.sep)).join(' ');
+// the notes a card shows as chips (holds "-" have none), as [slot, sub] positions
+const melChipPos = slots => { const out = []; slots.forEach((x, si) => x.subs.forEach((t, k) => { if (t !== '-') out.push([si, k]); })); return out; };
+const chdToks = chd => String(chd || '').trim().split(/\s+/).filter(Boolean);
+
+function chipsHTML(pm, m) {
+  let n = 0;
   const parts = pm.items.filter(it => it.type !== 'hold').map(it => {
-    if (it.type === 'rest') return '<span class="chip px-1.5 py-0.5 rounded bg-slate-800 text-slate-500 text-xs text-center">0</span>';
-    if (it.type === 'bad') return '<span class="chip px-1.5 py-0.5 rounded bg-red-900/60 border border-red-500 text-red-200 text-xs text-center">' + esc(it.tok) + '?</span>';
+    const k = n++;
+    if (it.type === 'rest') return '<button data-n="' + k + '" class="chip px-1.5 py-0.5 rounded bg-slate-800 text-slate-500 text-xs text-center">0</button>';
+    if (it.type === 'bad') return '<button data-n="' + k + '" data-bad class="chip px-1.5 py-0.5 rounded bg-red-900/60 border border-red-500 text-red-200 text-xs text-center">' + esc(it.tok) + '?</button>';
     const d = describe(it.midi, it.midi === 70), bad = !!it.bad;
-    return '<button data-midi="' + it.midi + '" class="chip px-1.5 py-0.5 rounded text-center leading-tight border ' + (bad ? 'bg-red-900/60 border-red-500 text-red-100' : 'bg-slate-800 border-slate-700 text-slate-100') + '">' +
+    return '<button data-n="' + k + '" data-midi="' + it.midi + '"' + (bad ? ' data-bad' : '') + ' class="chip px-1.5 py-0.5 rounded text-center leading-tight border ' + (bad ? 'bg-red-900/60 border-red-500 text-red-100' : 'bg-slate-800 border-slate-700 text-slate-100') + '">' +
       '<span class="text-sm font-semibold">' + esc(numeralLabel(d)) + '</span><sub class="text-[9px] text-amber-300">' + fmtDur(it.dur) + '</sub>' +
       '<span class="block text-[9px] ' + (bad ? 'text-red-200' : 'text-slate-400') + '">' + esc(noteLabel(d, S.noteSystem)) + '</span>' +
       (it.lyric ? '<span class="block text-[9px] text-sky-300">' + esc(it.lyric) + '</span>' : '') + '</button>';
   });
-  pm.chords.forEach(c => {
-    const label = c.type === 'notes' && c.strum ? 'กรีด ' + c.name : c.type === 'chord' || c.type === 'notes' ? c.name : c.type === 'bass' ? 'เบส ' + c.name : '–';
-    parts.push('<span class="chip px-1.5 py-0.5 rounded border text-[11px] self-center ' + (c.bad ? 'bg-red-900/60 border-red-500 text-red-200' : 'bg-sky-900/50 border-sky-700 text-sky-200') + '">♪ ' + esc(label) + '</span>');
+  // chords and bass from the field itself, so one that can't be read still shows (red) instead of vanishing
+  chdToks(m.chd).forEach((tok, j) => {
+    const c = parseChordToken(tok, S.review.song.octaveShift || 0);
+    if (c.type === 'cont') return;
+    const pc = pm.chords.find(x => x.name === c.name && x.type === c.type);
+    const bad = c.type === 'bad' || !!(pc && pc.bad);
+    const label = c.type === 'bad' ? tok + '?' : c.type === 'notes' && c.strum ? 'กรีด ' + c.name : c.type === 'chord' || c.type === 'notes' ? c.name : c.type === 'bass' ? 'เบส ' + c.name : '–';
+    parts.push('<button data-c="' + j + '"' + (bad ? ' data-bad' : '') + ' class="chip px-1.5 py-0.5 rounded border text-[11px] self-center ' + (bad ? 'bg-red-900/60 border-red-500 text-red-200' : 'bg-sky-900/50 border-sky-700 text-sky-200') + '">♪ ' + esc(label) + '</button>');
   });
   return parts.join('') || '<span class="text-[11px] text-slate-600">ยังไม่มีโน้ต</span>';
 }
 
 function refreshCard(i) {
-  const card = byId('rv-list').children[i], pm = S.parsed && S.parsed.measures[i];
+  const card = cardEl(i), pm = S.parsed && S.parsed.measures[i];
   if (!card || !pm) return;
-  $('.chips', card).innerHTML = chipsHTML(pm);
+  $('.chips', card).innerHTML = chipsHTML(pm, S.review.song.measures[i]);
   $('.issues', card).innerHTML = pm.issues.map(x => '<li class="' + (x.level === 'error' ? 'text-red-300' : 'text-amber-300') + '">' + (x.level === 'error' ? '✖ ' : '⚠ ') + esc(x.msg) + '</li>').join('');
   const e = pm.issues.filter(x => x.level === 'error').length, w = pm.issues.length - e;
   $('.mbadge', card).innerHTML = e ? '<span class="px-1.5 rounded bg-red-500/20 text-red-300">✖ ' + e + '</span>' : w ? '<span class="px-1.5 rounded bg-amber-500/20 text-amber-300">⚠ ' + w + '</span>' : '<span class="px-1.5 rounded bg-emerald-500/20 text-emerald-300">✓</span>';
+  Fix.count();
 }
+
+/* ---- tap a note or chord chip to fix it right there ---- */
+const Fix = {
+  at: null, cur: -1,
+  open(chip) {
+    const card = chip.closest('.mcard');
+    this.at = { i: +card.dataset.i, n: chip.dataset.n != null ? +chip.dataset.n : null, c: chip.dataset.c != null ? +chip.dataset.c : null };
+    $$('#rv-list .chip.sel').forEach(x => x.classList.remove('sel'));
+    chip.classList.add('sel');
+    const pop = byId('fix-pop'), m = S.review.song.measures[this.at.i];
+    if (this.at.c != null) {
+      pop.innerHTML = '<div class="flex gap-1 items-center"><span class="text-[11px] text-slate-400 shrink-0">คอร์ด/เบส</span>' +
+        '<input id="fix-chord" value="' + esc(chdToks(m.chd)[this.at.c] || '') + '" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" class="mono min-w-0 flex-1 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-slate-100">' +
+        '<button data-fx="ok" class="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm font-bold">✓</button><button data-fx="cdel" class="px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-rose-300">⌫</button>' +
+        '<button data-fx="x" class="px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300">✕</button></div>' +
+        '<div class="text-[10px] text-slate-500 mt-1">เลขติดกัน = ดีดพร้อมกัน เช่น 135 · ใส่ ~ ท้าย = กรีด (135~) · เลขเดียว = เบส</div>';
+    } else {
+      const b = (k, t, cls) => '<button data-fx="' + k + '" class="h-10 rounded-lg ' + (cls || 'bg-slate-800 border border-slate-700 text-slate-100') + ' text-sm font-semibold">' + t + '</button>';
+      pop.innerHTML = '<div class="grid grid-cols-7 gap-1">' + [1, 2, 3, 4, 5, 6, 7].map(d => b('d' + d, d)).join('') + '</div>' +
+        '<div class="grid grid-cols-7 gap-1 mt-1">' + b('up', "สูง '") + b('dn', 'ต่ำ') + b('sharp', '♯') + b('play', '▶', 'bg-amber-600 text-white') +
+        b('ins', '＋') + b('del', '⌫', 'bg-slate-800 border border-slate-700 text-rose-300') + b('x', '✕', 'bg-slate-800 border border-slate-700 text-slate-400') + '</div>';
+    }
+    pop.classList.remove('hidden');
+    this.place(chip);
+    if (this.at.c != null) setTimeout(() => { const f = byId('fix-chord'); if (f) f.focus(); }, 30);
+  },
+  // below the chip, or above it when the chip is low on the screen
+  place(chip) {
+    const pop = byId('fix-pop'), r = chip.getBoundingClientRect(), ph = pop.offsetHeight;
+    const below = r.bottom + 6 + ph < innerHeight - 8;
+    pop.style.top = Math.max(8, below ? r.bottom + 6 : r.top - ph - 6) + 'px';
+  },
+  close() { byId('fix-pop').classList.add('hidden'); $$('#rv-list .chip.sel').forEach(x => x.classList.remove('sel')); this.at = null; },
+  chip() {
+    const card = this.at && cardEl(this.at.i);
+    return card && $(this.at.c != null ? '[data-c="' + this.at.c + '"]' : '[data-n="' + this.at.n + '"]', card);
+  },
+  apply(act) {
+    const at = this.at;
+    if (!at) return;
+    if (act === 'x') { this.close(); return; }
+    const m = S.review.song.measures[at.i];
+    if (at.c != null) {
+      const toks = chdToks(m.chd), v = (byId('fix-chord').value || '').trim().replace(/\s+/g, '');
+      toks[at.c] = act === 'cdel' || !v ? '.' : v;
+      m.chd = toks.join(' ');
+      this.commit(at.i, 'chd');
+      this.close();
+      return;
+    }
+    const slots = melSlots(m.mel), pos = melChipPos(slots)[at.n];
+    if (!pos) { this.close(); return; }
+    const [si, k] = pos, x = /^([#b]?)([0-7])('{0,3}|,{0,3})$/.exec(normTok(slots[si].subs[k]));
+    let acc = x ? x[1] : '', deg = x ? x[2] : '', oct = x ? x[3] : (normTok(slots[si].subs[k]).match(/'/g) || []).join('');
+    if (act === 'play') {
+      const p = parseNoteToken(slots[si].subs[k]);
+      if (p.type === 'note') { unlockAudioUI(); if (Synth.ensure()) Synth.kalimba(Synth.master, p.midi + 12 * (S.review.song.octaveShift || 0), Synth.ctx.currentTime + 0.01, 0.9); }
+      return;
+    }
+    if (act === 'del') {
+      slots[si].subs.splice(k, 1);
+    } else if (act === 'ins') {
+      slots.splice(si + 1, 0, { subs: [slots[si].subs[k]], sep: '' });
+    } else {
+      if (/^d\d$/.test(act)) { deg = act[1]; if (!x) acc = ''; }
+      else if (act === 'up') oct = oct[0] === ',' ? oct.slice(1) : oct.length < 3 ? oct + "'" : oct;
+      else if (act === 'dn') oct = oct[0] === "'" ? oct.slice(1) : oct.length < 3 ? oct + ',' : oct;
+      else if (act === 'sharp') acc = acc === '#' ? '' : '#';
+      if (!deg) return;                         // an unreadable token needs a number first
+      slots[si].subs[k] = acc + deg + oct;
+    }
+    m.mel = melJoin(slots);
+    this.commit(at.i, 'mel');
+    if (act === 'del') { this.close(); return; }
+    if (act === 'ins') this.at.n = at.n + 1;
+    const chip = this.chip();
+    if (!chip) { this.close(); return; }
+    chip.classList.add('sel'); this.place(chip);
+    // hear the fixed note
+    if (act !== 'ins' && chip.dataset.midi) { unlockAudioUI(); if (Synth.ensure()) Synth.kalimba(Synth.master, +chip.dataset.midi, Synth.ctx.currentTime + 0.01, 0.9); }
+  },
+  commit(i, f) {
+    const card = cardEl(i);
+    if (card) $('input[data-f="' + f + '"]', card).value = S.review.song.measures[i][f];
+    markDirty(); refreshAfterEdit(i);
+  },
+  // the ⚠ jumper: every red chip, in order
+  count() {
+    const bad = $$('#rv-list .chip[data-bad]'), box = byId('rv-jump');
+    if (!box) return;
+    box.classList.toggle('hidden', !bad.length);
+    byId('rv-jump-n').textContent = bad.length ? (this.cur >= 0 ? (Math.min(this.cur, bad.length - 1) + 1) + '/' : '') + bad.length + ' จุด' : '';
+  },
+  jump(d) {
+    const bad = $$('#rv-list .chip[data-bad]');
+    if (!bad.length) return;
+    this.cur = ((this.cur < 0 ? (d > 0 ? -1 : 0) : this.cur) + d + bad.length) % bad.length;
+    const chip = bad[this.cur];
+    chip.scrollIntoView({ block: 'center' });
+    this.count();
+    setTimeout(() => this.open(chip), 60);
+  }
+};
 
 function renderSummary() {
   const s = S.review.song, sm = summarize(S.parsed), box = byId('rv-summary');
@@ -982,7 +1135,7 @@ function togglePlay(from) {
       if (e.k === 'n') Strip.light(e.midi, e.tok);
       else {
         $$('#rv-list .playing').forEach(c => c.classList.remove('playing'));
-        const c = byId('rv-list').children[e.i];
+        const c = cardEl(e.i);
         if (c) {
           c.classList.add('playing');
           const r = c.getBoundingClientRect();
@@ -1036,7 +1189,7 @@ function setupReview() {
   byId('btn-add-measure').addEventListener('click', () => {
     const last = rs().measures[rs().measures.length - 1];
     rs().measures.push({ mel: '', lyr: '', chd: '', br: !last }); markDirty(); renderCards();
-    const c = byId('rv-list').lastElementChild; if (c) c.scrollIntoView({ block: 'center' });
+    const c = cardEl(rs().measures.length - 1); if (c) c.scrollIntoView({ block: 'center' });
   });
   byId('btn-save').addEventListener('click', saveSong);
 
@@ -1045,7 +1198,7 @@ function setupReview() {
     if (f) { shift(parseInt(f.dataset.shift, 10) - (rs().octaveShift || 0)); return; }
     const g = e.target.closest('[data-goto]');
     if (g) {
-      const c = byId('rv-list').children[+g.dataset.goto];
+      const c = cardEl(+g.dataset.goto);
       if (c) { c.scrollIntoView({ block: 'center', behavior: 'smooth' }); c.classList.add('playing'); setTimeout(() => c.classList.remove('playing'), 1200); }
     }
   });
@@ -1067,8 +1220,12 @@ function setupReview() {
     setTimeout(() => { if (!document.activeElement || !document.activeElement.matches('input[data-f="mel"]')) hideKeypad(); }, 160);
   });
   list.addEventListener('click', e => {
-    const chip = e.target.closest('button[data-midi]');
-    if (chip) { unlockAudioUI(); if (Synth.ensure()) Synth.kalimba(Synth.master, +chip.dataset.midi, Synth.ctx.currentTime + 0.01, 0.9); return; }
+    const chip = e.target.closest('.chip[data-n], .chip[data-c]');
+    if (chip) {
+      if (chip.dataset.midi) { unlockAudioUI(); if (Synth.ensure()) Synth.kalimba(Synth.master, +chip.dataset.midi, Synth.ctx.currentTime + 0.01, 0.9); }
+      Fix.open(chip);
+      return;
+    }
     const b = e.target.closest('button[data-act]');
     if (!b) return;
     const card = b.closest('.mcard'), i = +card.dataset.i, ms = rs().measures, act = b.dataset.act;
@@ -1085,6 +1242,16 @@ function setupReview() {
       ms.splice(i, 1); markDirty(); renderCards();
     }
   });
+
+  const pop = byId('fix-pop');
+  ['mousedown', 'touchstart'].forEach(ev => pop.addEventListener(ev, e => { if (!e.target.closest('input')) e.preventDefault(); }, { passive: false }));
+  pop.addEventListener('click', e => { const b = e.target.closest('[data-fx]'); if (b) Fix.apply(b.dataset.fx); });
+  pop.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'fix-chord') Fix.apply('ok'); });
+  // tapping anywhere else closes it; scrolling keeps it next to its chip
+  document.addEventListener('click', e => { if (Fix.at && !e.target.closest('#fix-pop, .chip')) Fix.close(); });
+  window.addEventListener('scroll', () => { const c = Fix.at && Fix.chip(); if (c) Fix.place(c); }, { passive: true });
+  byId('rv-jump-prev').addEventListener('click', () => Fix.jump(-1));
+  byId('rv-jump-next').addEventListener('click', () => Fix.jump(1));
 
   const kp = byId('keypad');
   ['mousedown', 'touchstart'].forEach(ev => kp.addEventListener(ev, e => e.preventDefault(), { passive: false }));
@@ -1103,7 +1270,7 @@ async function saveSong() {
   const rec = {
     id: s.id || uid(), title: s.title, tempo: s.tempo, beats: s.beats, octaveShift: s.octaveShift || 0,
     created: s.created || now, updated: now,
-    measures: s.measures.map(m => ({ mel: m.mel || '', lyr: m.lyr || '', chd: m.chd || '', br: !!m.br }))
+    measures: s.measures.map(m => Object.assign({ mel: m.mel || '', lyr: m.lyr || '', chd: m.chd || '', br: !!m.br }, m.src ? { src: m.src } : {}))
   };
   if (s.source) rec.source = s.source;
   if (s.photos && s.photos.length) rec.photos = s.photos;

@@ -80,8 +80,12 @@ t('assemble: lyric groups claim the numbers under them, chords go to the number 
     { kind: 'melody', y0: 20, y1: 35, hgt: 16, toks: [tok("3'", 2), tok("5'", 62), tok("5'5'", 85), tok("3''", 120)] },
     { kind: 'chord', y0: 45, y1: 60, hgt: 16, toks: [Object.assign(tok('135', 0), { strum: true }), tok('6', 118)] }
   ];
-  const text = SR.assemble(rows);
+  rows.forEach(r => { r.x0 = 0; r.x1 = 150; });
+  const rects = [], text = SR.assemble(rows, rects);
   assert.strictEqual(text, "ก ขคง\n3'   5' 5'5' 3''\n135~ . . 6");
+  assert.deepStrictEqual(rects, [{ x0: 0, x1: 150, y0: 0, y1: 60 }]);      // lyric top to chord bottom
+  const meta = [{ p: 0, ar: 0.7, x0: 0, x1: 0.5, y0: 0.1, y1: 0.2 }];
+  assert.deepStrictEqual(P.importText(text, { blockMeta: meta }).song.measures[0].src, meta[0]);
   const p = P.parseSong(Object.assign(P.importText(text, {}).song, { source: 'photo' }), 'B4');
   assert.deepStrictEqual(p.issues.filter(i => i.code !== 'lyric'), []);
   const ch = p.measures[0].chords;

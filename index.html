@@ -464,24 +464,32 @@
 
     <div id="rv-summary" class="rounded-xl border p-2.5 text-xs space-y-1.5"></div>
 
-    <div class="sticky z-20 bg-slate-950/95 backdrop-blur border border-slate-800 rounded-xl p-2 space-y-1.5" style="top: var(--hdr, 6rem);">
+    <div id="rv-bar" class="sticky z-20 bg-slate-950/95 backdrop-blur border border-slate-800 rounded-xl p-2 space-y-1.5" style="top: var(--hdr, 6rem);">
       <div class="flex items-center gap-2">
         <button id="btn-play-all" class="px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-semibold whitespace-nowrap">▶ ฟังทั้งเพลง</button>
         <label class="flex items-center gap-1 text-[11px] text-slate-300"><input id="rv-chords" type="checkbox" checked class="accent-amber-500"> คอร์ด</label>
         <label class="flex items-center gap-1 text-[11px] text-slate-300"><input id="rv-kp" type="checkbox" checked class="accent-amber-500"> แป้นเลข</label>
+        <div id="rv-jump" class="hidden flex items-center gap-1 text-[11px] text-red-200">
+          <button id="rv-jump-prev" class="w-8 h-8 rounded-full bg-red-900/60 border border-red-500" aria-label="จุดที่ต้องแก้ก่อนหน้า">◀</button>
+          <span id="rv-jump-n" class="whitespace-nowrap"></span>
+          <button id="rv-jump-next" class="w-8 h-8 rounded-full bg-red-900/60 border border-red-500" aria-label="จุดที่ต้องแก้ถัดไป">▶</button>
+        </div>
         <span id="strip-note" class="ml-auto text-sm font-bold text-amber-300 truncate">-</span>
       </div>
       <div id="strip" class="flex items-end gap-[3px] h-9"></div>
     </div>
 
     <div id="rv-import-notes" class="space-y-1 text-[11px]"></div>
-    <details id="rv-photos" class="hidden bg-slate-900 border border-slate-800 rounded-xl text-xs" open>
-      <summary class="px-3 py-2 cursor-pointer text-sky-300">📷 รูปต้นฉบับ (ไว้เทียบตอนแก้โน้ต)</summary>
+    <details id="rv-photos" class="hidden bg-slate-900 border border-slate-800 rounded-xl text-xs">
+      <summary class="px-3 py-2 cursor-pointer text-sky-300">📷 รูปต้นฉบับทั้งหน้า</summary>
       <div id="rv-photos-list" class="px-2 pb-2 space-y-2"></div>
     </details>
     <div id="rv-list" class="space-y-2"></div>
     <button id="btn-add-measure" class="w-full py-2 rounded-lg bg-slate-800 text-slate-200 text-xs border border-slate-700">＋ เพิ่มห้องท้ายเพลง</button>
   </div>
+
+  <!-- แผงแก้โน้ต/คอร์ดที่แตะ -->
+  <div id="fix-pop" class="hidden fixed left-2 right-2 z-50 max-w-md mx-auto bg-slate-900 border border-amber-600/60 rounded-2xl p-2 shadow-xl"></div>
 
   <!-- แป้นตัวเลขสำหรับแก้ทำนอง -->
   <div id="keypad" class="hidden fixed left-0 right-0 bottom-0 z-40 bg-slate-900/95 backdrop-blur border-t border-slate-700 px-2 pt-1.5" style="padding-bottom: max(0.375rem, env(safe-area-inset-bottom));">

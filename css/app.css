@@ -115,5 +115,10 @@ header.app-header { padding-top: max(0.5rem, env(safe-area-inset-top)); }
 .strip-key.lit { background: #C47A5C; transform: scaleY(1.12); }
 .mcard.playing { box-shadow: 0 0 0 2px #A9603F; }
 .chip { min-width: 1.9rem; }
+.chip.sel { outline: 2px solid #C77A52; outline-offset: 1px; }
+/* one line of the source photo, pinned under the play bar while its measures scroll by */
+.rv-strip { position: sticky; top: calc(var(--hdr, 60px) + var(--rvbar, 84px)); z-index: 10; overflow: hidden; background: #fff;
+  border: 1px solid #D8CDBE; border-radius: 10px; box-shadow: 0 2px 6px rgba(60, 40, 20, .12); }
+.rv-strip img { position: absolute; max-width: none; height: auto; }
 #keypad button { touch-action: manipulation; }
 @media (prefers-reduced-motion: reduce) { .kalimba-tine.guide-target { animation: none; } * { transition: none !important; } }

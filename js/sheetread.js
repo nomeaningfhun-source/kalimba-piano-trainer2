@@ -266,8 +266,8 @@ const SheetRead = (() => {
     return groups.filter(g => g.text);
   }
 
-  // rows already read → the 3-line text, one block per melody row
-  function assemble(rows) {
+  // rows already read → the 3-line text, one block per melody row; rects (if given) gets each block's box on the page
+  function assemble(rows, rects) {
     const out = [];
     rows.forEach((m, i) => {
       if (m.kind !== 'melody' || !m.toks.some(t => /[1-7]/.test(t.t))) return;
@@ -300,6 +300,11 @@ const SheetRead = (() => {
         if (chd[k] === '.') chd[k] = c.t + (c.strum ? '~' : '');
       });
       out.push([lyrGroups.join(' '), melGroups.map(g => g.join(' ')).join('   '), chd.join(' ')].join('\n'));
+      if (rects) {
+        const parts = [m].concat(lyr ? [lyr] : [], rows.filter(c => c.kind === 'chord' && c.toks.some(t => chords.includes(t))));
+        rects.push({ x0: Math.min(...parts.map(r => r.x0)), x1: Math.max(...parts.map(r => r.x1)),
+          y0: Math.min(...parts.map(r => r.y0)), y1: Math.max(...parts.map(r => r.y1)) });
+      }
     });
     return out.join('\n\n');
   }
@@ -346,8 +351,8 @@ const SheetRead = (() => {
       r.toks = r.kind === 'chord' ? await readNumberRow(L.red, L.w, r, ocr, true) : [];
       tick();
     }
-    const rows = dRows.concat(rRows).sort((a, b) => a.y0 - b.y0);
-    return { text: assemble(rows), title, rows };
+    const rows = dRows.concat(rRows).sort((a, b) => a.y0 - b.y0), rects = [];
+    return { text: assemble(rows, rects), title, rows, rects };
   }
 
   return { splitLayers, findRows, components, numberPieces, readNumberRow, classify, lyricGroups, assemble, read };
