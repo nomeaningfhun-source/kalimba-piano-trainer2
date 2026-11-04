@@ -121,10 +121,11 @@ function parseChordToken(raw, shift) {
   if (tok === '0' || /^N\.?C\.?$/i.test(tok)) return { type: 'none' };
   const nt = parseNoteToken(tok);
   if (nt.type === 'note') return { type: 'bass', name: tok, midi: nt.midi + 12 * shift };
-  // kalimba-sheet chord: tine numbers written together (135 = pluck 1, 3 and 5 at once)
-  const parts = tok.match(/[#b]?[1-7](?:'{1,3}|,{1,3})?/g);
-  if (parts && parts.length > 1 && parts.join('') === tok) {
-    return { type: 'notes', name: tok, midis: parts.map(p => parseNoteToken(p).midi + 12 * shift) };
+  // kalimba-sheet chord: tine numbers written together (135 = pluck 1, 3 and 5 at once); 135~ = strum them
+  const strum = /^[^~]+~$/.test(tok), nums = strum ? tok.slice(0, -1) : tok;
+  const parts = nums.match(/[#b]?[1-7](?:'{1,3}|,{1,3})?/g);
+  if (parts && parts.join('') === nums && (parts.length > 1 || strum)) {
+    return { type: 'notes', name: nums, strum, midis: parts.map(p => parseNoteToken(p).midi + 12 * shift) };
   }
   const m = CHORD_RE.exec(tok);
   if (!m || !/^[A-Za-z0-9+°()#b\-Δ]*$/.test(m[3])) return { type: 'bad', name: tok };
@@ -166,7 +167,7 @@ function parseMeasure(m, ctx) {
 
   if (mel.slots === 0) {
     issues.push({ level: 'warn', code: 'empty', msg: 'ห้องว่าง (ไม่มีโน้ต)' });
-  } else if (mel.slots !== ctx.beats) {
+  } else if (mel.slots !== ctx.beats && !ctx.free) {      // photo sheets have no bars to count
     issues.push({ level: 'warn', code: 'beats', msg: 'ห้องนี้มี ' + mel.slots + ' จังหวะ (กำหนด ' + ctx.beats + ')' });
   }
 
@@ -217,7 +218,7 @@ function parseSong(song, tuning) {
   const measures = [], issues = [];
   let prev = null, start = 0;
   song.measures.forEach((m, i) => {
-    const pm = parseMeasure(m, { shift: song.octaveShift || 0, beats: song.beats, prev, tuning });
+    const pm = parseMeasure(m, { shift: song.octaveShift || 0, beats: song.beats, prev, tuning, free: song.source === 'photo' });
     pm.index = i; pm.start = start;
     start += pm.len; prev = pm.tail;
     pm.issues.forEach(x => issues.push(Object.assign({ measure: i }, x)));

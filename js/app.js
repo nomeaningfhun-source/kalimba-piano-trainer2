@@ -502,7 +502,7 @@ const Player = {
             e.ch.midis.slice(0, 4).forEach((m, j) => Synth.kalimba(bus, m, at + j * 0.012, 0.26));
             Synth.kalimba(bus, e.ch.bassMidi, at, 0.5);
           } else if (e.ch.type === 'notes') {
-            e.ch.midis.forEach((m, j) => Synth.kalimba(bus, m, at + j * 0.03, 0.4));
+            e.ch.midis.forEach((m, j) => Synth.kalimba(bus, m, at + j * (e.ch.strum ? 0.07 : 0.012), 0.4));
           } else if (e.ch.type === 'bass') Synth.kalimba(bus, e.ch.midi, at, 0.55);
         }
         if (opt.onEvent && (e.k === 'n' || e.k === 'm')) this.ui.push(setTimeout(() => opt.onEvent(e), Math.max(0, (at - now) * 1000)));
@@ -678,29 +678,135 @@ function setupLibrary() {
   });
 }
 
+/* ---- import from a photo of a number sheet: read on the device by js/sheetread.js + Tesseract ---- */
+const PhotoOCR = {
+  base: 'vendor/tesseract/', text: null, num: null, psm: {},
+  loadLib() {
+    if (window.Tesseract) return Promise.resolve();
+    return new Promise((res, rej) => {
+      const sc = el('script'); sc.src = this.base + 'tesseract.min.js';
+      sc.onload = res; sc.onerror = () => rej(new Error('โหลดตัวอ่านรูปไม่ได้ — ครั้งแรกต้องต่อเน็ต'));
+      document.head.appendChild(sc);
+    });
+  },
+  async start(onStatus) {
+    await this.loadLib();
+    const base = new URL(this.base, location.href).href;
+    // cacheMethod none: the service worker keeps these files, so they are not stored twice
+    const opt = { workerPath: base + 'worker.min.js', corePath: base, langPath: base + 'lang', gzip: true, cacheMethod: 'none', workerBlobURL: false,
+      logger: m => onStatus && onStatus(m) };
+    this.text = await Tesseract.createWorker(['tha', 'eng'], 1, opt);
+    this.num = await Tesseract.createWorker('eng', 1, opt);
+    await this.num.setParameters({ tessedit_char_whitelist: '1234567' });
+    this.psm = {};
+  },
+  async stop() {
+    for (const w of [this.text, this.num]) if (w) { try { await w.terminate(); } catch (e) { /* already gone */ } }
+    this.text = this.num = null;
+  },
+  // img: greyscale { w, h, data } from SheetRead; lines and digits are read 3x enlarged
+  async ocr(kind, img) {
+    const sc = kind === 'block' ? 1 : 3, wk = kind === 'line' || kind === 'block' ? this.text : this.num;
+    const want = kind === 'block' ? '6' : kind === 'digit' ? '10' : '7', key = wk === this.text ? 't' : 'n';
+    if (this.psm[key] !== want) { await wk.setParameters({ tessedit_pageseg_mode: want, preserve_interword_spaces: '1' }); this.psm[key] = want; }
+    const src = el('canvas'); src.width = img.w; src.height = img.h;
+    const sctx = src.getContext('2d'), id = sctx.createImageData(img.w, img.h);
+    for (let i = 0; i < img.data.length; i++) { const v = img.data[i], j = i * 4; id.data[j] = id.data[j + 1] = id.data[j + 2] = v; id.data[j + 3] = 255; }
+    sctx.putImageData(id, 0, 0);
+    let cv = src;
+    if (sc !== 1) {
+      cv = el('canvas'); cv.width = Math.round(img.w * sc); cv.height = Math.round(img.h * sc);
+      const c = cv.getContext('2d'); c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high'; c.drawImage(src, 0, 0, cv.width, cv.height);
+    }
+    const d = (await wk.recognize(cv, {}, { blocks: true })).data, out = [];
+    (d.blocks || []).forEach(b => b.paragraphs.forEach(pg => pg.lines.forEach(l => {
+      if (kind === 'block') out.push({ text: l.text.trim(), x0: l.bbox.x0, x1: l.bbox.x1, y0: l.bbox.y0, y1: l.bbox.y1 });
+      else l.words.forEach(wd => out.push({ text: wd.text, x0: wd.bbox.x0 / sc, x1: wd.bbox.x1 / sc, y0: wd.bbox.y0 / sc, y1: wd.bbox.y1 / sc }));
+    })));
+    return out;
+  }
+};
+
+// a picked image → RGBA pixels at most 1600 px wide, plus a small JPEG kept with the song for checking
+function loadPage(file) {
+  return new Promise((res, rej) => {
+    const u = URL.createObjectURL(file), im = new Image();
+    im.onerror = () => { URL.revokeObjectURL(u); rej(new Error('เปิดรูปไม่ได้: ' + file.name)); };
+    im.onload = () => {
+      URL.revokeObjectURL(u);
+      const k = Math.min(1, 1600 / im.naturalWidth), w = Math.round(im.naturalWidth * k), h = Math.round(im.naturalHeight * k);
+      const cv = el('canvas'); cv.width = w; cv.height = h;
+      const c = cv.getContext('2d'); c.fillStyle = '#fff'; c.fillRect(0, 0, w, h); c.drawImage(im, 0, 0, w, h);
+      const tk = Math.min(1, 900 / w), tc = el('canvas'); tc.width = Math.round(w * tk); tc.height = Math.round(h * tk);
+      tc.getContext('2d').drawImage(cv, 0, 0, tc.width, tc.height);
+      res({ data: c.getImageData(0, 0, w, h).data, width: w, height: h, channels: 4, thumb: tc.toDataURL('image/jpeg', 0.72) });
+    };
+    im.src = u;
+  });
+}
+
+async function importPhotos(list) {
+  const files = Array.from(list || []).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  if (!files.length) return;
+  const btn = byId('btn-photo'), bar = byId('photo-bar'), st = byId('photo-status');
+  const show = (f, msg) => { bar.style.width = Math.round(f * 100) + '%'; st.textContent = msg; };
+  byId('photo-progress').classList.remove('hidden'); btn.disabled = true;
+  try {
+    show(0.02, 'กำลังเปิดตัวอ่านรูป…');
+    await PhotoOCR.start(m => { if (m && /load/.test(m.status || '')) show(0.02 + 0.08 * (m.progress || 0), 'กำลังโหลดตัวอ่านรูป (ครั้งแรกราว 8 MB)…'); });
+    const texts = [], photos = [];
+    let title = '';
+    for (let i = 0; i < files.length; i++) {
+      const page = await loadPage(files[i]);
+      photos.push(page.thumb);
+      const res = await SheetRead.read(page, (k, img) => PhotoOCR.ocr(k, img),
+        f => show(0.1 + 0.9 * (i + f) / files.length, 'กำลังอ่านหน้า ' + (i + 1) + '/' + files.length + '…'));
+      if (!title) title = res.title;
+      if (res.text) texts.push(res.text);
+    }
+    if (!texts.length) throw new Error('ไม่พบเลขโน้ตในรูป — ลองรูปที่ชัดขึ้น หรือแคปหน้าจอแทนการถ่ายรูป');
+    const text = texts.join('\n\n');
+    byId('imp-text').value = text; byId('imp-title').value = title;
+    S.photoDraft = { photos };
+    show(1, 'อ่านเสร็จ ✓ ตรวจโน้ตก่อนบันทึก');
+    convertImport([{ level: 'info', msg: 'อ่านจากรูป ' + files.length + ' หน้า · ตัวที่อ่านไม่ออกเป็น ? ให้แก้ตามรูปต้นฉบับด้านล่าง' }]);
+  } catch (e) {
+    show(0, '✖ ' + (e && e.message || e));
+  } finally {
+    btn.disabled = false;
+    PhotoOCR.stop();
+  }
+}
+
+// the import text → review page; a song read from photos keeps them and has no in-rhythm practice
+function convertImport(extra) {
+  const r = importText(byId('imp-text').value, {
+    title: byId('imp-title').value.trim(),
+    tempo: clamp(parseInt(byId('imp-tempo').value, 10) || 100, 30, 240),
+    beats: parseInt(byId('imp-beats').value, 10) || 4,
+    octaveShift: parseInt(byId('imp-shift').value, 10) || 0
+  });
+  byId('imp-msg').innerHTML = r.msgs.map(m => '<div class="' + (m.level === 'error' ? 'text-red-300' : 'text-amber-300') + '">' + (m.level === 'error' ? '✖ ' : '⚠ ') + esc(m.msg) + '</div>').join('');
+  if (!r.song.measures.length) return;
+  if (S.photoDraft) { r.song.source = 'photo'; r.song.photos = S.photoDraft.photos; }
+  openReview(r.song, { from: 'import', isNew: true, notes: (extra || []).concat(r.msgs) });
+}
+
 /* ---- import (3-line text) ---- */
 function setupImport() {
   const ta = byId('imp-text');
-  const fill = (t, bpm) => { ta.value = t; byId('imp-title').value = ''; if (bpm) byId('imp-tempo').value = bpm; byId('imp-msg').innerHTML = ''; };
+  const fill = (t, bpm) => { ta.value = t; byId('imp-title').value = ''; if (bpm) byId('imp-tempo').value = bpm; byId('imp-msg').innerHTML = ''; S.photoDraft = null; };
   byId('btn-preset-twinkle').addEventListener('click', () => fill(SAMPLE1, 100));
   byId('btn-preset-yours-ever').addEventListener('click', () => fill(SAMPLE_YOURS, 78));
   byId('btn-preset-over').addEventListener('click', () => fill(SAMPLE2, 90));
-  byId('btn-clear').addEventListener('click', () => { ta.value = ''; byId('imp-title').value = ''; byId('imp-msg').innerHTML = ''; });
+  byId('btn-clear').addEventListener('click', () => { ta.value = ''; byId('imp-title').value = ''; byId('imp-msg').innerHTML = ''; S.photoDraft = null; });
+  byId('btn-photo').addEventListener('click', () => byId('file-photo').click());
+  byId('file-photo').addEventListener('change', e => { const f = Array.from(e.target.files || []); e.target.value = ''; importPhotos(f); });
   byId('btn-paste').addEventListener('click', async () => {
     try { ta.value = await navigator.clipboard.readText(); } catch (e) { toast('อ่านคลิปบอร์ดไม่ได้ — กดค้างที่ช่องแล้ววางเอง'); }
   });
   byId('btn-import-back').addEventListener('click', () => go('library'));
-  byId('btn-convert').addEventListener('click', () => {
-    const r = importText(ta.value, {
-      title: byId('imp-title').value.trim(),
-      tempo: clamp(parseInt(byId('imp-tempo').value, 10) || 100, 30, 240),
-      beats: parseInt(byId('imp-beats').value, 10) || 4,
-      octaveShift: parseInt(byId('imp-shift').value, 10) || 0
-    });
-    byId('imp-msg').innerHTML = r.msgs.map(m => '<div class="' + (m.level === 'error' ? 'text-red-300' : 'text-amber-300') + '">' + (m.level === 'error' ? '✖ ' : '⚠ ') + esc(m.msg) + '</div>').join('');
-    if (!r.song.measures.length) return;
-    openReview(r.song, { from: 'import', isNew: true, notes: r.msgs });
-  });
+  byId('btn-convert').addEventListener('click', () => convertImport());
 }
 
 /* ---- review ---- */
@@ -743,6 +849,9 @@ function renderReview() {
   byId('rv-kp').checked = S.keypad;
   byId('rv-import-notes').innerHTML = (S.review.notes || []).map(m => '<div class="' + (m.level === 'error' ? 'text-red-300' : m.level === 'info' ? 'text-emerald-300' : 'text-amber-300') + '">' +
     (m.level === 'error' ? '✖ ' : m.level === 'info' ? '✓ ' : '⚠ ') + esc(m.msg) + '</div>').join('');
+  const ph = s.photos || [];
+  byId('rv-photos').classList.toggle('hidden', !ph.length);
+  byId('rv-photos-list').innerHTML = ph.map((u, i) => '<img src="' + esc(u) + '" alt="หน้า ' + (i + 1) + '" class="w-full rounded-lg border border-slate-800">').join('');
   renderCards();
   setPlayButton(false);
 }
@@ -779,7 +888,7 @@ function chipsHTML(pm) {
       (it.lyric ? '<span class="block text-[9px] text-sky-300">' + esc(it.lyric) + '</span>' : '') + '</button>';
   });
   pm.chords.forEach(c => {
-    const label = c.type === 'chord' || c.type === 'notes' ? c.name : c.type === 'bass' ? 'เบส ' + c.name : '–';
+    const label = c.type === 'notes' && c.strum ? 'กรีด ' + c.name : c.type === 'chord' || c.type === 'notes' ? c.name : c.type === 'bass' ? 'เบส ' + c.name : '–';
     parts.push('<span class="chip px-1.5 py-0.5 rounded border text-[11px] self-center ' + (c.bad ? 'bg-red-900/60 border-red-500 text-red-200' : 'bg-sky-900/50 border-sky-700 text-sky-200') + '">♪ ' + esc(label) + '</span>');
   });
   return parts.join('') || '<span class="text-[11px] text-slate-600">ยังไม่มีโน้ต</span>';
@@ -962,6 +1071,8 @@ async function saveSong() {
     created: s.created || now, updated: now,
     measures: s.measures.map(m => ({ mel: m.mel || '', lyr: m.lyr || '', chd: m.chd || '', br: !!m.br }))
   };
+  if (s.source) rec.source = s.source;
+  if (s.photos && s.photos.length) rec.photos = s.photos;
   try {
     await DB.put(rec);
     Object.assign(s, { id: rec.id, created: rec.created, updated: rec.updated });
@@ -1586,6 +1697,8 @@ const Fall = {
   open(src) {
     this.halt();
     this.src = src;
+    this.noRhythm = !!(src.song && src.song.source === 'photo');
+    this.mode = this.noRhythm ? 'wait' : ls.get('fall.mode', 'wait');
     const ev = [];
     if (src.song) {
       const p = parseSong(src.song, state.tuning);
@@ -1628,7 +1741,7 @@ const Fall = {
       (this.skipped ? ' · ' + t('pl.skipped', { n: this.skipped }) : '');
   },
   controls() {
-    $$('[data-plmode]').forEach(b => { b.className = 'h-8 px-3 rounded-full ' + (b.dataset.plmode === this.mode ? 'seg-on' : 'seg-off'); });
+    $$('[data-plmode]').forEach(b => { b.className = 'h-8 px-3 rounded-full ' + (b.dataset.plmode === this.mode ? 'seg-on' : 'seg-off') + (this.noRhythm && b.dataset.plmode === 'rhythm' ? ' hidden' : ''); });
     byId('pl-speed').textContent = Math.round(this.speed * 100) + '%';
     byId('pl-loop').classList.toggle('tog-on', this.loop); byId('pl-loop').setAttribute('aria-pressed', String(this.loop));
     byId('pl-listen').classList.toggle('tog-on', this.demo && this.running);
@@ -1927,7 +2040,8 @@ const Sheet = {
   open(src) {
     this.stop();
     this.src = src; this.from = 0; this.cur = -1;
-    if (!SH_MODES.includes(this.mode)) this.mode = 'follow';
+    this.noRhythm = !!(src.song && src.song.source === 'photo');   // a photo sheet has no rhythm to follow
+    if (!SH_MODES.includes(this.mode) || (this.noRhythm && this.mode === 'rhythm')) this.mode = 'follow';
     byId('sh-title').textContent = src.title || '-';
     switchView('sheet');
     this.render();
@@ -1981,7 +2095,10 @@ const Sheet = {
     b.classList.add(cls);
   },
   controls() {
-    $$('[data-shmode]').forEach(b => { b.className = 'h-9 rounded-full text-[12px] ' + (b.dataset.shmode === this.mode ? 'seg-on' : 'seg-off'); });
+    $$('[data-shmode]').forEach(b => {
+      b.className = 'h-9 rounded-full text-[12px] ' + (b.dataset.shmode === this.mode ? 'seg-on' : 'seg-off') + (this.noRhythm && b.dataset.shmode === 'rhythm' ? ' hidden' : '');
+    });
+    byId('sh-modes').classList.toggle('grid-cols-4', !this.noRhythm); byId('sh-modes').classList.toggle('grid-cols-3', !!this.noRhythm);
     const busy = this.playing || this.running;
     byId('sh-play-icon').innerHTML = icon(busy ? 'player-stop' : (this.mode === 'listen' ? 'headphones' : 'player-play'), 'w-5 h-5');
     const l = byId('sh-play-label'); l.dataset.i18n = busy ? 'sh.stop' : (this.mode === 'listen' ? 'sh.play' : 'sh.start'); l.textContent = t(l.dataset.i18n);

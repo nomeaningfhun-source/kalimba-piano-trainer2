@@ -229,7 +229,7 @@
         </div>
         <button id="sh-practice" class="h-10 px-3 shrink-0 rounded-full border border-slate-700 text-slate-200 text-xs" data-i18n="sh.falling">โน้ตตก</button>
       </div>
-      <div class="grid grid-cols-4 gap-1 p-0.5 mt-2 rounded-full bg-slate-900 border border-slate-800" role="group">
+      <div id="sh-modes" class="grid grid-cols-4 gap-1 p-0.5 mt-2 rounded-full bg-slate-900 border border-slate-800" role="group">
         <button data-shmode="listen" class="h-9 rounded-full text-[12px]" data-i18n="sh.mode.listen">ฟัง</button>
         <button data-shmode="follow" class="h-9 rounded-full text-[12px]" data-i18n="sh.mode.follow">ทีละโน้ต</button>
         <button data-shmode="phrase" class="h-9 rounded-full text-[12px]" data-i18n="sh.mode.phrase">ทีละท่อน</button>
@@ -354,6 +354,19 @@
         <h2 class="text-sm font-semibold font-heading text-amber-300 flex items-center gap-1.5"><span>➕</span> เพิ่มเพลงของฉัน</h2>
         <button id="btn-import-back" class="text-xs px-2 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700">← คลังเพลง</button>
       </div>
+      <div class="bg-sky-950/40 border border-sky-700/50 p-2.5 rounded-xl space-y-1.5 text-xs">
+        <div class="font-semibold text-sky-300">📷 มีรูปแผ่นโน้ตคาลิมบา?</div>
+        <div class="text-[11px] text-slate-300">เลือกรูปแผ่นโน้ตตัวเลข (เลือกหลายหน้าพร้อมกันได้) แอปอ่านเลขโน้ต คอร์ดสีแดง และเนื้อร้องให้ในเครื่อง ไม่ส่งรูปไปไหน · ครั้งแรกต้องต่อเน็ตเพื่อโหลดตัวอ่านรูป ~8 MB หลังจากนั้นใช้ออฟไลน์ได้</div>
+        <div class="flex flex-wrap gap-1.5 items-center">
+          <button id="btn-photo" class="px-3 py-1.5 rounded-lg bg-sky-500 text-slate-950 font-bold">📷 เลือกรูป</button>
+          <span class="text-[10px] text-slate-400">รูปแคปหน้าจอหรือไฟล์สแกนอ่านได้แม่นที่สุด</span>
+        </div>
+        <div id="photo-progress" class="hidden space-y-1">
+          <div class="h-1.5 rounded-full bg-slate-800 overflow-hidden"><div id="photo-bar" class="h-full bg-sky-400 transition-all" style="width:0%"></div></div>
+          <div id="photo-status" class="text-[11px] text-slate-300"></div>
+        </div>
+        <input id="file-photo" type="file" accept="image/*" multiple class="hidden">
+      </div>
       <div class="bg-emerald-950/40 border border-emerald-700/50 p-2.5 rounded-xl space-y-1.5 text-xs">
         <div class="font-semibold text-emerald-300">📂 มีไฟล์ MIDI / คาราโอเกะ (.mid .kar)?</div>
         <div class="text-[11px] text-slate-300">แอปแปลงเป็นโน้ตคาลิมบาแบบมือใหม่ให้อัตโนมัติ เก็บในเครื่องคุณเท่านั้น ใช้ออฟไลน์ได้</div>
@@ -462,6 +475,10 @@
     </div>
 
     <div id="rv-import-notes" class="space-y-1 text-[11px]"></div>
+    <details id="rv-photos" class="hidden bg-slate-900 border border-slate-800 rounded-xl text-xs" open>
+      <summary class="px-3 py-2 cursor-pointer text-sky-300">📷 รูปต้นฉบับ (ไว้เทียบตอนแก้โน้ต)</summary>
+      <div id="rv-photos-list" class="px-2 pb-2 space-y-2"></div>
+    </details>
     <div id="rv-list" class="space-y-2"></div>
     <button id="btn-add-measure" class="w-full py-2 rounded-lg bg-slate-800 text-slate-200 text-xs border border-slate-700">＋ เพิ่มห้องท้ายเพลง</button>
   </div>
@@ -628,6 +645,7 @@
   <script src="js/i18n.js"></script>
   <script src="js/icons.js"></script>
   <script src="js/core.js"></script>
+  <script src="js/sheetread.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

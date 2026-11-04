@@ -1,5 +1,7 @@
 // Offline cache: app shell is precached, CDN assets (Tailwind, Google Fonts) are cached on first online visit.
-const CACHE = 'kalimba-trainer-v3-14';
+const CACHE = 'kalimba-trainer-v3-15';
+// the photo reader (Tesseract, ~8 MB) is fetched on first use and kept across app updates
+const OCR_CACHE = 'kalimba-ocr-v1';
 const SHELL = [
   './',
   './index.html',
@@ -8,6 +10,7 @@ const SHELL = [
   './js/icons.js',
   './js/core.js',
   './js/app.js',
+  './js/sheetread.js',
   './manifest.webmanifest',
   './icons/icon-180.png',
   './icons/icon-192.png',
@@ -22,7 +25,7 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE && k !== OCR_CACHE).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -31,6 +34,17 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET' || !/^https?:$/.test(new URL(req.url).protocol)) return;
+  if (new URL(req.url).pathname.includes('/vendor/tesseract/')) {
+    // cache-first: these files never change for a given OCR_CACHE name
+    e.respondWith(caches.open(OCR_CACHE).then(async cache => {
+      const hit = await cache.match(req);
+      if (hit) return hit;
+      const res = await fetch(req);
+      if (res && res.ok) cache.put(req, res.clone());
+      return res;
+    }));
+    return;
+  }
   e.respondWith(
     caches.open(CACHE).then(async cache => {
       const hit = await cache.match(req, { ignoreSearch: req.mode === 'navigate' });
