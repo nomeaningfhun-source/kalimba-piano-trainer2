@@ -537,6 +537,8 @@ const Player = {
           if (e.ch.type === 'chord') {
             e.ch.midis.slice(0, 4).forEach((m, j) => Synth.kalimba(bus, m, at + j * 0.012, 0.26));
             Synth.kalimba(bus, e.ch.bassMidi, at, 0.5);
+          } else if (e.ch.type === 'notes') {
+            e.ch.midis.forEach((m, j) => Synth.kalimba(bus, m, at + j * 0.03, 0.4));
           } else if (e.ch.type === 'bass') Synth.kalimba(bus, e.ch.midi, at, 0.55);
         }
         if (opt.onEvent && (e.k === 'n' || e.k === 'm')) this.ui.push(setTimeout(() => opt.onEvent(e), Math.max(0, (at - now) * 1000)));
@@ -814,7 +816,7 @@ function chipsHTML(pm) {
       (it.lyric ? '<span class="block text-[9px] text-sky-300">' + esc(it.lyric) + '</span>' : '') + '</button>';
   });
   pm.chords.forEach(c => {
-    const label = c.type === 'chord' ? c.name : c.type === 'bass' ? 'เบส ' + c.name : '–';
+    const label = c.type === 'chord' || c.type === 'notes' ? c.name : c.type === 'bass' ? 'เบส ' + c.name : '–';
     parts.push('<span class="chip px-1.5 py-0.5 rounded border text-[11px] self-center ' + (c.bad ? 'bg-red-900/60 border-red-500 text-red-200' : 'bg-sky-900/50 border-sky-700 text-sky-200') + '">♪ ' + esc(label) + '</span>');
   });
   return parts.join('') || '<span class="text-[11px] text-slate-600">ยังไม่มีโน้ต</span>';

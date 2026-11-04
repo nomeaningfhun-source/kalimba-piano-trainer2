@@ -179,4 +179,36 @@ t('user Twinkle preset (slash bars)', () => {
   assert.strictEqual(r.song.measures.length, 2);
   assert.strictEqual(P.summarize(P.parseSong(r.song, 'B4')).errors, 0);
 });
+t('text copied from a photo of a sheet: " marks, dots, ° and l/I for 1', () => {
+  assert.strictEqual(P.parseNoteToken('1"').midi, 84);
+  assert.strictEqual(P.parseNoteToken('3”').midi, 88);
+  assert.strictEqual(P.parseNoteToken('1″').midi, 84);
+  assert.strictEqual(P.parseNoteToken('1̇').midi, 72);    // dot above
+  assert.strictEqual(P.parseNoteToken('1̈').midi, 84);    // two dots above
+  assert.strictEqual(P.parseNoteToken('6̣').midi, 57);    // dot below
+  assert.strictEqual(P.parseNoteToken('1°').midi, 72);
+  assert.strictEqual(P.parseNoteToken('l’').midi, 72);
+  assert.strictEqual(P.parseNoteToken("I'").midi, 72);
+  assert.strictEqual(P.parseNoteToken('l').type, 'bad');       // a lone letter stays a letter
+  assert.strictEqual(P.parseChordToken('C°', 0).type, 'chord'); // dim chords untouched
+  assert.strictEqual(P.parseChordToken('Bb', 0).type, 'chord');
+  const m = P.parseMelody('3’2”2”3” l’1’2’', 0, null);
+  assert.strictEqual(m.issues.length, 0, JSON.stringify(m.issues));
+  assert.deepStrictEqual(m.notes.map(x => x.midi), [76, 86, 86, 88, 72, 72, 74]);
+});
+t('kalimba-sheet chords: tine numbers written together', () => {
+  const c = P.parseChordToken('135', 0);
+  assert.strictEqual(c.type, 'notes');
+  assert.deepStrictEqual(c.midis, [60, 64, 67]);
+  assert.deepStrictEqual(P.parseChordToken("2'4'", 0).midis, [74, 77]);
+  assert.strictEqual(P.parseChordToken('6', 0).type, 'bass');
+  assert.strictEqual(P.parseChordToken('105', 0).type, 'bad');
+  const r = P.importText("ก ข ค ง | จ ฉ ช ซ\n3’ 5’ 5’ 6’ | 3’ 5’5’ 3’ 5’5’\n135 . . . | 357 . 6 .", {});
+  assert.strictEqual(r.msgs.length, 0, JSON.stringify(r.msgs));
+  const p = P.parseSong(r.song, 'B4');
+  assert.strictEqual(p.issues.length, 0, JSON.stringify(p.issues));
+  assert.deepStrictEqual(p.measures[1].chords.map(x => [x.type, x.name, x.beat]), [['notes', '357', 0], ['bass', '6', 2]]);
+  const bad = P.parseSong(r.song, 'Bb4').issues.map(i => i.code + ':' + i.tok);
+  assert(bad.includes('tuning:357'), JSON.stringify(bad));      // B4 tine is Bb4 on that tuning
+});
 console.log(n + ' passed');

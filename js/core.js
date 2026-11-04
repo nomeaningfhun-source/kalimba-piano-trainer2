@@ -44,8 +44,15 @@ function checkNote(midi, tuning) {
   return { code: 'accidental', msg: nm + ' ไม่มีคีย์ (คาลิมบาเป็นเสียงขาวล้วน)' };
 }
 
+// also undoes what text copied from a photo of a sheet tends to contain:
+// " ” ″ / a dot or two above = 1-2 octaves up, a dot below = 1 down, 1° = 1', and l / I misread for 1
 function normTok(t) {
-  return String(t).replace(/[’′ʼ´`‘]/g, "'").replace(/[–—−]/g, '-').replace(/♯/g, '#').replace(/♭/g, 'b');
+  let s = String(t).replace(/[’′ʼ´`‘]/g, "'").replace(/["”“″]/g, "''")
+    .replace(/̈/g, "''").replace(/̇/g, "'").replace(/̤/g, ',,').replace(/̣/g, ',')
+    .replace(/([0-7])°/g, "$1'")
+    .replace(/[–—−]/g, '-').replace(/♯/g, '#').replace(/♭/g, 'b');
+  if (/^[#b0-7lI',_-]+$/.test(s) && /[0-7']/.test(s)) s = s.replace(/[lI]/g, '1');
+  return s;
 }
 
 const NOTE_RE = /^([#b]?)([0-7])('{0,3}|,{0,3})$/;
@@ -114,6 +121,11 @@ function parseChordToken(raw, shift) {
   if (tok === '0' || /^N\.?C\.?$/i.test(tok)) return { type: 'none' };
   const nt = parseNoteToken(tok);
   if (nt.type === 'note') return { type: 'bass', name: tok, midi: nt.midi + 12 * shift };
+  // kalimba-sheet chord: tine numbers written together (135 = pluck 1, 3 and 5 at once)
+  const parts = tok.match(/[#b]?[1-7](?:'{1,3}|,{1,3})?/g);
+  if (parts && parts.length > 1 && parts.join('') === tok) {
+    return { type: 'notes', name: tok, midis: parts.map(p => parseNoteToken(p).midi + 12 * shift) };
+  }
   const m = CHORD_RE.exec(tok);
   if (!m || !/^[A-Za-z0-9+°()#b\-Δ]*$/.test(m[3])) return { type: 'bad', name: tok };
   const rootPc = ((ROOT_PC[m[1]] + (m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0)) % 12 + 12) % 12;
@@ -181,6 +193,11 @@ function parseMeasure(m, ctx) {
     if (p.type === 'bass') {
       const c = checkNote(p.midi, ctx.tuning);
       if (c) { ev.bad = c; issues.push({ level: 'error', code: c.code, tok: raw, beat, msg: 'เบส ' + raw + ' → ' + c.msg }); }
+    } else if (p.type === 'notes') {
+      p.midis.forEach(mi => {
+        const c = checkNote(mi, ctx.tuning);
+        if (c && !ev.bad) { ev.bad = c; issues.push({ level: 'error', code: c.code, tok: raw, beat, msg: 'คอร์ด ' + raw + ' → ' + c.msg }); }
+      });
     } else if (p.type === 'chord') {
       const pcs = [p.rootPc].concat(p.bassPc == null ? [] : [p.bassPc]);
       pcs.forEach(pc => {
