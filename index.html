@@ -104,7 +104,7 @@
           </div>
           <div id="kalimba-tines-wrapper" class="w-full flex justify-center items-start gap-[3px] pb-2 relative"></div>
           <div class="kal-hole w-16 h-16 rounded-full sound-hole flex items-center justify-center mt-1">
-            <span id="kalimba-hole-label" class="text-[10px] font-mono">13 KEYS</span>
+            <span id="kalimba-hole-label" class="text-[10px] font-mono">17 KEYS</span>
           </div>
         </div>
       </div>
@@ -114,7 +114,6 @@
       <div id="active-note-display" class="hidden"></div>
       <div id="two-hand-badge" class="hidden text-[11px] font-medium text-[#CBD4C2] mt-1"><span data-i18n="twohand">สองมือพร้อมกัน</span> <span id="two-hand-ms"></span></div>
     </div>
-    <button id="play-keys" class="play-fab left-4" data-i18n-aria="play.keys"><span id="play-keys-n">13</span><small data-i18n="play.keyword">คีย์</small></button>
     <button id="play-menu" class="play-fab right-4" aria-haspopup="dialog" data-i18n-aria="play.menu"><span class="fab-lines"><i></i><i></i><i></i></span></button>
   </div>
 
@@ -126,10 +125,6 @@
       <div class="flex items-center justify-between">
         <h2 id="play-sheet-title" class="text-base font-semibold" data-i18n="play.menu">ตั้งค่าคาลิมบา</h2>
         <button data-close class="w-10 h-10 rounded-full border border-slate-700 text-slate-300" aria-label="✕">✕</button>
-      </div>
-      <div class="grid grid-cols-2 gap-1 p-1 rounded-full bg-slate-950 border border-slate-800">
-        <button id="tab-profile-kalimba13" class="h-10 rounded-full font-medium" data-i18n="k13">คาลิมบา 13 คีย์</button>
-        <button id="tab-profile-kalimba17" class="h-10 rounded-full font-medium" data-i18n="k17">คาลิมบา 17 คีย์</button>
       </div>
       <div class="grid grid-cols-2 gap-2">
         <label class="bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 flex flex-col gap-0.5">
@@ -149,10 +144,6 @@
             <option value="western">C D E F G A B</option>
           </select>
         </label>
-      </div>
-      <div class="flex items-center justify-between gap-2 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2">
-        <div id="kalimba-tuning-badge" class="text-[12px] text-slate-400 flex items-center gap-1"><span data-i18n="tuning">จูน</span> <span id="current-tuning-name" class="text-amber-300 font-semibold">Bb4</span></div>
-        <button id="btn-toggle-tuning-quick" class="h-9 px-3 rounded-full border border-slate-700 text-amber-300 text-[12px]" data-i18n="swap.tuning">สลับจูน Bb4 ⇄ B4</button>
       </div>
       <div class="grid grid-cols-3 gap-2">
         <button id="ps-sound" class="h-11 rounded-full border border-slate-700 text-slate-200 flex items-center justify-center gap-1.5"><i data-icon="volume" class="w-4 h-4"></i><span data-i18n="play.sound">เปิดเสียง</span></button>
@@ -286,7 +277,7 @@
         <h2 class="text-lg font-semibold" data-i18n="tu.title">ตั้งเสียง</h2>
         <p class="text-[12px] text-slate-400" data-i18n="tu.sub">ดีดทีละก้าน ดูว่าเสียงตรงไหม</p>
       </div>
-      <span id="tu-kind" class="text-[11px] px-2.5 py-1 rounded-full border border-slate-700 text-slate-300 shrink-0">13 · Bb4</span>
+      <span id="tu-kind" class="text-[11px] px-2.5 py-1 rounded-full border border-slate-700 text-slate-300 shrink-0">17 · C</span>
     </div>
     <div class="rounded-2xl bg-slate-900 border border-slate-800 px-4 pt-4 pb-3 flex flex-col items-center">
       <svg viewBox="0 0 240 136" class="w-full max-w-[300px]" role="img" aria-labelledby="tu-cents">
@@ -620,19 +611,6 @@
           <span class="font-medium text-slate-200" data-i18n="set.real">ฉันมีคาลิมบาจริง</span>
           <input id="set-real" type="checkbox" class="w-5 h-5 accent-amber-500">
         </label>
-        <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700 space-y-2">
-          <label class="block font-medium text-slate-200">การจูนคีย์ 13 คีย์ (คีย์ที่ 10 ฝั่งขวา):</label>
-          <div class="grid grid-cols-2 gap-2">
-            <label class="flex items-center gap-2 p-2 rounded-lg bg-slate-800 border border-slate-700 cursor-pointer">
-              <input type="radio" name="kalimba-tuning" value="Bb4" checked class="text-amber-500">
-              <span class="text-amber-300 font-bold">Bb4 (แนะนำ)</span>
-            </label>
-            <label class="flex items-center gap-2 p-2 rounded-lg bg-slate-800 border border-slate-700 cursor-pointer">
-              <input type="radio" name="kalimba-tuning" value="B4" class="text-amber-500">
-              <span class="text-slate-200 font-bold">B4 (มาตรฐาน C)</span>
-            </label>
-          </div>
-        </div>
         <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700 space-y-2">
           <label for="unlock-code" class="block font-medium text-slate-200">รหัสสมาชิก (นำเข้าไฟล์ MIDI ไม่จำกัด):</label>
           <div class="flex gap-2">

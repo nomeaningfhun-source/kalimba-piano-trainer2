@@ -21,10 +21,11 @@ t('range check B4/Bb4', () => {
   assert.strictEqual(P.checkNote(71, 'B4'), null);
   assert.strictEqual(P.checkNote(70, 'B4').code, 'tuning');
   assert.strictEqual(P.checkNote(59, 'B4').code, 'low');
-  assert.strictEqual(P.checkNote(82, 'B4').code, 'high');
+  assert.strictEqual(P.checkNote(88, 'B4'), null);        // E6, top of 17 keys
+  assert.strictEqual(P.checkNote(89, 'B4').code, 'high');
   assert.strictEqual(P.checkNote(66, 'B4').code, 'accidental');
 });
-t('all 13 keys in range for both tunings (sample 1)', () => {
+t('all 17 keys in range for both tunings (sample 1)', () => {
   for (const tu of ['B4', 'Bb4']) {
     const r = P.importText(P.SAMPLE1, {});
     const s = P.summarize(P.parseSong(r.song, tu));
@@ -57,8 +58,8 @@ t('sample 2 flags out-of-range', () => {
   assert.strictEqual(r.song.measures.length, 4);
   const p = P.parseSong(r.song, 'B4');
   const codes = p.issues.map(i => i.measure + ':' + i.code + ':' + i.tok);
-  assert(codes.includes("0:high:7'"));
-  assert(codes.includes("1:high:1''"));
+  assert(!codes.some(c => c[0] === '0'));     // 7' (B5) is on the 17 keys
+  assert(codes.includes("1:high:4''"));
   assert(codes.includes('2:low:7,'));
   assert(codes.includes('2:tuning:b7'));      // b7 with B4 tuning
   assert(codes.includes('3:accidental:#4'));
@@ -70,7 +71,7 @@ t('octave suggestion', () => {
   const r = P.importText("1 3 5 7'\n", {});
   const s = P.suggestShift(r.song, 'B4');
   assert(s === null || s.left < 1);
-  const r2 = P.importText("1' 2' 3' 7'\n", {});
+  const r2 = P.importText("3' 4'' 5'' 6''\n", {});
   const s2 = P.suggestShift(r2.song, 'B4');
   assert.strictEqual(s2.shift, -1); assert.strictEqual(s2.left, 0);
 });
@@ -203,7 +204,7 @@ t('kalimba-sheet chords: tine numbers written together', () => {
   assert.deepStrictEqual(P.parseChordToken("2'4'", 0).midis, [74, 77]);
   assert.strictEqual(P.parseChordToken('6', 0).type, 'bass');
   assert.strictEqual(P.parseChordToken('105', 0).type, 'bad');
-  const r = P.importText("ก ข ค ง | จ ฉ ช ซ\n3’ 5’ 5’ 6’ | 3’ 5’5’ 3’ 5’5’\n135 . . . | 357 . 6 .", {});
+  const r = P.importText("ก ข ค ง | จ ฉ ช ซ ฌ ญ\n3’ 5’ 5’ 6’ | 3’ 5’5’ 3’ 5’5’\n135 . . . | 357 . 6 .", {});
   assert.strictEqual(r.msgs.length, 0, JSON.stringify(r.msgs));
   const p = P.parseSong(r.song, 'B4');
   assert.strictEqual(p.issues.length, 0, JSON.stringify(p.issues));

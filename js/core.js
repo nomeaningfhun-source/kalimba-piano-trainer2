@@ -3,10 +3,10 @@
 
 /* @@PARSER-START — pure music theory + notation parser (no DOM) */
 
-const KALIMBA13 = [79, 76, 72, 69, 65, 62, 60, 64, 67, 71, 74, 77, 81];          // G5 E5 C5 A4 F4 D4 | C4 | E4 G4 B4 D5 F5 A5
-const SORTED13 = KALIMBA13.slice().sort((a, b) => a - b);
-const KEY_MIN = SORTED13[0];                       // 60  C4
-const KEY_MAX = SORTED13[SORTED13.length - 1];     // 81  A5
+const KALIMBA17 = [86, 83, 79, 76, 72, 69, 65, 62, 60, 64, 67, 71, 74, 77, 81, 84, 88];   // D6 B5 G5 E5 C5 A4 F4 D4 | C4 | E4 G4 B4 D5 F5 A5 C6 E6
+const SORTED17 = KALIMBA17.slice().sort((a, b) => a - b);
+const KEY_MIN = SORTED17[0];                       // 60  C4
+const KEY_MAX = SORTED17[SORTED17.length - 1];     // 88  E6
 const THAI_DEGREES = ['ด', 'ร', 'ม', 'ฟ', 'ซ', 'ล', 'ท'];
 const NOTE_WEST = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 const SEMI = [null, 0, 2, 4, 5, 7, 9, 11];
@@ -29,16 +29,16 @@ function noteLabel(d, system) {
   return THAI_DEGREES[d.deg - 1] + a + octMarks(d.rel);
 }
 
-// keys that physically exist on the 13-key kalimba for a given tuning of the B4 key
+// keys that physically exist on the 17-key kalimba for a given tuning of the B4 key (the app uses B4)
 function keySet(tuning) {
-  return new Set(KALIMBA13.map(m => (m === 71 && tuning === 'Bb4' ? 70 : m)));
+  return new Set(KALIMBA17.map(m => (m === 71 && tuning === 'Bb4' ? 70 : m)));
 }
 
 function checkNote(midi, tuning) {
   if (keySet(tuning).has(midi)) return null;
   const nm = noteLabel(describe(midi, midi === 70), 'western');
-  if (midi < KEY_MIN) return { code: 'low', msg: nm + ' ต่ำกว่า C4 (เกินช่วง 13 คีย์)' };
-  if (midi > KEY_MAX) return { code: 'high', msg: nm + ' สูงกว่า A5 (เกินช่วง 13 คีย์)' };
+  if (midi < KEY_MIN) return { code: 'low', msg: nm + ' ต่ำกว่า C4 (เกินช่วง 17 คีย์)' };
+  if (midi > KEY_MAX) return { code: 'high', msg: nm + ' สูงกว่า E6 (เกินช่วง 17 คีย์)' };
   if (midi === 71 && tuning === 'Bb4') return { code: 'tuning', msg: 'B4 ไม่มีบนเครื่อง (จูน B♭4 อยู่)' };
   if (midi === 70 && tuning === 'B4') return { code: 'tuning', msg: 'B♭4 ไม่มีบนเครื่อง (จูน B4 อยู่)' };
   return { code: 'accidental', msg: nm + ' ไม่มีคีย์ (คาลิมบาเป็นเสียงขาวล้วน)' };
@@ -496,7 +496,7 @@ const SAMPLE2 = [
   '@title ตัวอย่างโน้ตเกินช่วง',
   '@tempo 90',
   '',
-  "1 3 5 7' | 1'' 7' 6' 5'",
+  "1 3 5 7' | 4'' 3'' 6' 5'",
   'C . . . | G7 . . .',
   '',
   '7, 6, 5 b7 | #4 3 2 1',
@@ -629,7 +629,7 @@ function midiTok(m) {
   return TOK_BY_PC[pc] + (oct > 0 ? "'".repeat(oct) : ','.repeat(-oct));
 }
 
-// best whole-song transposition onto the 13 keys: most notes playable as-is, then fewest that need
+// best whole-song transposition onto the 17 keys: most notes playable as-is, then fewest that need
 // an octave fold, then the smallest move
 function bestShift(notes, tuning) {
   const keys = keySet(tuning), pcs = new Set(Array.from(keys).map(m => m % 12));
@@ -675,7 +675,7 @@ function beatTok(cells) {
 
 // notes: [{midi, start, end, lyric?}] in ticks (ppq per beat). Returns a song in the importText shape.
 function notesToSong(raw, opt) {
-  const ppq = opt.ppq, tuning = opt.tuning || 'Bb4';
+  const ppq = opt.ppq, tuning = opt.tuning || 'B4';
   // 16th-note grid, or 8ths for very fast songs where 16ths would be unplayable anyway
   const sub = (opt.tempo || 90) > 130 ? 2 : 4, unit = ppq / sub;
   const beats = Math.max(1, Math.min(12, opt.beats || 4)), perBar = beats * sub;
@@ -816,7 +816,7 @@ function freeSong(f, tuning) {
 // Tines keep ringing after they are plucked, so a plain pitch tracker sees a chord. Instead every frame
 // measures the energy at each semitone (Goertzel, Hann window) and a pluck is the semitone whose energy
 // jumps the most; the tuner then scans ±50 cents around it.
-const MIC_MIDI_LO = 55, MIC_MIDI_HI = 90;   // G3–F#6: covers 13- and 17-key kalimbas with room for detuning
+const MIC_MIDI_LO = 55, MIC_MIDI_HI = 90;   // G3–F#6: covers the 17-key kalimba with room for detuning
 
 // 2nd-order Butterworth low-pass (same response as a Web Audio "lowpass" biquad at Q 0.7071); run twice it
 // tames the kalimba's metallic 6.5x partial

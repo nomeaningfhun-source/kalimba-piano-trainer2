@@ -35,15 +35,6 @@ function numberTokenToPitch(token, baseOctave = 4) {
   return `${noteName}${oct}`;
 }
 
-const PROFILE_KALIMBA_13 = {
-  keys: [
-    { pitch: 'G5', hand: 'L', lengthPct: 62 }, { pitch: 'E5', hand: 'L', lengthPct: 68 }, { pitch: 'C5', hand: 'L', lengthPct: 75 },
-    { pitch: 'A4', hand: 'L', lengthPct: 82 }, { pitch: 'F4', hand: 'L', lengthPct: 89 }, { pitch: 'D4', hand: 'L', lengthPct: 95 },
-    { pitch: 'C4', hand: 'C', lengthPct: 100 },
-    { pitch: 'E4', hand: 'R', lengthPct: 95 }, { pitch: 'G4', hand: 'R', lengthPct: 89 }, { pitch: 'Bb4', hand: 'R', lengthPct: 82, tunable: true },
-    { pitch: 'D5', hand: 'R', lengthPct: 75 }, { pitch: 'F5', hand: 'R', lengthPct: 68 }, { pitch: 'A5', hand: 'R', lengthPct: 62 }
-  ]
-};
 const PROFILE_KALIMBA_17 = {
   keys: [
     { pitch: 'D6', hand: 'L', lengthPct: 56 }, { pitch: 'B5', hand: 'L', lengthPct: 61 }, { pitch: 'G5', hand: 'L', lengthPct: 66 },
@@ -126,7 +117,7 @@ class AudioEngine {
 const audio = new AudioEngine();
 const $ = id => document.getElementById(id);
 const state = {
-  currentView: 'play', currentProfile: 'kalimba13', tuning13: 'Bb4', labelMode: 'both', noteSystem: 'thai',
+  currentView: 'play', tuning: 'B4', labelMode: 'both', noteSystem: 'thai',
   timingToleranceMs: 80, lastTriggerTime: 0, activeTouches: new Map(),
   lesson: { currentTarget: null, correctCount: 0, missMap: {}, timer: 0 },
   inspectingNotes: [],
@@ -189,10 +180,7 @@ function mountKalimba(slot) {
   if (host && k.parentNode !== host) host.appendChild(k);
 }
 
-function currentProfile() { return state.currentProfile === 'kalimba17' ? PROFILE_KALIMBA_17 : PROFILE_KALIMBA_13; }
-function profileKeys() {
-  return currentProfile().keys.map(k => Object.assign({}, k, { pitch: state.currentProfile === 'kalimba13' && k.tunable ? state.tuning13 : k.pitch }));
-}
+function profileKeys() { return PROFILE_KALIMBA_17.keys.map(k => Object.assign({}, k)); }
 
 // tine colours: the left hand's tines are warm (blush to terracotta), the right hand's cool (misty to olive),
 // darker towards the edges like the reference design; the middle tine is cream
@@ -230,8 +218,6 @@ function tineLabel(pitch) {
 
 function renderKalimba() {
   const wrapper = $('kalimba-tines-wrapper'); wrapper.innerHTML = '';
-  $('kalimba-hole-label').textContent = state.currentProfile === 'kalimba17' ? '17 KEYS' : '13 KEYS';
-  $('play-keys-n').textContent = state.currentProfile === 'kalimba17' ? '17' : '13';
   const keys = profileKeys();
   keys.forEach((k, i) => {
     const tine = document.createElement('div');
@@ -343,15 +329,6 @@ attachTouch($('view-kalimba'));
 // in the song player the whole lane a note falls down is that note's key
 attachTouch($('pl-stage'), e => !$('pl-result').classList.contains('hidden') || !(window.KTFall && KTFall.src));
 
-function switchProfile(pid) {
-  state.currentProfile = pid;
-  $('tab-profile-kalimba13').className = 'h-9 rounded-full font-medium ' + (pid === 'kalimba13' ? 'seg-on' : 'seg-off');
-  $('tab-profile-kalimba17').className = 'h-9 rounded-full font-medium ' + (pid === 'kalimba17' ? 'seg-on' : 'seg-off');
-  try { localStorage.setItem('kt.profile', JSON.stringify(pid)); } catch (e) { /* storage blocked */ }
-  renderKalimba();
-}
-$('tab-profile-kalimba13').onclick = () => switchProfile('kalimba13');
-$('tab-profile-kalimba17').onclick = () => switchProfile('kalimba17');
 $('select-label-mode').onchange = e => { state.labelMode = e.target.value; renderKalimba(); };
 $('select-note-system').onchange = e => {
   state.noteSystem = e.target.value;
@@ -359,13 +336,6 @@ $('select-note-system').onchange = e => {
   renderKalimba();
   if (state.currentView === 'lesson' && state.lesson.currentTarget) showLessonTarget();
 };
-function setTuning13(v) {
-  state.tuning13 = v;
-  $('current-tuning-name').textContent = v;
-  renderKalimba();
-  if (window.M2) M2.onTuning();
-}
-$('btn-toggle-tuning-quick').onclick = () => setTuning13(state.tuning13 === 'Bb4' ? 'B4' : 'Bb4');
 
 // Lesson: find the asked note on the kalimba
 function showLessonTarget() {
@@ -388,8 +358,6 @@ $('btn-lesson-next').onclick = startNextLessonQuestion;
 function renderLibrary() { if (window.M2) M2.renderLibrary(); }
 
 $('btn-open-settings').onclick = () => {
-  const r = document.querySelector('input[name="kalimba-tuning"][value="' + state.tuning13 + '"]');
-  if (r) r.checked = true;
   const l = document.querySelector('input[name="app-lang"][value="' + LANG + '"]');
   if (l) l.checked = true;
   try { $('set-real').checked = JSON.parse(localStorage.getItem('kt.hasReal')) === true; } catch (e) { $('set-real').checked = false; }
@@ -399,7 +367,6 @@ $('btn-close-settings').onclick = () => $('modal-settings').classList.add('hidde
 $('btn-save-settings').onclick = () => {
   const lang = document.querySelector('input[name="app-lang"]:checked');
   if (lang && lang.value !== LANG) setLang(lang.value);
-  setTuning13(document.querySelector('input[name="kalimba-tuning"]:checked').value);
   try { localStorage.setItem('kt.hasReal', JSON.stringify($('set-real').checked)); } catch (e) { /* storage blocked */ }
   $('modal-settings').classList.add('hidden');
 };
@@ -421,21 +388,19 @@ function setLang(l) {
 $('btn-lang').onclick = () => setLang(LANG === 'th' ? 'en' : 'th');
 
 (() => {   // saved preferences; English speakers get letter names unless they chose otherwise
-  let ns = null, pf = null;
-  try { ns = JSON.parse(localStorage.getItem('kt.noteSystem')); pf = JSON.parse(localStorage.getItem('kt.profile')); } catch (e) { /* none saved */ }
+  let ns = null;
+  try { ns = JSON.parse(localStorage.getItem('kt.noteSystem')); } catch (e) { /* none saved */ }
   state.noteSystem = ns === 'thai' || ns === 'number' || ns === 'western' ? ns : (LANG === 'th' ? 'thai' : 'western');
   $('select-note-system').value = state.noteSystem;
-  if (pf === 'kalimba17') state.currentProfile = 'kalimba17';
 })();
 fillIcons();
 applyI18n();
-switchProfile(state.currentProfile);
+renderKalimba();
 mountKalimba('play');
 document.querySelector('#nav-tab-play').setAttribute('aria-current', 'page');
 document.body.classList.add('on-play');
 
 // Play page: round buttons and the options sheet
-$('play-keys').onclick = () => switchProfile(state.currentProfile === 'kalimba13' ? 'kalimba17' : 'kalimba13');
 function playSheet(open) {
   $('play-sheet').classList.toggle('hidden', !open);
   if (open) $('play-sheet').querySelector('[data-close].w-10').focus(); else $('play-menu').focus();
@@ -472,7 +437,6 @@ const S = {
   songs: [],
   review: null,      // { song, dirty, from, notes }
   parsed: null,
-  get tuning() { return state.tuning13; },
   get noteSystem() { return state.noteSystem; }
 };
 
@@ -635,7 +599,7 @@ function renderLibrary() {
   applyAddSub();
   byId('lib-empty').classList.toggle('hidden', S.songs.length > 0);
   byId('lib-list').innerHTML = S.songs.map(s => {
-    const sm = summarize(parseSong(s, state.tuning13));
+    const sm = summarize(parseSong(s, state.tuning));
     const badge = sm.range ? '<span class="px-1.5 py-0.5 rounded bg-red-500/20 text-red-300 text-[10px] whitespace-nowrap">⚠ นอกช่วง ' + sm.range + '</span>'
       : sm.errors ? '<span class="px-1.5 py-0.5 rounded bg-red-500/20 text-red-300 text-[10px] whitespace-nowrap">⚠ ' + sm.errors + ' จุด</span>'
       : '<span class="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] whitespace-nowrap">✓ อยู่ในช่วง</span>';
@@ -743,12 +707,11 @@ function setupImport() {
 const Strip = {
   timer: 0,
   build() {
-    byId('strip').innerHTML = SORTED13.map(m => '<div class="strip-key flex-1 rounded-sm" data-m="' + m + '" style="height:' + (40 + (m - 60) * 0.6) + '%"></div>').join('');
+    byId('strip').innerHTML = SORTED17.map(m => '<div class="strip-key flex-1 rounded-sm" data-m="' + m + '" style="height:' + (40 + (m - 60) * 0.6) + '%"></div>').join('');
   },
   light(midi, tok) {
-    const key = S.tuning === 'Bb4' && midi === 70 ? 71 : (S.tuning === 'Bb4' && midi === 71 ? -1 : midi);
     $$('#strip .lit').forEach(x => x.classList.remove('lit'));
-    const k = $('#strip [data-m="' + key + '"]'), label = byId('strip-note');
+    const k = $('#strip [data-m="' + midi + '"]'), label = byId('strip-note');
     label.textContent = tok + ' · ' + noteLabel(describe(midi, midi === 70), S.noteSystem);
     if (k) { k.classList.add('lit'); label.classList.remove('text-red-400'); label.classList.add('text-amber-300'); }
     else { label.classList.add('text-red-400'); label.classList.remove('text-amber-300'); label.textContent += ' (ไม่มีคีย์)'; }
@@ -838,13 +801,13 @@ function renderSummary() {
   }
   if (!sm.errors && !sm.warns) {
     box.className = 'rounded-xl border border-emerald-600/50 bg-emerald-900/20 p-2.5 text-xs text-emerald-200';
-    box.innerHTML = '✅ ผ่านการตรวจ — ' + sm.notes + ' โน้ตอยู่ในช่วง 13 คีย์ (C4–A5, จูน ' + S.tuning + ') ทุกห้อง';
+    box.innerHTML = '✅ ผ่านการตรวจ — ' + sm.notes + ' โน้ตอยู่ในช่วง 17 คีย์ (C4–E6) ทุกห้อง';
     return;
   }
   const bad = sm.errors > 0;
   box.className = 'rounded-xl border p-2.5 text-xs space-y-1.5 ' + (bad ? 'border-red-500/60 bg-red-900/20 text-red-100' : 'border-amber-500/50 bg-amber-900/10 text-amber-100');
   let html = '<div class="font-semibold">' + (bad ? '⚠️ ต้องแก้ ' + sm.errors + ' จุด' : '⚠️ มีข้อสังเกต ' + sm.warns + ' จุด') +
-    (sm.range ? ' · โน้ตเกินช่วง/ไม่มีคีย์ ' + sm.range + ' โน้ต' : '') + ' <span class="font-normal text-slate-400">(ช่วงเครื่อง C4–A5, จูน ' + S.tuning + ')</span></div>';
+    (sm.range ? ' · โน้ตเกินช่วง/ไม่มีคีย์ ' + sm.range + ' โน้ต' : '') + ' <span class="font-normal text-slate-400">(ช่วงเครื่อง 17 คีย์ C4–E6)</span></div>';
   const sug = sm.range ? suggestShift(s, S.tuning) : null;
   if (sug) {
     html += '<button data-fix="shift" data-shift="' + sug.shift + '" class="px-2.5 py-1.5 rounded-lg bg-amber-500 text-slate-950 text-[11px] font-bold">🪄 เลื่อนทั้งเพลงเป็น ' + (sug.shift > 0 ? '+' : '') + sug.shift + ' ออคเทฟ → เหลือเกินช่วง ' + sug.left + ' โน้ต</button>';
@@ -991,7 +954,7 @@ async function saveSong() {
   byId('rv-title').value = s.title;
   if (!s.measures.length) { toast('ยังไม่มีห้องโน้ต'); return; }
   const sm = summarize(reparse());
-  if (sm.range && !confirm('ยังมีโน้ตเกินช่วง/ไม่มีคีย์บนคาลิมบา 13 คีย์ ' + sm.range + ' โน้ต\nบันทึกไว้ก่อนแล้วแก้ทีหลัง?')) return;
+  if (sm.range && !confirm('ยังมีโน้ตเกินช่วง/ไม่มีคีย์บนคาลิมบา 17 คีย์ ' + sm.range + ' โน้ต\nบันทึกไว้ก่อนแล้วแก้ทีหลัง?')) return;
   if (!sm.range && sm.errors && !confirm('มีโทเค็นที่อ่านไม่ได้ ' + sm.errors + ' จุด (จะถูกข้ามตอนเล่น)\nบันทึกไว้ก่อน?')) return;
   const now = Date.now();
   const rec = {
@@ -1012,33 +975,17 @@ async function saveSong() {
   }
 }
 
-/* ---- tuning shared with M1 settings ---- */
-function onTuning() {
-  ls.set('tuning', state.tuning13);
-  syncPracticeLibrary();
-  if (state.currentView === 'review') refreshAll();
-  if (state.currentView === 'add') renderLibrary();
-}
-
 function setHdr() {
   const h = document.querySelector('header');
   if (h) document.documentElement.style.setProperty('--hdr', (h.offsetHeight + 4) + 'px');
 }
 
 function initM2() {
-  const saved = ls.get('tuning', null);
-  if (saved === 'B4' || saved === 'Bb4') {
-    state.tuning13 = saved;
-    byId('current-tuning-name').textContent = saved;
-    const r = document.querySelector('input[name="kalimba-tuning"][value="' + saved + '"]');
-    if (r) r.checked = true;
-    renderKalimba();
-  }
   setupLibrary(); setupImport(); setupReview();
   applyAddSub(); setHdr();
   window.addEventListener('resize', setHdr);
   window.addEventListener('orientationchange', setHdr);
-  window.M2 = { renderLibrary, leaveReview, onTuning };
+  window.M2 = { renderLibrary, leaveReview };
   loadSongs();
   if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
     // a new version takes over in the background: reload once so the update shows without reopening the app
@@ -1261,8 +1208,8 @@ const MEMBER_CODE_SHA256 = ['eb74418202dbfcb44ceaec6018f8602d2865959293cdce1e657
 const REQUEST_ENTRY = 'entry.593957736';   // "เพลงที่อยากเล่นบนคาลิมบา" on the waitlist form
 let freeCache = null;
 function freeList() {
-  if (!freeCache || freeCache.tuning !== state.tuning13) {
-    freeCache = { tuning: state.tuning13, list: FREE_SONGS.map(f => Object.assign(freeSong(f, state.tuning13), { meta: f })) };
+  if (!freeCache || freeCache.tuning !== state.tuning) {
+    freeCache = { tuning: state.tuning, list: FREE_SONGS.map(f => Object.assign(freeSong(f, state.tuning), { meta: f })) };
   }
   return freeCache.list;
 }
@@ -1395,7 +1342,7 @@ const Midi = {
     if (!this.isMember()) ls.set('midi.count', this.used() + 1);
     this.refreshQuota();
     const notes = [{ level: 'info', msg: 'แปลงจากไฟล์ MIDI: ทำนอง "' + rp.voice + '" · ' + rp.notes + ' โน้ต · ความยาก ' + '★'.repeat(rp.level) }];
-    if (rp.shift) notes.push({ level: 'info', msg: 'ย้ายคีย์ ' + (rp.shift > 0 ? '+' : '') + rp.shift + ' ครึ่งเสียง ให้ลงคาลิมบา 13 คีย์' });
+    if (rp.shift) notes.push({ level: 'info', msg: 'ย้ายคีย์ ' + (rp.shift > 0 ? '+' : '') + rp.shift + ' ครึ่งเสียง ให้ลงคาลิมบา 17 คีย์' });
     if (rp.dropped) notes.push({ level: 'info', msg: 'ตัดโน้ตซ้อนและโน้ตประดับที่เร็วเกินไป ' + rp.dropped + ' ตัว ให้เล่นง่ายขึ้น' });
     if (rp.folded) notes.push({ level: 'warn', msg: rp.folded + ' โน้ตถูกย้ายขึ้นหรือลง 1 ออกเทฟ ให้อยู่บนแป้น' });
     if (rp.snapped) notes.push({ level: 'warn', msg: rp.snapped + ' โน้ตไม่มีบนแป้น จึงปรับไปโน้ตที่ใกล้สุด เสียงอาจต่างจากต้นฉบับเล็กน้อย' });
@@ -1566,7 +1513,7 @@ function micUI() {
 const Tuner = {
   on: false, readings: {}, last: null, run: 0, runMidi: -1, runCents: [],
   render() {
-    byId('tu-kind').textContent = (state.currentProfile === 'kalimba17' ? '17' : '13') + ' · ' + (state.currentProfile === 'kalimba17' ? 'C' : state.tuning13);
+    byId('tu-kind').textContent = '17 · C';
     byId('tu-tines').innerHTML = profileKeys().map(k =>
       '<button class="flex flex-col items-center gap-1" data-tu="' + k.pitch + '" aria-label="' + k.pitch + '">' +
       '<span class="tu-tine" style="height:' + Math.round(k.lengthPct * 0.55 + 12) + 'px"></span>' +
@@ -1641,7 +1588,7 @@ const Fall = {
     this.src = src;
     const ev = [];
     if (src.song) {
-      const p = parseSong(src.song, state.tuning13);
+      const p = parseSong(src.song, state.tuning);
       this.tempo = src.song.tempo || 80; this.beats = src.song.beats || 4; this.totalBeats = p.totalBeats;
       p.measures.forEach(pm => pm.notes.forEach(n => ev.push({ beat: pm.start + n.beat, midi: n.midi, lyric: n.lyric || '', m: pm.index })));
     } else {
@@ -1998,7 +1945,7 @@ const Sheet = {
       const notes = this.src.notes.map((p, i) => ({ beat: i % 4, midi: pitchToMidi(p), lyric: '' }));
       this.parsed = { measures: [] };
       for (let i = 0; i < notes.length; i += 4) this.parsed.measures.push({ start: i, notes: notes.slice(i, i + 4) });
-    } else this.parsed = parseSong(song, state.tuning13);
+    } else this.parsed = parseSong(song, state.tuning);
     const keys = new Set(profileKeys().map(k => k.pitch)), html = [];
     let k = 0, line = [];
     this.notes = []; this.lines = [];
