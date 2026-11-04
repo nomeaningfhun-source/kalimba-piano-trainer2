@@ -117,7 +117,10 @@ class AudioEngine {
 const audio = new AudioEngine();
 const $ = id => document.getElementById(id);
 const state = {
-  currentView: 'play', tuning: 'B4', labelMode: 'both', noteSystem: 'thai',
+  currentView: 'play', labelMode: 'both', noteSystem: 'thai',
+  // tines tuned a half step away from the standard C kalimba, by their standard MIDI note: { 65: 1 } = F4 → F#4
+  retune: (() => { try { const v = JSON.parse(localStorage.getItem('kt.retune')); return v && typeof v === 'object' ? v : {}; } catch (e) { return {}; } })(),
+  get tuning() { return ['B4'].concat(Object.keys(this.retune).filter(k => this.retune[k]).sort((a, b) => a - b).map(k => k + (this.retune[k] > 0 ? '+1' : '-1'))).join(' '); },
   timingToleranceMs: 80, lastTriggerTime: 0, activeTouches: new Map(),
   lesson: { currentTarget: null, correctCount: 0, missMap: {}, timer: 0 },
   inspectingNotes: [],
@@ -180,7 +183,18 @@ function mountKalimba(slot) {
   if (host && k.parentNode !== host) host.appendChild(k);
 }
 
-function profileKeys() { return PROFILE_KALIMBA_17.keys.map(k => Object.assign({}, k)); }
+function profileKeys() {
+  return PROFILE_KALIMBA_17.keys.map(k => {
+    const off = state.retune[pitchToMidi(k.pitch)] || 0;
+    return Object.assign({}, k, { pitch: off ? midiToPitch(pitchToMidi(k.pitch) + off) : k.pitch, base: k.pitch, retuned: off });
+  });
+}
+const retuneSummary = () => profileKeys().filter(k => k.retuned).map(k => tineNum(k.pitch)).join(' ');
+// a tine's kalimba number with its octave marks and ♯/♭ in front, e.g. ♯4'
+function tineNum(pitch) {
+  const n = pitchToNumber(pitch), acc = /#/.test(n) ? '♯' : /b/.test(n) ? '♭' : '';
+  return acc + n.replace(/[#b]/g, '');
+}
 
 // tine colours: the left hand's tines are warm (blush to terracotta), the right hand's cool (misty to olive),
 // darker towards the edges like the reference design; the middle tine is cream
@@ -357,7 +371,26 @@ $('btn-lesson-next').onclick = startNextLessonQuestion;
 // Presets, import, review and the song library live in the M2 module at the end of this script
 function renderLibrary() { if (window.M2) M2.renderLibrary(); }
 
+// settings: tap a tine to cycle it natural → ♯ (a half step up) → ♭ (a half step down)
+function renderRetune() {
+  $('set-retune').innerHTML = profileKeys().map(k =>
+    '<button type="button" data-rt="' + pitchToMidi(k.base) + '" class="h-11 rounded-lg border text-[12px] font-semibold leading-tight ' +
+    (k.retuned ? 'seg-on border-transparent' : 'border-slate-700 text-slate-300') + '">' + tineNum(k.pitch) +
+    '<span class="block text-[9px] font-normal opacity-70">' + k.pitch + '</span></button>').join('');
+  $('set-retune-note').textContent = retuneSummary() ? 'จูนไว้: ' + retuneSummary() + ' · อย่าลืมจูนก้านจริงตามนี้ (ดูได้ที่หน้าตั้งเสียง)' : 'ทุกก้านเป็นเสียงมาตรฐาน C';
+}
+$('set-retune').addEventListener('click', e => {
+  const b = e.target.closest('[data-rt]');
+  if (!b) return;
+  const m = b.dataset.rt, cur = state.retune[m] || 0, next = cur === 0 ? 1 : cur === 1 ? -1 : 0;
+  if (next) state.retune[m] = next; else delete state.retune[m];
+  try { localStorage.setItem('kt.retune', JSON.stringify(state.retune)); } catch (err) { /* storage blocked */ }
+  renderRetune(); renderKalimba();
+  if (window.M2) M2.onTuning();
+  if (window.KTTuner) KTTuner.render();
+});
 $('btn-open-settings').onclick = () => {
+  renderRetune();
   const l = document.querySelector('input[name="app-lang"][value="' + LANG + '"]');
   if (l) l.checked = true;
   try { $('set-real').checked = JSON.parse(localStorage.getItem('kt.hasReal')) === true; } catch (e) { $('set-real').checked = false; }
@@ -437,6 +470,7 @@ const S = {
   songs: [],
   review: null,      // { song, dirty, from, notes }
   parsed: null,
+  get tuning() { return state.tuning; },
   get noteSystem() { return state.noteSystem; }
 };
 
@@ -1086,6 +1120,13 @@ async function saveSong() {
   }
 }
 
+/* ---- a retuned tine changes which notes the songs can use ---- */
+function onTuning() {
+  syncPracticeLibrary();
+  if (state.currentView === 'review') refreshAll();
+  if (state.currentView === 'add') renderLibrary();
+}
+
 function setHdr() {
   const h = document.querySelector('header');
   if (h) document.documentElement.style.setProperty('--hdr', (h.offsetHeight + 4) + 'px');
@@ -1096,7 +1137,7 @@ function initM2() {
   applyAddSub(); setHdr();
   window.addEventListener('resize', setHdr);
   window.addEventListener('orientationchange', setHdr);
-  window.M2 = { renderLibrary, leaveReview };
+  window.M2 = { renderLibrary, leaveReview, onTuning };
   loadSongs();
   if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
     // a new version takes over in the background: reload once so the update shows without reopening the app
@@ -1624,7 +1665,7 @@ function micUI() {
 const Tuner = {
   on: false, readings: {}, last: null, run: 0, runMidi: -1, runCents: [],
   render() {
-    byId('tu-kind').textContent = '17 · C';
+    byId('tu-kind').textContent = '17 · C' + (retuneSummary() ? ' · ' + retuneSummary() : '');
     byId('tu-tines').innerHTML = profileKeys().map(k =>
       '<button class="flex flex-col items-center gap-1" data-tu="' + k.pitch + '" aria-label="' + k.pitch + '">' +
       '<span class="tu-tine" style="height:' + Math.round(k.lengthPct * 0.55 + 12) + 'px"></span>' +

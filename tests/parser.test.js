@@ -212,4 +212,14 @@ t('kalimba-sheet chords: tine numbers written together', () => {
   const bad = P.parseSong(r.song, 'Bb4').issues.map(i => i.code + ':' + i.tok);
   assert(bad.includes('tuning:357'), JSON.stringify(bad));      // B4 tine is Bb4 on that tuning
 });
+t('retuned tines: #4 plays once the F4 tine is tuned up, and plain 4 then warns', () => {
+  const r = P.importText("3 #4 5 4", {});
+  const std = P.parseSong(r.song, 'B4').issues.map(i => i.code + ':' + i.tok);
+  assert(std.includes('accidental:#4'));
+  const tuned = P.parseSong(r.song, 'B4 65+1').issues.map(i => i.code + ':' + i.tok);
+  assert(!tuned.some(c => c.endsWith('#4')));
+  assert(tuned.includes('tuning:4'), JSON.stringify(tuned));
+  assert(P.keySet('B4 65+1 83-1').has(66) && P.keySet('B4 65+1 83-1').has(82) && !P.keySet('B4 65+1 83-1').has(83));
+  assert.strictEqual(P.checkNote(65, 'B4 65+1').msg, 'F4 ไม่มีบนเครื่อง (ก้านนี้จูนเป็น F♯4 อยู่)');
+});
 console.log(n + ' passed');

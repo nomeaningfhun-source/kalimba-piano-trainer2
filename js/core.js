@@ -29,19 +29,30 @@ function noteLabel(d, system) {
   return THAI_DEGREES[d.deg - 1] + a + octMarks(d.rel);
 }
 
-// keys that physically exist on the 17-key kalimba for a given tuning of the B4 key (the app uses B4)
+// a tuning is 'B4' (standard C) or 'Bb4', optionally followed by tines retuned a half step,
+// e.g. 'B4 65+1 77-1' = the F4 tine tuned up to F#4 and the F5 tine down to E5
+function retunes(tuning) {
+  const out = {};
+  String(tuning || '').trim().split(/\s+/).slice(1).forEach(t => { const m = /^(\d+)([+-]1)$/.exec(t); if (m) out[+m[1]] = +m[2]; });
+  return out;
+}
+const tuningBase = tuning => String(tuning || 'B4').trim().split(/\s+/)[0];
+
+// keys that physically exist on the 17-key kalimba for a tuning
 function keySet(tuning) {
-  return new Set(KALIMBA17.map(m => (m === 71 && tuning === 'Bb4' ? 70 : m)));
+  const base = tuningBase(tuning), rt = retunes(tuning);
+  return new Set(KALIMBA17.map(m => (m === 71 && base === 'Bb4' ? 70 : m) + (rt[m] || 0)));
 }
 
 function checkNote(midi, tuning) {
   if (keySet(tuning).has(midi)) return null;
-  const nm = noteLabel(describe(midi, midi === 70), 'western');
+  const nm = noteLabel(describe(midi, midi === 70), 'western'), base = tuningBase(tuning), rt = retunes(tuning);
   if (midi < KEY_MIN) return { code: 'low', msg: nm + ' ต่ำกว่า C4 (เกินช่วง 17 คีย์)' };
   if (midi > KEY_MAX) return { code: 'high', msg: nm + ' สูงกว่า E6 (เกินช่วง 17 คีย์)' };
-  if (midi === 71 && tuning === 'Bb4') return { code: 'tuning', msg: 'B4 ไม่มีบนเครื่อง (จูน B♭4 อยู่)' };
-  if (midi === 70 && tuning === 'B4') return { code: 'tuning', msg: 'B♭4 ไม่มีบนเครื่อง (จูน B4 อยู่)' };
-  return { code: 'accidental', msg: nm + ' ไม่มีคีย์ (คาลิมบาเป็นเสียงขาวล้วน)' };
+  if (rt[midi]) return { code: 'tuning', msg: nm + ' ไม่มีบนเครื่อง (ก้านนี้จูนเป็น ' + noteLabel(describe(midi + rt[midi], rt[midi] < 0), 'western') + ' อยู่)' };
+  if (midi === 71 && base === 'Bb4') return { code: 'tuning', msg: 'B4 ไม่มีบนเครื่อง (จูน B♭4 อยู่)' };
+  if (midi === 70 && base === 'B4') return { code: 'tuning', msg: 'B♭4 ไม่มีบนเครื่อง (จูนก้าน 7 เป็น ♭7 ได้ในตั้งค่า)' };
+  return { code: 'accidental', msg: nm + ' ไม่มีคีย์ (จูนก้านเป็นชาร์ป/แฟลตได้ในตั้งค่า)' };
 }
 
 // also undoes what text copied from a photo of a sheet tends to contain:
