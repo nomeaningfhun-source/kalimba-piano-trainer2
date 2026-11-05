@@ -540,6 +540,45 @@ function songToText(song) {
   return out.join('\n');
 }
 
+// the whole song a number of semitones up or down: melody numbers, number chords (135~), bass numbers and
+// letter chords (C, Am/G). Sharps are written as #, except the B-flat tine (b7) the kalimba has.
+const SEMI_TOK = ['1', '#1', '2', '#2', '3', '4', '#4', '5', '#5', '6', 'b7', '7'];
+const SEMI_ROOT = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'Bb', 'B'];
+function semiNote(tok, d) {
+  const p = parseNoteToken(tok);
+  if (p.type !== 'note') return tok;
+  const m = p.midi + d, oct = Math.floor((m - 60) / 12);
+  return SEMI_TOK[((m % 12) + 12) % 12] + (oct > 0 ? "'".repeat(oct) : ','.repeat(-oct));
+}
+const NOTE_RUN = /[#b]?[0-7](?:'{1,3}|,{1,3})?/g;
+function semiRun(s, d) {                       // 2'2' or 135: notes written together stay together
+  const parts = s.match(NOTE_RUN);
+  return parts && parts.join('') === s ? parts.map(x => semiNote(x, d)).join('') : s;
+}
+function transposeMelody(str, d) {
+  return String(str || '').trim().split(/\s+/).filter(Boolean)
+    .map(slot => slot.split('_').map(sub => semiRun(normTok(sub), d)).join('_')).join(' ');
+}
+function transposeChords(str, d) {
+  const letter = (root, acc) => SEMI_ROOT[(((ROOT_PC[root] + (acc === '#' ? 1 : acc === 'b' ? -1 : 0) + d) % 12) + 12) % 12];
+  return String(str || '').trim().split(/\s+/).filter(Boolean).map(raw => {
+    const tok = normTok(raw), p = parseChordToken(tok, 0);
+    if (p.type === 'bass' || p.type === 'notes') return semiRun(tok.replace(/~$/, ''), d) + (/~$/.test(tok) ? '~' : '');
+    if (p.type !== 'chord') return raw;
+    const m = CHORD_RE.exec(tok);
+    let out = letter(m[1], m[2]) + m[3];
+    if (m[4]) {
+      const bm = /^([A-G])([#b]?)$/.exec(m[4]);
+      out += '/' + (bm ? letter(bm[1], bm[2]) : semiRun(m[4], d));
+    }
+    return out;
+  }).join(' ');
+}
+function transposeSong(song, d) {
+  song.measures.forEach(m => { m.mel = transposeMelody(m.mel, d); m.chd = transposeChords(m.chd, d); });
+  return song;
+}
+
 function shiftMelodyStr(str, d) {
   return String(str || '').trim().split(/\s+/).filter(Boolean).map(slot => slot.split('_').map(sub => {
     const m = /^([#b]?)([1-7])('{0,3}|,{0,3})$/.exec(normTok(sub));

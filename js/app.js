@@ -82,7 +82,19 @@ function kalimbaVoice(ctx, dest, freq, t, vel) {
 class AudioEngine {
   constructor() { this.ctx = null; this.isUnlocked = false; }
   init() {
+    // iOS can leave the context 'interrupted' for good (after the photo picker or a long photo read): resume()
+    // never brings it back, so a new one is made — this runs inside a tap, where iOS allows that
+    if (this.ctx && (this.ctx.state === 'interrupted' || this.ctx.state === 'closed' || this.stuck)) {
+      try { this.ctx.close(); } catch (e) { /* already gone */ }
+      this.ctx = null; this.stuck = false;
+    }
     if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const c = this.ctx;
+    if (c.state !== 'running') {
+      // a resume that has not taken hold by the next tap means this context is stuck
+      clearTimeout(this.stuckTimer);
+      this.stuckTimer = setTimeout(() => { if (this.ctx === c && c.state !== 'running') this.stuck = true; }, 600);
+    }
     if (this.ctx.state !== 'running') this.ctx.resume().catch(() => {});   // iOS also uses 'interrupted'
     this.isUnlocked = true;
     const silent = document.getElementById('ios-silent-audio');
@@ -947,6 +959,30 @@ function melSlots(mel) {
   });
 }
 const melJoin = slots => slots.filter(x => x.subs.length).map(x => x.subs.join(x.sep)).join(' ');
+// the lyric syllables of a measure, one per note -> [first, last] note of the word that note li sings
+// (Thai syllables run together, so the word is found by segmenting the joined text)
+function lyrWordAt(lt, li) {
+  const txt = i => (lt[i] && lt[i] !== '~' && lt[i] !== '_' ? lt[i] : '');
+  if (!txt(li)) return [li, li];
+  let a = li, b = li;
+  while (a > 0 && txt(a - 1)) a--;
+  while (txt(b + 1)) b++;
+  const offs = [];
+  let joined = '';
+  for (let i = a; i <= b; i++) { offs.push(joined.length); joined += txt(i); }
+  if (typeof Intl === 'undefined' || !Intl.Segmenter) return [li, li];
+  try {
+    const me = offs[li - a], meEnd = me + txt(li).length;
+    let first = li, last = li;
+    for (const sg of new Intl.Segmenter('th', { granularity: 'word' }).segment(joined)) {
+      const s0 = sg.index, s1 = s0 + sg.segment.length;
+      if (s1 <= me || s0 >= meEnd) continue;            // a word this syllable is part of
+      for (let i = a; i <= b; i++) { const o = offs[i - a], e = o + txt(i).length; if (o < s1 && e > s0) { first = Math.min(first, i); last = Math.max(last, i); } }
+    }
+    return [first, last];
+  } catch (e) { return [li, li]; }
+}
+
 // the notes a card shows as chips (holds "-" have none), as [slot, sub] positions
 const melChipPos = slots => { const out = []; slots.forEach((x, si) => x.subs.forEach((t, k) => { if (t !== '-') out.push([si, k]); })); return out; };
 const chdToks = chd => String(chd || '').trim().split(/\s+/).filter(Boolean);
@@ -1005,18 +1041,46 @@ const Fix = {
       pop.innerHTML = '<div class="grid grid-cols-7 gap-1">' + [1, 2, 3, 4, 5, 6, 7].map(d => b('d' + d, d)).join('') + '</div>' +
         '<div class="grid grid-cols-7 gap-1 mt-1">' + b('up', "สูง '") + b('dn', 'ต่ำ') + b('sharp', '♯') + b('play', '▶', 'bg-amber-600 text-white') +
         b('ins', '＋') + b('del', '⌫', 'bg-slate-800 border border-slate-700 text-rose-300') + b('x', '✕', 'bg-slate-800 border border-slate-700 text-slate-400') + '</div>';
+      // the lyric word this note sings, edited as a whole word; the app splits it over the same notes again
+      const li = this.lyrIndex(this.at.i, this.at.n);
+      if (li >= 0) {
+        const lt = lyricTokens(m.lyr), w = lyrWordAt(lt, li);
+        this.at.lw = w;
+        const word = lt.slice(w[0], w[1] + 1).filter(x => x !== '~' && x !== '_').join('');
+        pop.innerHTML += '<div class="flex gap-1 items-center mt-1.5"><span class="text-[11px] text-slate-400 shrink-0">เนื้อร้อง</span>' +
+          '<input id="fix-lyr" value="' + esc(word) + '" autocomplete="off" autocapitalize="off" spellcheck="false" class="min-w-0 flex-1 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-slate-100">' +
+          '<button data-fx="lyr" class="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm font-bold">✓</button></div>' +
+          '<div class="text-[10px] text-slate-500 mt-1">แก้ทั้งคำ แอปแบ่งพยางค์ให้เองตาม ' + (w[1] - w[0] + 1) + ' โน้ต · ว่าง = ไม่มีเนื้อร้อง</div>';
+      }
     }
     pop.classList.remove('hidden');
     this.place(chip);
     if (this.at.c != null) setTimeout(() => { const f = byId('fix-chord'); if (f) f.focus(); }, 30);
   },
-  // below the chip, or above it when the chip is low on the screen
+  // the panel stays at the bottom of the screen (above the iOS keyboard); the page scrolls so the chip being
+  // fixed sits between the pinned photo strip and the panel, never under either
   place(chip) {
-    const pop = byId('fix-pop'), r = chip.getBoundingClientRect(), ph = pop.offsetHeight;
-    const below = r.bottom + 6 + ph < innerHeight - 8;
-    pop.style.top = Math.max(8, below ? r.bottom + 6 : r.top - ph - 6) + 'px';
+    const pop = byId('fix-pop'), vv = window.visualViewport;
+    const kb = vv ? Math.max(0, innerHeight - vv.height - vv.offsetTop) : 0;
+    pop.style.bottom = 'calc(' + (kb + 8) + 'px + env(safe-area-inset-bottom))';
+    document.body.style.paddingBottom = (pop.offsetHeight + 24) + 'px';   // room to bring the last chips above it
+    if (!chip) return;
+    const line = chip.closest('.rv-line'), strip = line && $('.rv-strip', line);
+    const top = (strip ? strip.getBoundingClientRect().bottom : byId('rv-bar').getBoundingClientRect().bottom) + 8;
+    const bot = pop.getBoundingClientRect().top - 10, r = chip.getBoundingClientRect();
+    if (r.bottom > bot) window.scrollBy({ top: Math.min(r.bottom - bot, r.top - top), behavior: 'smooth' });
+    else if (r.top < top) window.scrollBy({ top: r.top - top, behavior: 'smooth' });
   },
-  close() { byId('fix-pop').classList.add('hidden'); $$('#rv-list .chip.sel').forEach(x => x.classList.remove('sel')); this.at = null; },
+  close() {
+    byId('fix-pop').classList.add('hidden'); document.body.style.paddingBottom = '';
+    $$('#rv-list .chip.sel').forEach(x => x.classList.remove('sel')); this.at = null;
+  },
+  // chip number n of measure i -> its place among the measure's notes (rests and unreadable tokens have no lyric)
+  lyrIndex(i, n) {
+    const pm = S.parsed && S.parsed.measures[i], items = pm ? pm.items.filter(it => it.type !== 'hold') : [];
+    if (!items[n] || items[n].type !== 'note') return -1;
+    return items.slice(0, n).filter(it => it.type === 'note').length;
+  },
   chip() {
     const card = this.at && cardEl(this.at.i);
     return card && $(this.at.c != null ? '[data-c="' + this.at.c + '"]' : '[data-n="' + this.at.n + '"]', card);
@@ -1032,6 +1096,17 @@ const Fix = {
       m.chd = toks.join(' ');
       this.commit(at.i, 'chd');
       this.close();
+      return;
+    }
+    if (act === 'lyr') {
+      const lt = lyricTokens(m.lyr), w = at.lw, v = (byId('fix-lyr').value || '').replace(/\s+/g, ''), n = w[1] - w[0] + 1;
+      while (lt.length <= w[1]) lt.push('~');
+      lt.splice(w[0], n, ...(v ? lyricsByGroups([v], [n]) : new Array(n).fill('~')));
+      while (lt.length && lt[lt.length - 1] === '~') lt.pop();
+      m.lyr = lt.join(' ');
+      this.commit(at.i, 'lyr');
+      const chip = this.chip();
+      if (chip) this.open(chip); else this.close();
       return;
     }
     const slots = melSlots(m.mel), pos = melChipPos(slots)[at.n];
@@ -1182,6 +1257,14 @@ function setupReview() {
   };
   byId('rv-shift-dn').addEventListener('click', () => shift(-1));
   byId('rv-shift-up').addEventListener('click', () => shift(1));
+  // every note and chord a semitone up or down; the cards and their text fields are rebuilt from the song
+  const semi = d => {
+    Fix.close();
+    transposeSong(rs(), d); markDirty(); renderCards();
+    toast(d > 0 ? 'เลื่อนขึ้นครึ่งเสียงทั้งเพลงแล้ว' : 'เลื่อนลงครึ่งเสียงทั้งเพลงแล้ว');
+  };
+  byId('rv-semi-dn').addEventListener('click', () => semi(-1));
+  byId('rv-semi-up').addEventListener('click', () => semi(1));
   byId('btn-play-all').addEventListener('click', () => togglePlay(0));
   byId('rv-kp').addEventListener('change', e => { S.keypad = e.target.checked; ls.set('keypad', S.keypad); applyKeypadMode(); });
   byId('btn-add-measure').addEventListener('click', () => {
@@ -1244,10 +1327,10 @@ function setupReview() {
   const pop = byId('fix-pop');
   ['mousedown', 'touchstart'].forEach(ev => pop.addEventListener(ev, e => { if (!e.target.closest('input')) e.preventDefault(); }, { passive: false }));
   pop.addEventListener('click', e => { const b = e.target.closest('[data-fx]'); if (b) Fix.apply(b.dataset.fx); });
-  pop.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'fix-chord') Fix.apply('ok'); });
+  pop.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'fix-chord') Fix.apply('ok'); if (e.key === 'Enter' && e.target.id === 'fix-lyr') Fix.apply('lyr'); });
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', () => { if (Fix.at) Fix.place(null); });
   // tapping anywhere else closes it; scrolling keeps it next to its chip
   document.addEventListener('click', e => { if (Fix.at && !e.target.closest('#fix-pop, .chip')) Fix.close(); });
-  window.addEventListener('scroll', () => { const c = Fix.at && Fix.chip(); if (c) Fix.place(c); }, { passive: true });
   byId('rv-jump-prev').addEventListener('click', () => Fix.jump(-1));
   byId('rv-jump-next').addEventListener('click', () => Fix.jump(1));
 
@@ -2252,12 +2335,21 @@ const Sheet = {
     switchView('sheet');
     this.render();
   },
-  cell(n, k) {
+  cell(n, k, chd) {
     const rel = n.midi - 60, oct = Math.floor(rel / 12), d = SH_DEG[((rel % 12) + 12) % 12];
     const num = d.length > 1 ? '<small>' + d[0] + '</small>' + d.slice(1) : d;
-    return '<button class="sh-n" data-k="' + k + '"><span class="sh-up">' + '•'.repeat(Math.max(0, oct)) + '</span>' +
+    // notes sharing one beat (written together, like 5'5') sit close together, as on the sheet
+    return '<button class="sh-n' + (n.dur && n.dur < 1 ? ' sh-tie' : '') + '" data-k="' + k + '"><span class="sh-up">' + '•'.repeat(Math.max(0, oct)) + '</span>' +
       '<span class="sh-d">' + num + '</span><span class="sh-dn">' + '•'.repeat(Math.max(0, -oct)) + '</span>' +
-      '<span class="sh-l">' + esc(n.lyric || '') + '</span></button>';
+      '<span class="sh-l">' + esc(n.lyric || '') + '</span>' + this.chordHTML(chd) + '</button>';
+  },
+  // a rest or held beat takes the same room as a note, so gaps in the sheet look like gaps here
+  restCell(it, chd) {
+    return '<span class="sh-rest"><span class="sh-up"></span><span class="sh-d">' + (it.type === 'hold' ? '–' : '·') + '</span><span class="sh-dn"></span>' +
+      '<span class="sh-l"></span>' + this.chordHTML(chd) + '</span>';
+  },
+  chordHTML(list) {
+    return '<span class="sh-c">' + (list || []).map(c => esc(c.type === 'bass' ? 'เบส ' + c.name : c.type === 'notes' && c.strum ? c.name + '~' : c.name)).join(' ') + '</span>';
   },
   render() {
     const song = this.src.song;
@@ -2272,10 +2364,18 @@ const Sheet = {
     const close = () => { if (line.length) { html.push('<div class="sh-line">' + line.join('') + '</div>'); line = []; } };
     this.parsed.measures.forEach((pm, i) => {
       if (i && song && song.measures && song.measures[i] && song.measures[i].br) close();
-      line.push('<div class="sh-bar">' + pm.notes.map(n => {
-        const pitch = midiToPitch(n.midi);
-        this.notes.push({ t: pm.start + n.beat, midi: n.midi, pitch, line: html.length, ok: keys.has(pitch) });
-        return this.cell(n, k++);
+      // each chord goes under the first note or rest that starts on or after its beat
+      const items = pm.items || pm.notes, chdAt = new Map();
+      (pm.chords || []).forEach(c => {
+        const it = items.find(x => x.beat >= c.beat - 1e-6);
+        if (it) chdAt.set(it, (chdAt.get(it) || []).concat(c));
+      });
+      line.push('<div class="sh-bar">' + items.map(it => {
+        if (it.type === 'rest' || it.type === 'hold') return this.restCell(it, chdAt.get(it));
+        if (it.type === 'bad') return '';
+        const pitch = midiToPitch(it.midi);
+        this.notes.push({ t: pm.start + it.beat, midi: it.midi, pitch, line: html.length, ok: keys.has(pitch) });
+        return this.cell(it, k++, chdAt.get(it));
       }).join('') + '</div>');
     });
     close();
@@ -2322,13 +2422,17 @@ const Sheet = {
       n.el.classList.toggle('on', i === this.cur && (this.playing || (this.running && this.mode === 'rhythm')));
       n.el.classList.toggle('target', i === tgt);
       n.el.classList.toggle('done', !!n.res || ((this.playing || (this.running && this.mode === 'rhythm')) && i < this.cur));
+      n.el.classList.toggle('hit', n.res === 'hit' || n.res === 'perfect' || n.res === 'good');   // played right: stays green
+      n.el.classList.toggle('wrong', !!n.bad && i === tgt);                                     // played wrong: stays red until it is right
       n.el.classList.toggle('sel', !this.playing && !this.running && i === this.from && this.from > 0);
     });
   },
+  // keeps the note being played at one fixed height, so the page slides under it as the song goes on
   scrollTo(el) {
     if (!el) return;
     const r = el.getBoundingClientRect(), top = byId('sh-head').getBoundingClientRect().bottom + 12;
-    if (r.top < top || r.bottom > window.innerHeight - 90) window.scrollBy({ top: r.top - top - 30, behavior: 'smooth' });
+    const want = top + Math.max(20, (window.innerHeight - 90 - top) * 0.3), d = r.top - want;
+    if (Math.abs(d) > 8) window.scrollBy({ top: d, behavior: 'smooth' });
   },
 
   /* playing notes [from, to) with the note being played lit up */
@@ -2373,7 +2477,7 @@ const Sheet = {
     if (this.playing || this.running) { this.stop(); return; }
     if (!this.notes.length) return;
     if (this.mode === 'listen') { this.playRange(this.from, this.notes.length, () => { this.from = 0; this.status(t('sh.idle.listen')); this.mark(); }); this.status(''); return; }
-    this.notes.forEach(n => { n.res = n.ok ? null : 'skip'; });
+    this.notes.forEach(n => { n.res = n.ok ? null : 'skip'; n.bad = false; });
     this.stats = { hit: 0, wrong: 0, perfect: 0, good: 0, miss: 0 };
     this.running = true; this.listening = true; this.t0 = Date.now();
     micSync();
@@ -2428,7 +2532,7 @@ const Sheet = {
       setTimeout(() => {
         if (!this.running) return;
         this.phase = 'yours'; this.idx = l[0];
-        this.notes.slice(l[0], l[1]).forEach(n => { if (n.res !== 'skip') n.res = null; });
+        this.notes.slice(l[0], l[1]).forEach(n => { if (n.res !== 'skip') n.res = null; n.bad = false; });
         this.target(); this.controls();
       }, 350);
     });
@@ -2488,11 +2592,11 @@ const Sheet = {
     const n = this.notes[this.idx];
     if (!n) return;
     if (pitch === n.pitch) {
-      n.res = 'hit'; this.stats.hit++; this.stripMark(pitch, 'hit', 250);
+      n.res = 'hit'; n.bad = false; this.stats.hit++; this.stripMark(pitch, 'hit', 250);
       this.idx++; this.target();
     } else {
       this.stats.wrong++; this.stripMark(pitch, 'bad', 300);
-      n.el.classList.add('wrong'); setTimeout(() => n.el.classList.remove('wrong'), 300);
+      n.bad = true; this.mark();
       this.status(t('sh.st.wrong', { note: noteName(n.pitch) + ' · ' + pitchToNumber(n.pitch) }), 'bad');
     }
   },
@@ -2601,7 +2705,11 @@ function initPlayer() {
   byId('tu-toggle').onclick = () => Tuner.toggle();
   byId('tu-tines').addEventListener('click', e => { const b = e.target.closest('[data-tu]'); if (b) audio.playPitch(b.dataset.tu); });
   window.addEventListener('resize', () => { Fall.layout(); Fall.message(); });
-  document.addEventListener('visibilitychange', () => { if (document.hidden) { Fall.pause(); Mic.stop(); } else micSync(); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { Fall.pause(); Mic.stop(); return; }
+    if (audio.ctx && audio.ctx.state !== 'running') audio.ctx.resume().catch(() => {});   // back from the photo picker
+    micSync();
+  });
   window.KTFall = Fall; window.KTMic = Mic; window.KTTuner = Tuner; window.KTMicSync = micSync;
   Fall.controls(); Fall.message(); Tuner.render(); micUI();
 }

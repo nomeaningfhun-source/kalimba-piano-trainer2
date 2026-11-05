@@ -10,6 +10,7 @@ const SheetRead = (() => {
   const RED = 16;          // r - max(g, b) above this = red ink
   const PAPER = 215;       // brighter than this = paper
   const ON = 110;          // ink strength that counts as a pixel of a glyph
+  const REST_GAP = 2;      // a blank this many digit heights wide between melody numbers is a rest
 
   // ink strength 0..255 per pixel, one layer for red ink and one for everything else
   function splitLayers(px, w, h, ch) {
@@ -116,14 +117,16 @@ const SheetRead = (() => {
   function numberPieces(layer, w, r) {
     const W = r.x1 - r.x0 + 1, H = r.y1 - r.y0 + 1, bin = new Uint8Array(W * H), lines = [];
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) bin[y * W + x] = layer[(r.y0 + y) * w + r.x0 + x] > ON ? 1 : 0;
-    const longRun = Math.max(8, r.med * 1.3);
+    const longRun = Math.max(8, r.med * 1.3), edgeRun = Math.max(8, r.med * 0.8);
     for (let y = Math.floor(H * 0.5); y < H; y++) {
+      // the last rows of the row are where an underline sits: a shorter run counts there (digit feet are narrower)
+      const need = y >= H - 4 ? edgeRun : longRun;
       let x0 = -1;
       for (let x = 0; x <= W; x++) {
         const on = x < W && bin[y * W + x];
         if (on && x0 < 0) x0 = x;
         if (!on && x0 >= 0) {
-          if (x - x0 >= longRun) {
+          if (x - x0 >= need) {
             for (let k = x0; k < x; k++) bin[y * W + k] = 0;
             const l = lines.find(q => q.x0 < r.x0 + x && q.x1 > r.x0 + x0);
             if (l) { l.x0 = Math.min(l.x0, r.x0 + x0); l.x1 = Math.max(l.x1, r.x0 + x - 1); }
@@ -159,12 +162,15 @@ const SheetRead = (() => {
     return { digits, lines, dh };
   }
 
-  // digits pasted on a clean strip with even spacing, so OCR returns one character per digit
-  function digitStrip(digits, dh) {
-    const gap = Math.round(dh * 0.6), pad = Math.round(dh * 0.5);
+  // digits pasted on a clean strip with even spacing, so OCR returns one character per digit.
+  // opt changes how the same digits are drawn (spacing, stroke thickness) so a second reading can differ from the first
+  function digitStrip(digits, dh, opt) {
+    opt = opt || {};
+    const gap = Math.round(dh * (opt.gap || 0.6)), pad = Math.round(dh * (opt.pad || 0.5));
     let wsum = 0;
     digits.forEach(d => { wsum += d.x1 - d.x0 + 1; });
-    const W = wsum + gap * (digits.length - 1) + pad * 2, H = dh + pad * 2, data = new Uint8Array(W * H).fill(255);
+    const W = wsum + gap * (digits.length - 1) + pad * 2, H = dh + pad * 2;
+    let data = new Uint8Array(W * H).fill(255);
     let x = pad;
     digits.forEach(d => {
       const top = pad + (dh - (d.y1 - d.y0 + 1));
@@ -174,21 +180,64 @@ const SheetRead = (() => {
       }
       x += d.x1 - d.x0 + 1 + gap;
     });
+    for (let k = 0; k < (opt.dilate || 0); k++) {       // thicker strokes: faint, thin digits read better
+      const out = data.slice();
+      for (let y = 0; y < H; y++) for (let xx = 0; xx < W; xx++) {
+        if (data[y * W + xx] === 0) continue;
+        if ((xx > 0 && !data[y * W + xx - 1]) || (xx < W - 1 && !data[y * W + xx + 1]) || (y > 0 && !data[(y - 1) * W + xx]) || (y < H - 1 && !data[(y + 1) * W + xx])) out[y * W + xx] = 0;
+      }
+      data = out;
+    }
     return { w: W, h: H, data };
   }
 
-  async function readDigits(digits, dh, ocr) {
+  // the same row written in several ways; reading them all and keeping the most common answer fixes a digit that
+  // one way of drawing makes unclear (a pale 5 read as 2)
+  const VARIANTS = [
+    {}, { dilate: 1 }, { gap: 1, pad: 0.8 }, { rev: true, dilate: 1 },
+    { gap: 0.4 }, { dilate: 2 }, { gap: 1.4, dilate: 1 }, { rev: true, gap: 0.9 }
+  ];
+  async function stripText(digits, dh, ocr, opt) {
+    const ds = opt && opt.rev ? digits.slice().reverse() : digits;
+    const t = (await ocr('digits', digitStrip(ds, dh, opt))).map(x => x.text).join('').replace(/[^1-7#]/g, '');
+    return opt && opt.rev ? t.split('').reverse().join('') : t;
+  }
+  const best = votes => {
+    const ks = Object.keys(votes).sort((a, b) => votes[b] - votes[a]);
+    return ks.length && votes[ks[0]] >= 2 && (ks.length < 2 || votes[ks[0]] > votes[ks[1]]) ? ks[0] : null;
+  };
+
+  // careful = pale ink (chords): read in at least three ways. Otherwise one reading, more only when it looks wrong.
+  async function readDigits(digits, dh, ocr, careful) {
     if (!digits.length) return [];
-    const s = (await ocr('digits', digitStrip(digits, dh))).map(x => x.text).join('').replace(/[^1-7#]/g, '');
-    if (s.length === digits.length) return s.split('');
-    // counts differ: read them one at a time, each written three times (OCR names a lone character badly)
+    const n = digits.length, reads = [], sure = new Array(n).fill(null);
+    const decide = () => {
+      for (let i = 0; i < n; i++) { const v = {}; reads.forEach(r => { v[r[i]] = (v[r[i]] || 0) + 1; }); sure[i] = best(v); }
+      return sure.every(c => c);
+    };
+    let k = 0;
+    const next = async () => { const s = await stripText(digits, dh, ocr, VARIANTS[k++]); if (s.length === n) reads.push(s.split('')); };
+    await next();
+    if (!careful && reads.length === 1) return reads[0];
+    // everything but the first reading is repeated until the votes settle
+    const first = k;
+    while (k < VARIANTS.length) {
+      await next();
+      if (k - first >= 2 && reads.length >= 3 && decide()) return sure.slice();
+    }
+    if (reads.length >= 2) decide();
+    if (sure.every(c => c)) return sure.slice();
+    // still unsure: each unsure digit is read alone, written three times plain and three times thickened
     const one = [];
-    for (const d of digits) {
-      const t = (await ocr('digits', digitStrip([d, d, d], dh))).map(x => x.text).join('').replace(/[^1-7#]/g, '');
-      const votes = {};
-      t.split('').forEach(c => { votes[c] = (votes[c] || 0) + 1; });
-      const best = Object.keys(votes).sort((a, b) => votes[b] - votes[a])[0];
-      one.push(best && votes[best] >= 2 ? best : '?');
+    for (let i = 0; i < n; i++) {
+      if (sure[i]) { one.push(sure[i]); continue; }
+      const d = digits[i], votes = {};
+      for (const opt of [{}, { dilate: 1 }]) {
+        (await stripText([d, d, d], dh, ocr, opt)).split('').forEach(c => { votes[c] = (votes[c] || 0) + 1; });
+      }
+      // an earlier reading of this position counts too
+      reads.forEach(r => { votes[r[i]] = (votes[r[i]] || 0) + 1; });
+      one.push(best(votes) || '?');
     }
     return one;
   }
@@ -196,7 +245,7 @@ const SheetRead = (() => {
   // a number row → tokens with x positions; adjacent numbers (no space) share one token like 2'2'
   async function readNumberRow(layer, w, r, ocr, isChord) {
     const { digits, lines, dh } = numberPieces(layer, w, r);
-    const names = await readDigits(digits, dh, ocr);
+    const names = await readDigits(digits, dh, ocr, isChord);
     const toks = [];
     let sharp = null, prev = null;
     digits.forEach((d, i) => {
@@ -223,6 +272,11 @@ const SheetRead = (() => {
     else {
       // numbers far off to the right (a page-number box) are not part of the melody
       for (let i = 1; i < toks.length; i++) if (toks[i].x0 - toks[i - 1].right > dh * 10) { toks.length = i; break; }
+      // a wide blank (the writer left a gap on purpose) is a rest of one beat: written 0, and it sits in the gap
+      for (let i = toks.length - 1; i >= 1; i--) {
+        const a = toks[i - 1], b = toks[i];
+        if (b.x0 - a.right >= dh * REST_GAP) toks.splice(i, 0, { t: '0', x0: a.right + 1, x1: b.x0 - 1, right: b.x0 - 1, rest: true });
+      }
     }
     return toks;
   }
@@ -281,22 +335,24 @@ const SheetRead = (() => {
       const toks = m.toks, lg = lyr ? lyr.groups : [];
       // each lyric group claims the numbers under it
       const owner = toks.map(tk => {
+        if (tk.rest) return null;     // takes its neighbour's word below
         const cx = (tk.x0 + tk.x1) / 2;
         let best = -1, bd = Infinity;
         lg.forEach((g, gi) => { const d = cx < g.x0 ? g.x0 - cx : cx > g.x1 ? cx - g.x1 : 0; if (d < bd) { bd = d; best = gi; } });
         return best;
       });
+      owner.forEach((o, k) => { if (o === null) owner[k] = k ? owner[k - 1] : -1; });   // a rest stays with the number before it
       const melGroups = [], lyrGroups = [];
       toks.forEach((tk, k) => {
         if (k === 0 || owner[k] !== owner[k - 1]) { melGroups.push([]); lyrGroups.push(owner[k] >= 0 ? lg[owner[k]].text : '~'); }
         melGroups[melGroups.length - 1].push(tk.t);
       });
-      // a chord is played with the last number starting at or before its middle
+      // a chord is played with the last number starting at or before its middle (never with a rest)
       const chd = toks.map(() => '.');
       chords.forEach(c => {
         const cx = (c.x0 + c.x1) / 2;
-        let k = 0;
-        toks.forEach((tk, j) => { if (tk.x0 <= cx + 2) k = j; });
+        let k = toks.findIndex(tk => !tk.rest);
+        toks.forEach((tk, j) => { if (!tk.rest && tk.x0 <= cx + 2) k = j; });
         if (chd[k] === '.') chd[k] = c.t + (c.strum ? '~' : '');
       });
       out.push([lyrGroups.join(' '), melGroups.map(g => g.join(' ')).join('   '), chd.join(' ')].join('\n'));

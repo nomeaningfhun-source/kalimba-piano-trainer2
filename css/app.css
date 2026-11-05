@@ -83,6 +83,12 @@ body.on-play header.app-header { display: none; }
 .sh-d small { font-size: 12px; font-weight: 500; }
 .sh-l { font-size: 12px; line-height: 18px; min-height: 18px; color: #5F6652; white-space: nowrap; }
 .sh-n.done .sh-d { color: #C3BBA9; }
+.sh-n.sh-tie { min-width: 1.2rem; padding-left: 0; padding-right: 0; }
+.sh-n.hit .sh-d { color: #4F7A3A; }
+.sh-n.hit .sh-l { color: #4F7A3A; }
+.sh-rest { display: flex; flex-direction: column; align-items: center; min-width: 1.85rem; padding: 2px 3px 3px; }
+.sh-rest .sh-d { color: #C3BBA9; font-weight: 400; }
+.sh-c { display: block; min-height: 14px; font-size: 10px; line-height: 14px; font-weight: 600; color: #B0382E; white-space: nowrap; }
 .sh-n.sel { box-shadow: inset 0 0 0 1.5px #A9603F; }
 .sh-n.on { background: #A9603F; }
 .sh-n.on .sh-d, .sh-n.on .sh-l, .sh-n.on .sh-up, .sh-n.on .sh-dn { color: #FFF9F0; }
@@ -90,6 +96,7 @@ body.on-play header.app-header { display: none; }
 /* sheet practice: the note to play now, and the mini kalimba */
 .sh-n.target { background: #F0D7CB; box-shadow: inset 0 0 0 2px #A9603F; }
 .sh-n.wrong { background: #F5E0DC; box-shadow: inset 0 0 0 2px #A24F3E; }
+.sh-n.wrong .sh-d { color: #A24F3E; }
 .sh-n.miss .sh-d { color: #A24F3E; text-decoration: line-through; }
 .ms-t { flex: 1 1 0; max-width: 24px; min-height: 30px; border-radius: 0 0 8px 8px; background: #E0D8C8; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 3px; transition: background .12s; }
 .ms-t span { font: 600 9px ui-monospace, Menlo, monospace; color: #5F6652; }

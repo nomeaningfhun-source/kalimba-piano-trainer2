@@ -47,11 +47,45 @@ t('a # sign joins the number after it; a lone digit is retried three times over'
   const toks = await SR.readNumberRow(L.dark, 80, r, ocr, false);
   assert.deepStrictEqual(toks.map(x => x.t), ['#4', "5'"]);
   assert.strictEqual(P.parseNoteToken('#4').midi, 66);
-  // the strip reading came back short: each digit is read again as three copies and needs two votes
+  // the first strip reading came back short: the row is drawn other ways until three readings agree
   let calls = 0;
-  const t2 = await SR.readNumberRow(L.dark, 80, r, async () => [{ text: ++calls === 1 ? '4' : calls === 2 ? '###' : calls === 3 ? '424' : '5' }], false);
+  const t2 = await SR.readNumberRow(L.dark, 80, r, async () => [{ text: ++calls === 1 ? '4' : '#45' }], false);
   assert.strictEqual(calls, 4);
-  assert.deepStrictEqual(t2.map(x => x.t), ['#4', "?'"]);   // a single vote is not enough: ? for the reviewer
+  assert.deepStrictEqual(t2.map(x => x.t), ['#4', "5'"]);
+  // no drawing of the whole row reads right: each digit is read alone (plain, then thickened, three copies each)
+  calls = 0;
+  const alone = ['###', '###', '424', '4', '5', '6'];
+  const t3 = await SR.readNumberRow(L.dark, 80, r, async () => [{ text: ++calls <= 8 ? '4' : alone[calls - 9] }], false);
+  assert.strictEqual(calls, 14);
+  assert.deepStrictEqual(t3.map(x => x.t), ['#4', "?'"]);   // 5 and 6 one vote each: ? for the reviewer
+});
+t('a pale chord is read several ways and the most common answer wins (135, not 132)', async () => {
+  const rects = [[10, 20, 19, 35, RED], [22, 20, 31, 35, RED], [34, 20, 43, 35, RED]];
+  const L = SR.splitLayers(page(60, 50, rects), 60, 50, 4);
+  const r = SR.findRows(L.red, 60, 50)[0];
+  let calls = 0;
+  const toks = await SR.readNumberRow(L.red, 60, r, async () => [{ text: ++calls === 1 ? '132' : '135' }], true);
+  assert.deepStrictEqual(toks.map(x => x.t), ['135']);
+  assert(calls >= 3);
+});
+t('a wide blank between melody numbers is a rest (0) that keeps the word of the number before it', async () => {
+  const rects = [[10, 20, 19, 35, GREY], [25, 20, 34, 35, GREY], [80, 20, 89, 35, GREY]];
+  const L = SR.splitLayers(page(110, 50, rects), 110, 50, 4);
+  const r = SR.findRows(L.dark, 110, 50)[0];
+  const toks = await SR.readNumberRow(L.dark, 110, r, async () => [{ text: '356' }], false);
+  assert.deepStrictEqual(toks.map(x => x.t), ['3', '5', '0', '6']);
+  const rows = [
+    { kind: 'lyric', y0: 0, y1: 15, hgt: 16, x0: 0, x1: 110, groups: [{ x0: 8, x1: 36, text: 'กลับ' }, { x0: 78, x1: 92, text: 'มา' }] },
+    Object.assign({ kind: 'melody', y0: 20, y1: 35, hgt: 16, x0: 10, x1: 89 }, { toks })
+  ];
+  assert.strictEqual(SR.assemble(rows).split('\n')[1], '3 5 0   6');
+});
+t('a whole song a semitone up or down: melody, number chords, bass and letter chords', () => {
+  assert.strictEqual(P.transposeMelody("3' 2'2' #4 7 0 -", 1), "4' #2'#2' 5 1' 0 -");
+  assert.strictEqual(P.transposeMelody('1 3', -1), '7, #2');
+  assert.strictEqual(P.transposeChords('135~ 6 . C Am/G', 2), '2#46~ 7 . D Bm/A');
+  const s = P.transposeSong({ measures: [{ mel: '6 7', chd: '6 .' }] }, 1);
+  assert.deepStrictEqual(s.measures[0], { mel: "b7 1'", chd: 'b7 .' });
 });
 t('a # written after a number (and its octave mark) is that number\'s sharp: 5\'# = #5\'', async () => {
   const rects = [[10, 20, 19, 35, GREY], [21, 20, 22, 24, GREY], [25, 20, 34, 35, GREY], [60, 20, 69, 35, GREY]];
