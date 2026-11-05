@@ -571,16 +571,6 @@ const SAMPLE1 = [
   'C . F . | C . G7 .'
 ].join('\n');
 
-// the user's own format: lyrics words / melody groups / bass numerals aligned by column
-const SAMPLE_YOURS = [
-  '@title Yours Ever',
-  '@tempo 78',
-  '',
-  'กินคนเดียว เดินคนเดียว ฉันคนเดียว ไม่มีใคร',
-  "2' 2'2'  2' 1' 2'  2'1' 2'  3'2'1'",
-  '1                                   6'
-].join('\n');
-
 const SAMPLE2 = [
   '@title ตัวอย่างโน้ตเกินช่วง',
   '@tempo 90',

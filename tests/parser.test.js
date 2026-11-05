@@ -152,19 +152,21 @@ t('errors: empty / no melody', () => {
   assert(P.importText('', {}).msgs.some(m => m.level === 'error'));
   assert.strictEqual(P.importText('hello\nworld\nfoo\n', {}).song.measures.length, 0);
 });
-t('user format: Yours Ever (words / melody groups / column-aligned bass)', () => {
-  const r = P.importText(P.SAMPLE_YOURS, {});
+t('sheet format: lyric words / melody groups / bass numbers aligned by column', () => {
+  const mel = "3' 3'3'  2' 1' 3'  3'2' 1'  2'1'5";
+  const text = 'ทดลองดู ร้องเพลงกัน ไปด้วยกัน ทุกคนเลย\n' + mel + '\n' + '1'.padEnd(mel.lastIndexOf("2'1'5"), ' ') + '6';
+  const r = P.importText(text, {});
   assert.strictEqual(r.msgs.length, 0, JSON.stringify(r.msgs));
   assert.strictEqual(r.song.measures.length, 2);
-  assert.strictEqual(r.song.measures[0].mel, "2' 2'2' 2' 1'");
-  assert.strictEqual(r.song.measures[1].mel, "2' 2'1' 2' 3'2'1'");
-  const p = P.parseSong(r.song, 'Bb4');
+  assert.strictEqual(r.song.measures[0].mel, "3' 3'3' 2' 1'");
+  assert.strictEqual(r.song.measures[1].mel, "3' 3'2' 1' 2'1'5");
+  const p = P.parseSong(r.song, 'B4');
   assert.strictEqual(p.issues.length, 0, JSON.stringify(p.issues));
   assert.strictEqual(p.measures[0].notes.length + p.measures[1].notes.length, 12);
   assert.deepStrictEqual(p.measures[0].notes.map(n => n.dur), [1, 0.5, 0.5, 1, 1]);
-  assert.deepStrictEqual(p.measures[0].notes.map(n => n.lyric), ['กิน', 'คน', 'เดียว', 'เดิน', 'คน']);
-  assert.strictEqual(p.measures[0].chords[0].midi, 60);   // bass 1 under first note
-  assert.strictEqual(p.measures[1].chords[0].midi, 69);   // bass 6 under last note
+  assert.deepStrictEqual(p.measures[0].notes.map(n => n.lyric), ['ทด', 'ลอง', 'ดู', 'ร้อง', 'เพลง']);
+  assert.strictEqual(p.measures[0].chords[0].midi, 60);   // bass 1 under the first note
+  assert.strictEqual(p.measures[1].chords[0].midi, 69);   // bass 6 under the last slot
   assert.strictEqual(p.measures[1].chords[0].beat, 3);
 });
 t('adjacent notes share a beat, slash = bar', () => {

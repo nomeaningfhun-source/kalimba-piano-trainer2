@@ -125,8 +125,7 @@ const state = {
   lesson: { currentTarget: null, correctCount: 0, missMap: {}, timer: 0 },
   inspectingNotes: [],
   library: [
-    { id: 's1', title: 'ดาวส่องแสง (โดเมนสาธารณะ)', bpm: 85, notes: ['C4','C4','G4','G4','A4','A4','G4','F4','F4','E4','E4','D4','D4','C4'] },
-    { id: 's2', title: 'Yours Ever (3 บรรทัดจากรูป)', bpm: 78, notes: ['D5','D5','D5','C5','D5','E5','D5','C5','G5','G5','G5','A5'] }
+    { id: 's1', title: 'ดาวส่องแสง (โดเมนสาธารณะ)', bpm: 85, notes: ['C4','C4','G4','G4','A4','A4','G4','F4','F4','E4','E4','D4','D4','C4'] }
   ]
 };
 
@@ -836,7 +835,6 @@ function setupImport() {
   const ta = byId('imp-text');
   const fill = (t, bpm) => { ta.value = t; byId('imp-title').value = ''; if (bpm) byId('imp-tempo').value = bpm; byId('imp-msg').innerHTML = ''; S.photoDraft = null; };
   byId('btn-preset-twinkle').addEventListener('click', () => fill(SAMPLE1, 100));
-  byId('btn-preset-yours-ever').addEventListener('click', () => fill(SAMPLE_YOURS, 78));
   byId('btn-preset-over').addEventListener('click', () => fill(SAMPLE2, 90));
   byId('btn-clear').addEventListener('click', () => { ta.value = ''; byId('imp-title').value = ''; byId('imp-msg').innerHTML = ''; S.photoDraft = null; });
   byId('btn-photo').addEventListener('click', () => byId('file-photo').click());
