@@ -393,15 +393,19 @@ function renderRetune() {
     '<span class="block text-[9px] font-normal opacity-70">' + k.pitch + '</span></button>').join('');
   $('set-retune-note').textContent = retuneSummary() ? 'จูนไว้: ' + retuneSummary() + ' · อย่าลืมจูนก้านจริงตามนี้ (ดูได้ที่หน้าตั้งเสียง)' : 'ทุกก้านเป็นเสียงมาตรฐาน C';
 }
-$('set-retune').addEventListener('click', e => {
-  const b = e.target.closest('[data-rt]');
-  if (!b) return;
-  const m = b.dataset.rt, cur = state.retune[m] || 0, next = cur === 0 ? 1 : cur === 1 ? -1 : 0;
-  if (next) state.retune[m] = next; else delete state.retune[m];
+// tune one tine (by its standard MIDI note) a half step up (1), down (-1) or back (0): kalimba, sheet strip, tuner and song checks follow
+function applyRetune(m, v) {
+  if (v) state.retune[m] = v; else delete state.retune[m];
   try { localStorage.setItem('kt.retune', JSON.stringify(state.retune)); } catch (err) { /* storage blocked */ }
   renderRetune(); renderKalimba();
   if (window.M2) M2.onTuning();
   if (window.KTTuner) KTTuner.render();
+}
+$('set-retune').addEventListener('click', e => {
+  const b = e.target.closest('[data-rt]');
+  if (!b) return;
+  const m = b.dataset.rt, cur = state.retune[m] || 0;
+  applyRetune(m, cur === 0 ? 1 : cur === 1 ? -1 : 0);
 });
 $('btn-open-settings').onclick = () => {
   renderRetune();
@@ -1048,6 +1052,32 @@ function refreshCard(i) {
   Fix.count();
 }
 
+// what is wrong with a red note, in plain words, and the one-tap fixes: a note the kalimba has instead, or telling the app the tine is tuned
+function suggestFor(it) {
+  const out = { msg: '', btns: [] };
+  if (!it) return out;
+  if (it.type === 'bad') { out.msg = 'อ่านตัวนี้ไม่ออก (' + it.tok + ') · แตะเลข 1–7 ที่ถูกตามรูปด้านบน'; return out; }
+  if (!it.bad) return out;
+  const keys = keySet(state.tuning), m = it.midi, nm = x => noteLabel(describe(x, x === 70), 'western');
+  const tok = String(it.tok || ''), sharp = /^#/.test(tok), flat = /^b/.test(tok);
+  out.msg = it.bad.msg;
+  const cand = [];
+  if (it.bad.code === 'low') { for (let x = m + 12; x <= KEY_MAX + 12 && !cand.length; x += 12) if (keys.has(x)) cand.push(x); }
+  else if (it.bad.code === 'high') { for (let x = m - 12; x >= KEY_MIN - 12 && !cand.length; x -= 12) if (keys.has(x)) cand.push(x); }
+  else {
+    const order = flat ? [m + 1, m - 1] : [m - 1, m + 1];          // a ♯ falls back to the note below, a ♭ to the one above
+    order.forEach(x => { if (keys.has(x)) cand.push(x); });
+  }
+  const label = x => it.bad.code === 'low' ? 'ขึ้น 1 ออคเทฟ → ' + nm(x) : it.bad.code === 'high' ? 'ลง 1 ออคเทฟ → ' + nm(x) : 'ใช้ ' + nm(x) + ' แทน';
+  cand.slice(0, 2).forEach((x, i) => out.btns.push({ act: 'fixmidi', attr: 'data-mid="' + x + '"', label: (i === 0 ? '✨ ' : '') + label(x) + (i === 0 ? ' (แนะนำ)' : '') }));
+  // a ♯/♭ written on purpose and the kalimba's tine is tuned that way: say so once
+  if ((sharp || flat) && it.bad.code === 'accidental') {
+    const base = sharp ? m - 1 : m + 1;
+    if (KALIMBA17.indexOf(base) >= 0) out.btns.push({ act: 'retune', attr: 'data-base="' + base + '" data-dir="' + (sharp ? 1 : -1) + '"', label: 'เครื่องฉันจูนก้าน ' + nm(base) + (sharp ? ' เป็น ♯' : ' เป็น ♭') });
+  }
+  return out;
+}
+
 /* ---- tap a note or chord chip to fix it right there ---- */
 const Fix = {
   at: null, cur: -1,
@@ -1064,27 +1094,43 @@ const Fix = {
         '<button data-fx="x" class="px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300">✕</button></div>' +
         '<div class="text-[10px] text-slate-500 mt-1">เลขติดกัน = ดีดพร้อมกัน เช่น 135 · ใส่ ~ ท้าย = กรีด (135~) · เลขเดียว = เบส</div>';
     } else {
-      const b = (k, t, cls) => '<button data-fx="' + k + '" class="h-10 rounded-lg ' + (cls || 'bg-slate-800 border border-slate-700 text-slate-100') + ' text-sm font-semibold">' + t + '</button>';
-      pop.innerHTML = '<div class="grid grid-cols-7 gap-1">' + [1, 2, 3, 4, 5, 6, 7].map(d => b('d' + d, d)).join('') + '</div>' +
-        '<div class="grid grid-cols-7 gap-1 mt-1">' + b('up', "สูง '") + b('dn', 'ต่ำ') + b('sharp', '♯') + b('play', '▶', 'bg-amber-600 text-white') +
-        b('ins', '＋') + b('del', '⌫', 'bg-slate-800 border border-slate-700 text-rose-300') + b('x', '✕', 'bg-slate-800 border border-slate-700 text-slate-400') + '</div>' +
-        '<button data-fx="undo" class="w-full h-8 mt-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-100 text-xs font-semibold">↶ ย้อนกลับการแก้ล่าสุด</button>';
-      // rhythm: which notes share a beat, and where the gaps are
+      const it = (S.parsed && S.parsed.measures[this.at.i] ? S.parsed.measures[this.at.i].items : []).filter(x => x.type !== 'hold')[this.at.n];
+      const sg = suggestFor(it), photo = S.review.song.source === 'photo';
+      const NEUTRAL = 'bg-slate-800 border border-slate-700 text-slate-100';
+      const nb = (k, t, cls, attr, size) => '<button data-fx="' + k + '" ' + (attr || '') + ' class="h-11 rounded-xl ' + (size || 'text-sm') + ' font-semibold active:scale-95 ' + (cls || NEUTRAL) + '">' + t + '</button>';
+      const sec = t => '<div class="text-[11px] font-semibold text-slate-400 mt-2 mb-1">' + t + '</div>';
+      const dsc = it && it.midi != null ? describe(it.midi, it.midi === 70) : null;
+      const title = !it ? 'โน้ต' : it.type === 'rest' ? 'พัก (0)' : it.type === 'bad' ? esc(it.tok) + ' ?' :
+        esc(numeralLabel(dsc)) + ' <span class="font-normal text-slate-400">' + esc(noteLabel(dsc, S.noteSystem)) + '</span>';
+      let h = '<div class="flex items-center gap-2"><div class="flex-1 min-w-0 text-base font-bold text-slate-100 truncate">' + title +
+        ' <span class="text-xs font-normal text-slate-400">· ห้อง ' + (this.at.i + 1) + '</span></div>' +
+        '<button data-fx="x" class="h-9 px-3 rounded-xl text-xs font-semibold ' + NEUTRAL + '">✕ ปิด</button></div>';
+      // a red note: what is wrong, in plain words, and one tap to fix it
+      if (sg.msg) {
+        h += '<div class="mt-1.5 rounded-xl border border-red-500 bg-red-900/60 text-red-100 p-2"><div class="text-xs font-semibold">⚠ ' + esc(sg.msg) + '</div>' +
+          (sg.btns.length ? '<div class="grid gap-1.5 mt-1.5 ' + (sg.btns.length > 1 ? 'grid-cols-2' : '') + '">' +
+            sg.btns.map((x, i) => nb(x.act, x.label, i === 0 ? 'bg-amber-600 text-white' : NEUTRAL, x.attr, 'text-xs')).join('') + '</div>' : '') + '</div>';
+      }
+      h += sec('เปลี่ยนเป็นโน้ต') + '<div class="grid grid-cols-7 gap-1.5">' + [1, 2, 3, 4, 5, 6, 7].map(d => nb('d' + d, d, NEUTRAL, '', 'text-base')).join('') + '</div>' +
+        '<div class="grid grid-cols-4 gap-1.5 mt-1.5">' + nb('up', "สูง '") + nb('dn', 'ต่ำ') + nb('sharp', '♯') + nb('play', '▶ ฟัง', 'bg-amber-600 text-white') + '</div>';
+      // rhythm
       const sl = melSlots(m.mel), rp = melChipPos(sl)[this.at.n];
       if (rp) {
-        const s = sl[rp[0]], last = rp[1] === s.subs.length - 1, split = !last, canJoin = split || !!sl[rp[0] + 1];
-        const rb = (k, t, on) => '<button data-fx="' + k + '" ' + (on ? '' : 'disabled ') + 'class="h-9 rounded-lg bg-slate-800 border border-slate-700 text-xs ' + (on ? 'text-slate-100' : 'text-slate-600') + '">' + t + '</button>';
-        if (S.review.song.source === 'photo') {
-          // photo songs: every number is a beat and gaps are holds (-), so no silent rests here
+        const sRow = sl[rp[0]], last = rp[1] === sRow.subs.length - 1, split = !last, canJoin = split || !!sl[rp[0] + 1];
+        const rb = (k, t, on) => nb(k, t, on ? NEUTRAL : 'bg-slate-800 border border-slate-700 text-slate-500', on ? '' : 'disabled', 'text-xs');
+        if (photo) {
+          // photo songs: every number is one beat and gaps are holds (-), so no silent rests here
           const hz = x => !!x && x.subs.length === 1 && (x.subs[0] === '-' || x.subs[0] === '~');
           const canHx = (last && hz(sl[rp[0] + 1])) || (rp[1] === 0 && rp[0] > 0 && hz(sl[rp[0] - 1]));
-          pop.innerHTML += '<div class="grid grid-cols-2 gap-1 mt-1">' + rb('rj', split ? '✂ แยกจังหวะ' : '⌒ ติดตัวถัดไป', canJoin) +
-            rb('hb', '−◂ ยืดตัวก่อนหน้า', this.at.n > 0 || this.at.i > 0) + rb('ha', '▸− ต่อเสียง', true) + rb('hx', '✕− เอาต่อเสียงออก', !!canHx) + '</div>' +
-            '<div class="text-[10px] text-slate-500 mt-1">เพลงจากรูป: ทุกตัวเลข = 1 จังหวะ · ต่อเสียง = ยืดโน้ตนี้อีก 1 จังหวะ · ยืดตัวก่อนหน้า = โน้ตก่อนหน้าค้างอีก 1 จังหวะ · พักเงียบ พิมพ์ 0 เอง</div>';
-        } else pop.innerHTML += '<div class="grid grid-cols-4 gap-1 mt-1">' + rb('rj', split ? '✂ แยกจังหวะ' : '⌒ ติดตัวถัดไป', canJoin) +
-          rb('rb', '0◂ พักก่อน', true) + rb('ra', '▸0 พักหลัง', true) + rb('rh', '− ต่อเสียง', last) + '</div>' +
-          '<div class="text-[10px] text-slate-500 mt-1">ติด = ดีดในจังหวะเดียว (5\'5\') · พัก = เว้น 1 จังหวะเงียบ · ต่อเสียง = ยืดโน้ตนี้อีก 1 จังหวะ</div>';
+          h += sec('ยืดเสียง · ทุกตัวเลขนับ 1 จังหวะ') + '<div class="grid grid-cols-3 gap-1.5">' + rb('ha', 'ต่อเสียง ▸', true) +
+            rb('hb', '◂ ยืดตัวก่อนหน้า', this.at.n > 0 || this.at.i > 0) + rb('hx', 'เอาออก ✕', !!canHx) + '</div>';
+        } else {
+          h += sec('จังหวะ') + '<div class="grid grid-cols-4 gap-1.5">' + rb('rj', split ? '✂ แยก' : '⌒ ติดกัน', canJoin) +
+            rb('rb', 'พักก่อน', true) + rb('ra', 'พักหลัง', true) + rb('rh', 'ต่อเสียง', last) + '</div>';
+        }
       }
+      h += sec('จัดการ') + '<div class="grid grid-cols-3 gap-1.5">' + nb('ins', '＋ เพิ่มซ้ำ') + nb('del', '🗑 ลบโน้ต', 'bg-slate-800 border border-slate-700 text-rose-300') + nb('undo', '↶ ย้อนกลับ') + '</div>';
+      pop.innerHTML = h;
       // the lyric word this note sings, edited as a whole word; the app splits it over the same notes again
       const li = this.lyrIndex(this.at.i, this.at.n);
       if (li >= 0) {
@@ -1129,7 +1175,7 @@ const Fix = {
     const card = this.at && cardEl(this.at.i);
     return card && $(this.at.c != null ? '[data-c="' + this.at.c + '"]' : '[data-n="' + this.at.n + '"]', card);
   },
-  apply(act) {
+  apply(act, el) {
     const at = this.at;
     if (!at) return;
     if (act === 'x') { this.close(); return; }
@@ -1154,6 +1200,12 @@ const Fix = {
       if (chip) this.open(chip); else this.close();
       return;
     }
+    if (act === 'retune') {                      // "my kalimba has this tine tuned a half step off"
+      applyRetune(+el.dataset.base, +el.dataset.dir);
+      const chip0 = this.chip();
+      if (chip0) this.open(chip0); else this.close();
+      return;
+    }
     const slots = melSlots(m.mel), pos = melChipPos(slots)[at.n];
     if (!pos) { this.close(); return; }
     const [si, k] = pos, x = /^([#b]?)([0-7])('{0,3}|,{0,3})$/.exec(normTok(slots[si].subs[k]));
@@ -1175,6 +1227,8 @@ const Fix = {
     }
     if (act === 'del') {
       slots[si].subs.splice(k, 1);
+    } else if (act === 'fixmidi') {              // swap for a note the kalimba has
+      slots[si].subs[k] = midiTok(+el.dataset.mid - 12 * (S.review.song.octaveShift || 0));
     } else if (act === 'ins') {
       slots.splice(si + 1, 0, { subs: [slots[si].subs[k]], sep: '' });
     } else {
@@ -1191,7 +1245,7 @@ const Fix = {
     if (act === 'ins') this.at.n = at.n + 1;
     const chip = this.chip();
     if (!chip) { this.close(); return; }
-    chip.classList.add('sel'); this.place(chip);
+    this.open(chip);                             // redraw the panel: its title and red box follow the change
     // hear the fixed note
     if (act !== 'ins' && chip.dataset.midi) { unlockAudioUI(); if (Synth.ensure()) Synth.kalimba(Synth.master, +chip.dataset.midi, Synth.ctx.currentTime + 0.01, 0.9); }
   },
@@ -1236,6 +1290,18 @@ function renderSummary() {
   if (sug) {
     html += '<button data-fix="shift" data-shift="' + sug.shift + '" class="px-2.5 py-1.5 rounded-lg bg-amber-500 text-slate-950 text-[11px] font-bold">🪄 เลื่อนทั้งเพลงเป็น ' + (sug.shift > 0 ? '+' : '') + sug.shift + ' ออคเทฟ → เหลือเกินช่วง ' + sug.left + ' โน้ต</button>';
   }
+  const nAcc = S.parsed.issues.filter(x => x.code === 'accidental').length;
+  if (nAcc) {
+    html += '<button data-fix="nat" class="w-full h-11 rounded-xl bg-amber-600 text-white text-xs font-bold active:scale-95">✨ ตัด ♯/♭ ที่ไม่มีคีย์ทั้งเพลง (' + nAcc + ' โน้ต)</button>' +
+      '<div class="text-[11px] text-slate-400">ได้โน้ตธรรมดาที่ใกล้ที่สุดที่เครื่องมี · ถ้าเครื่องคุณจูนก้านเป็น ♯/♭ ไว้ ให้แตะตัวแดงแล้วกด "เครื่องฉันจูน…" แทน · ผิดกด ↶ ย้อนกลับ</div>';
+  }
+  html += '<details ' + (S.helpOpen ? 'open ' : '') + 'class="rounded-xl border border-slate-700 bg-slate-900 p-2"><summary class="font-semibold cursor-pointer text-slate-100">❓ ตัวแดงคืออะไร แก้ยังไง</summary>' +
+    '<div class="mt-1.5 space-y-1.5 text-[11px] text-slate-300 leading-relaxed">' +
+    '<p><b>ตัวแดง</b> = เล่นบนคาลิมบา 17 คีย์ไม่ได้ หรือตัวอ่านรูปอ่านไม่ออก แตะตัวแดงตัวนั้น แล้วดูกล่องสีแดงในแผงด้านล่าง กดปุ่มสีส้ม <b>✨ แนะนำ</b> ได้เลย</p>' +
+    '<p>• <b>มี ♯ หรือ ♭ แต่ไม่มีคีย์</b> → กด "ใช้ … แทน" (เล่นโน้ตธรรมดาที่ใกล้สุด) หรือ "เครื่องฉันจูนก้าน…" ถ้าก้านนั้นจูนไว้จริง</p>' +
+    '<p>• <b>สูง/ต่ำเกินช่วง</b> → กด "ขึ้น/ลง 1 ออคเทฟ" ทีละตัว หรือ 🪄 เลื่อนทั้งเพลงด้านบน</p>' +
+    '<p>• <b>มี ? ต่อท้าย</b> → อ่านไม่ออก ดูรูปต้นฉบับด้านบน แล้วแตะเลข 1–7 ที่ถูก</p>' +
+    '<p>• ลูกศร ◀ ▶ ที่แถบบนพาไปตัวแดงตัวถัดไป · แก้ผิดกด <b>↶ ย้อนกลับ</b> (ในแป้นหรือในแผง) ได้เสมอ</p></div></details>';
   html += '<div class="space-y-0.5 max-h-40 overflow-y-auto">' + S.parsed.issues.slice(0, 40).map(x =>
     '<button data-goto="' + x.measure + '" class="block w-full text-left ' + (x.level === 'error' ? 'text-red-300' : 'text-amber-300') + '">ห้อง ' + (x.measure + 1) + ': ' + esc(x.msg) + '</button>').join('') + '</div>';
   box.innerHTML = html;
@@ -1400,7 +1466,6 @@ function setupReview() {
   const rs = () => S.review.song;
   byId('btn-review-back').addEventListener('click', () => go(S.review.from === 'library' ? 'library' : 'import'));
   byId('rv-title').addEventListener('input', e => { rs().title = e.target.value; markDirty('typing'); });
-  byId('rv-undo').addEventListener('click', () => Undo.undo());
   byId('rv-tempo').addEventListener('input', e => { rs().tempo = clamp(parseInt(e.target.value, 10) || 100, 30, 240); markDirty('typing'); });
   byId('rv-beats').addEventListener('change', e => { rs().beats = parseInt(e.target.value, 10) || 4; markDirty(); refreshAll(); });
   const shift = d => {
@@ -1427,7 +1492,25 @@ function setupReview() {
   byId('btn-save').addEventListener('click', saveSong);
 
   byId('rv-summary').addEventListener('click', e => {
+    if (e.target.closest('summary')) setTimeout(() => { const d = byId('rv-summary').querySelector('details'); S.helpOpen = !!(d && d.open); }, 0);
     const f = e.target.closest('[data-fix]');
+    if (f && f.dataset.fix === 'nat') {
+      Fix.close();
+      let n = 0;
+      const sh = rs().octaveShift || 0;
+      rs().measures.forEach(m => {
+        const slots = melSlots(m.mel);
+        slots.forEach(sl => sl.subs.forEach((sub, k) => {
+          const p = parseNoteToken(sub);
+          if (p.type !== 'note') return;
+          const c = checkNote(p.midi + 12 * sh, state.tuning);
+          if (c && c.code === 'accidental') { sl.subs[k] = normTok(sub).replace(/^[#b]/, ''); n++; }
+        }));
+        if (n) m.mel = melJoin(slots);
+      });
+      if (n) { markDirty(); renderCards(); toast('ตัด ♯/♭ แล้ว ' + n + ' โน้ต · ผิดกด ↶ ย้อนกลับ ได้', 3200); } else toast('ไม่มี ♯/♭ ที่ต้องตัด');
+      return;
+    }
     if (f) { shift(parseInt(f.dataset.shift, 10) - (rs().octaveShift || 0)); return; }
     const g = e.target.closest('[data-goto]');
     if (g) {
@@ -1488,7 +1571,7 @@ function setupReview() {
   const pop = byId('fix-pop');
   // mousedown only: cancelling touchstart makes iOS drop the click, so none of the panel's buttons would work on a phone
   pop.addEventListener('mousedown', e => { if (!e.target.closest('input')) e.preventDefault(); });
-  pop.addEventListener('click', e => { const b = e.target.closest('[data-fx]'); if (b) Fix.apply(b.dataset.fx); });
+  pop.addEventListener('click', e => { const b = e.target.closest('[data-fx]'); if (b && !b.disabled) Fix.apply(b.dataset.fx, b); });
   pop.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'fix-chord') Fix.apply('ok'); if (e.key === 'Enter' && e.target.id === 'fix-lyr') Fix.apply('lyr'); });
   if (window.visualViewport) window.visualViewport.addEventListener('resize', () => { if (Fix.at) Fix.place(null); });
   // tapping anywhere else closes it; scrolling keeps it next to its chip
