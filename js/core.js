@@ -327,12 +327,16 @@ function parseMeasure(m, ctx) {
   return { items: mel.items, notes: mel.notes, chords, len, slots: mel.slots, tail: mel.slots ? mel.tail : null, issues };
 }
 
+const lineGap = (m, i) => (i && m && m.br ? Math.max(0, Math.min(4, Math.round(+m.gap || 0))) : 0);
 function parseSong(song, tuning) {
   const measures = [], issues = [];
   let prev = null, start = 0;
   song.measures.forEach((m, i) => {
-    const pm = parseMeasure(m, { shift: song.octaveShift || 0, beats: song.beats, prev, tuning, free: song.source === 'photo' });
-    pm.index = i; pm.start = start;
+    // a measure that starts a new line can wait a few beats first (the rests the sheet leaves there)
+    const gap = lineGap(m, i);
+    start += gap;
+    const pm = parseMeasure(m, { shift: song.octaveShift || 0, beats: song.beats, prev: gap ? null : prev, tuning, free: song.source === 'photo' });
+    pm.index = i; pm.start = start; pm.gap = gap;
     start += pm.len; prev = pm.tail;
     pm.issues.forEach(x => issues.push(Object.assign({ measure: i }, x)));
     measures.push(pm);

@@ -270,4 +270,16 @@ t('rhythm edits: join / split / rest / hold', () => {
   sl = [{ subs: ['5'], sep: '_' }, { subs: ['-'], sep: '_' }];
   P.melRhythm(sl, 0, 0, 'rj'); assert.strictEqual(str(sl), '5_-');
 });
+t('line gap: beats of rest before a measure that starts a new line', () => {
+  const song = { beats: 4, measures: [{ mel: '1 2 3 4', br: true }, { mel: '5 6 7 1', br: true, gap: 2 }, { mel: '2 3 4 5', br: false, gap: 3 }] };
+  const p = P.parseSong(song, 'B4');
+  assert.deepStrictEqual(p.measures.map(m => m.start), [0, 6, 10]);   // 4 + 2 gap; gap ignored without br
+  assert.deepStrictEqual(p.measures.map(m => m.gap), [0, 2, 0]);
+  assert.strictEqual(p.totalBeats, 14);
+  // first measure and over-large gaps are clamped / ignored
+  assert.strictEqual(P.parseSong({ beats: 4, measures: [{ mel: '1', br: true, gap: 2 }, { mel: '2', br: true, gap: 9 }] }, 'B4').measures[1].start, 1 + 4);
+  // a hold at the top of a gapped line does not stretch the note before the gap
+  const h = P.parseSong({ beats: 4, measures: [{ mel: '1', br: true }, { mel: '- 2', br: true, gap: 1 }] }, 'B4');
+  assert.strictEqual(h.measures[0].notes[0].dur, 1);
+});
 console.log(n + ' passed');
