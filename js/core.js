@@ -112,6 +112,36 @@ function parseMelody(str, shift, prev) {
   return { items, notes, slots: slots.length, tail: last, issues };
 }
 
+// Rhythm edits on a melody given as slots [{subs, sep}] (a slot = one beat; sep '' = written 2'2', '_' = 1_2).
+// si/k = slot and position of the note being fixed. Acts: 'rj' join with / split from the next note,
+// 'rb' / 'ra' a one-beat rest before / after the beat, 'rh' hold the note one more beat.
+// Returns how far the note's chip index moves (0 or 1), or null when the edit does not apply.
+function melRhythm(slots, si, k, act) {
+  const s = slots[si];
+  if (!s || k < 0 || k >= s.subs.length) return null;
+  const plain = t => { const p = parseNoteToken(t).type; return p === 'note' || p === 'rest'; };
+  if (act === 'rj') {
+    if (k < s.subs.length - 1) {                         // same beat as the next note -> give it its own beat
+      slots.splice(si + 1, 0, { subs: s.subs.splice(k + 1), sep: s.sep });
+      return 0;
+    }
+    const nx = slots[si + 1];                            // last in its beat -> share the next beat
+    if (!nx) return null;
+    const under = [s, nx].some(x => x.subs.length > 1 && x.sep === '_');
+    s.subs.push(...nx.subs); slots.splice(si + 1, 1);
+    s.sep = !under && s.subs.every(plain) ? '' : '_';
+    return 0;
+  }
+  if (act === 'rb') { slots.splice(si, 0, { subs: ['0'], sep: '_' }); return 1; }
+  if (act === 'ra') { slots.splice(si + 1, 0, { subs: ['0'], sep: '_' }); return 0; }
+  if (act === 'rh') {
+    if (k !== s.subs.length - 1) return null;            // a hold lengthens the last note of its beat
+    slots.splice(si + 1, 0, { subs: ['-'], sep: '_' });
+    return 0;
+  }
+  return null;
+}
+
 const CHORD_RE = /^([A-G])([#b]?)([^\/]*)(?:\/(.+))?$/;
 function chordIntervals(q) {
   const minor = /^(m(?!aj)|min|-)/.test(q), dim = /^(dim|°)/.test(q), aug = /^(aug|\+)/.test(q);

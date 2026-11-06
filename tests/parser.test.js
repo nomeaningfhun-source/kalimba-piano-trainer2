@@ -237,4 +237,37 @@ t('Thai words sung over several notes split into syllables', () => {
   const p = P.parseSong(P.importText('เสมอ ตลอด\n1 2   3 4', {}).song, 'B4');
   assert.deepStrictEqual(p.measures[0].notes.map(x => x.lyric), ['ส', 'เมอ', 'ต', 'ลอด']);
 });
+t('rhythm edits: join / split / rest / hold', () => {
+  // mirrors app.js melSlots: single notes are sep "_", adjacent 2'2' is sep ""
+  const mk = (...a) => a.map(x => Array.isArray(x) ? { subs: x, sep: '' } : { subs: [x], sep: '_' });
+  const str = sl => sl.map(x => x.subs.join(x.sep)).join(' ');
+  const beats = s => Math.round(Math.max(...P.parseMelody(s, 0).items.map(it => it.beat + it.dur)) * 1000) / 1000;
+  // 6' 3' 5' 5'  ->  join last two: 6' 3' 5'5'  (4 notes in 3 beats)
+  let sl = mk("6'", "3'", "5'", "5'");
+  assert.strictEqual(P.melRhythm(sl, 2, 0, 'rj'), 0);
+  assert.strictEqual(str(sl), "6' 3' 5'5'");
+  assert.strictEqual(beats(str(sl)), 3);
+  // and split it again
+  assert.strictEqual(P.melRhythm(sl, 2, 0, 'rj'), 0);
+  assert.strictEqual(str(sl), "6' 3' 5' 5'");
+  // last note of the line has nothing to join
+  assert.strictEqual(P.melRhythm(sl, 3, 0, 'rj'), null);
+  // an explicit 1_2 beat stays underscored when joined
+  sl = [{ subs: ['1', '2'], sep: '_' }, { subs: ['3'], sep: '_' }];
+  P.melRhythm(sl, 0, 1, 'rj'); assert.strictEqual(str(sl), '1_2_3');
+  // rests: before moves the chip index by one, after does not
+  sl = mk('1', '2');
+  assert.strictEqual(P.melRhythm(sl, 1, 0, 'rb'), 1); assert.strictEqual(str(sl), '1 0 2');
+  assert.strictEqual(P.melRhythm(sl, 0, 0, 'ra'), 0); assert.strictEqual(str(sl), '1 0 0 2');
+  assert.strictEqual(beats(str(sl)), 4);
+  // hold: only on the last note of its beat, adds one beat
+  sl = mk('3', '5');
+  assert.strictEqual(P.melRhythm(sl, 0, 0, 'rh'), 0); assert.strictEqual(str(sl), '3 - 5');
+  assert.strictEqual(beats(str(sl)), 3);
+  sl = mk(['1', '2']);
+  assert.strictEqual(P.melRhythm(sl, 0, 0, 'rh'), null);
+  // joining a hold into a beat keeps it underscored (adjacent "5-" would not parse)
+  sl = [{ subs: ['5'], sep: '_' }, { subs: ['-'], sep: '_' }];
+  P.melRhythm(sl, 0, 0, 'rj'); assert.strictEqual(str(sl), '5_-');
+});
 console.log(n + ' passed');

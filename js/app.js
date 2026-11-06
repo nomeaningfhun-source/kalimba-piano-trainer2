@@ -1041,6 +1041,15 @@ const Fix = {
       pop.innerHTML = '<div class="grid grid-cols-7 gap-1">' + [1, 2, 3, 4, 5, 6, 7].map(d => b('d' + d, d)).join('') + '</div>' +
         '<div class="grid grid-cols-7 gap-1 mt-1">' + b('up', "สูง '") + b('dn', 'ต่ำ') + b('sharp', '♯') + b('play', '▶', 'bg-amber-600 text-white') +
         b('ins', '＋') + b('del', '⌫', 'bg-slate-800 border border-slate-700 text-rose-300') + b('x', '✕', 'bg-slate-800 border border-slate-700 text-slate-400') + '</div>';
+      // rhythm: which notes share a beat, and where the gaps are
+      const sl = melSlots(m.mel), rp = melChipPos(sl)[this.at.n];
+      if (rp) {
+        const s = sl[rp[0]], last = rp[1] === s.subs.length - 1, split = !last, canJoin = split || !!sl[rp[0] + 1];
+        const rb = (k, t, on) => '<button data-fx="' + k + '" ' + (on ? '' : 'disabled ') + 'class="h-9 rounded-lg bg-slate-800 border border-slate-700 text-xs ' + (on ? 'text-sky-200' : 'text-slate-600') + '">' + t + '</button>';
+        pop.innerHTML += '<div class="grid grid-cols-4 gap-1 mt-1">' + rb('rj', split ? '✂ แยกจังหวะ' : '⌒ ติดตัวถัดไป', canJoin) +
+          rb('rb', '0◂ พักก่อน', true) + rb('ra', '▸0 พักหลัง', true) + rb('rh', '− ต่อเสียง', last) + '</div>' +
+          '<div class="text-[10px] text-slate-500 mt-1">ติด = ดีดในจังหวะเดียว (5\'5\') · พัก = เว้น 1 จังหวะ · ต่อเสียง = ยืดโน้ตนี้อีก 1 จังหวะ</div>';
+      }
       // the lyric word this note sings, edited as a whole word; the app splits it over the same notes again
       const li = this.lyrIndex(this.at.i, this.at.n);
       if (li >= 0) {
@@ -1116,6 +1125,16 @@ const Fix = {
     if (act === 'play') {
       const p = parseNoteToken(slots[si].subs[k]);
       if (p.type === 'note') { unlockAudioUI(); if (Synth.ensure()) Synth.kalimba(Synth.master, p.midi + 12 * (S.review.song.octaveShift || 0), Synth.ctx.currentTime + 0.01, 0.9); }
+      return;
+    }
+    if (act === 'rj' || act === 'rb' || act === 'ra' || act === 'rh') {
+      const shift = melRhythm(slots, si, k, act);
+      if (shift == null) return;
+      m.mel = melJoin(slots);
+      this.at.n = at.n + shift;
+      this.commit(at.i, 'mel');
+      const chip = this.chip();
+      if (chip) this.open(chip); else this.close();
       return;
     }
     if (act === 'del') {
@@ -1330,7 +1349,10 @@ function setupReview() {
   pop.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'fix-chord') Fix.apply('ok'); if (e.key === 'Enter' && e.target.id === 'fix-lyr') Fix.apply('lyr'); });
   if (window.visualViewport) window.visualViewport.addEventListener('resize', () => { if (Fix.at) Fix.place(null); });
   // tapping anywhere else closes it; scrolling keeps it next to its chip
-  document.addEventListener('click', e => { if (Fix.at && !e.target.closest('#fix-pop, .chip')) Fix.close(); });
+  // (the path, not e.target: a button the panel just re-drew is already detached when this runs)
+  document.addEventListener('click', e => {
+    if (Fix.at && !e.composedPath().some(x => x.id === 'fix-pop' || (x.classList && x.classList.contains('chip')))) Fix.close();
+  });
   byId('rv-jump-prev').addEventListener('click', () => Fix.jump(-1));
   byId('rv-jump-next').addEventListener('click', () => Fix.jump(1));
 
