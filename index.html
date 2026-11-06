@@ -486,7 +486,7 @@
         <button id="btn-play-all" class="px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-semibold whitespace-nowrap">▶ ฟังทั้งเพลง</button>
         <button id="rv-undo" disabled class="px-2 py-1.5 shrink-0 rounded-lg bg-slate-800 border border-slate-600 text-slate-100 text-[11px] font-semibold whitespace-nowrap">↶ ย้อนกลับ</button>
         <label class="flex items-center gap-1 text-[11px] text-slate-300"><input id="rv-chords" type="checkbox" checked class="accent-amber-500"> คอร์ด</label>
-        <label class="flex items-center gap-1 text-[11px] text-slate-300"><input id="rv-kp" type="checkbox" checked class="accent-amber-500"> แป้นเลข</label>
+        <label class="flex items-center gap-1 text-[11px] text-slate-300"><input id="rv-kp" type="checkbox" checked class="accent-amber-500"> แป้นแอป</label>
         <div id="rv-jump" class="hidden flex items-center gap-1 text-[11px] text-red-200">
           <button id="rv-jump-prev" class="w-8 h-8 rounded-full bg-red-900/60 border border-red-500" aria-label="จุดที่ต้องแก้ก่อนหน้า">◀</button>
           <span id="rv-jump-n" class="whitespace-nowrap"></span>
@@ -535,6 +535,28 @@
         <button data-k=" " class="col-span-2 py-2 rounded-lg bg-slate-600 text-white select-none" style="touch-action:none;-webkit-touch-callout:none">เว้นวรรค · กดค้างลาก = เลื่อนเคอร์เซอร์</button>
         <button data-k="undo" class="py-2 rounded-lg bg-amber-800 text-white font-semibold">↶ ย้อนกลับ</button>
         <button data-k="close" class="py-2 rounded-lg bg-slate-700 text-slate-200">ซ่อน</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- แป้นคอร์ดสำหรับช่องคอร์ด/เบส -->
+  <div id="keypad-chd" class="hidden fixed left-0 right-0 bottom-0 z-40 bg-slate-900/95 backdrop-blur border-t border-slate-700 px-2 pt-1.5" style="padding-bottom: max(0.375rem, env(safe-area-inset-bottom));">
+    <div class="max-w-xl mx-auto space-y-1">
+      <div class="grid grid-cols-7 gap-1"><button data-k="1" class="py-1.5 rounded-lg bg-slate-700 text-white font-semibold">1</button><button data-k="2" class="py-1.5 rounded-lg bg-slate-700 text-white font-semibold">2</button><button data-k="3" class="py-1.5 rounded-lg bg-slate-700 text-white font-semibold">3</button><button data-k="4" class="py-1.5 rounded-lg bg-slate-700 text-white font-semibold">4</button><button data-k="5" class="py-1.5 rounded-lg bg-slate-700 text-white font-semibold">5</button><button data-k="6" class="py-1.5 rounded-lg bg-slate-700 text-white font-semibold">6</button><button data-k="7" class="py-1.5 rounded-lg bg-slate-700 text-white font-semibold">7</button></div>
+      <div class="grid grid-cols-7 gap-1"><button data-k="A" class="py-1.5 rounded-lg bg-slate-700 text-white font-semibold">A</button><button data-k="B" class="py-1.5 rounded-lg bg-slate-700 text-white font-semibold">B</button><button data-k="C" class="py-1.5 rounded-lg bg-slate-700 text-white font-semibold">C</button><button data-k="D" class="py-1.5 rounded-lg bg-slate-700 text-white font-semibold">D</button><button data-k="E" class="py-1.5 rounded-lg bg-slate-700 text-white font-semibold">E</button><button data-k="F" class="py-1.5 rounded-lg bg-slate-700 text-white font-semibold">F</button><button data-k="G" class="py-1.5 rounded-lg bg-slate-700 text-white font-semibold">G</button></div>
+      <div class="grid grid-cols-7 gap-1 text-xs"><button data-k="#" class="py-1.5 rounded-lg bg-sky-800 text-white">♯</button><button data-k="b" class="py-1.5 rounded-lg bg-sky-800 text-white">♭</button><button data-k="m" class="py-1.5 rounded-lg bg-sky-800 text-white">m</button><button data-k="7" class="py-1.5 rounded-lg bg-sky-800 text-white">7</button><button data-k="maj7" class="py-1.5 rounded-lg bg-sky-800 text-white">maj7</button><button data-k="sus4" class="py-1.5 rounded-lg bg-sky-800 text-white">sus4</button><button data-k="/" class="py-1.5 rounded-lg bg-sky-800 text-white">/</button></div>
+      <div class="grid grid-cols-4 gap-1 text-xs">
+        <button data-k="~" class="py-1.5 rounded-lg bg-slate-700 text-white">~ กรีด</button>
+        <button data-k="." class="py-1.5 rounded-lg bg-slate-700 text-white">. ต่อ/ไม่มี</button>
+        <button data-k="0" class="py-1.5 rounded-lg bg-slate-700 text-white">0 เงียบ</button>
+        <button data-k="bs" class="py-1.5 rounded-lg bg-rose-900 text-white">⌫</button>
+      </div>
+      <div class="grid grid-cols-5 gap-1 text-xs">
+        <button data-k=" " class="col-span-2 py-1.5 rounded-lg bg-slate-600 text-white select-none" style="touch-action:none;-webkit-touch-callout:none">เว้นวรรค · กดค้างลาก = เลื่อนเคอร์เซอร์</button>
+        <button data-k="undo" class="py-1.5 rounded-lg bg-amber-800 text-white font-semibold">↶ ย้อนกลับ</button>
+        <button data-k="kbd" class="py-1.5 rounded-lg bg-slate-700 text-slate-200">⌨ แป้น iPhone</button>
+        <button data-k="close" class="py-1.5 rounded-lg bg-slate-700 text-slate-200">ซ่อน</button>
       </div>
     </div>
   </div>

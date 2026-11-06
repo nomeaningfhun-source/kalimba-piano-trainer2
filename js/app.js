@@ -935,7 +935,7 @@ const gapOf = m => lineGap(m, 1, 0);
 const GAP_STEPS = [0, 1, 2], gapTxt = g => g > 0 ? g + ' จังหวะ' : 'ไม่เว้น';   // whole beats only: a half beat would put the line off the beat
 function cardHTML(m, i) {
   const ph = { lyr: 'เนื้อร้อง (แยกพยางค์ด้วยช่องว่าง)', mel: "ทำนอง เช่น 1 1 5 5'", chd: 'คอร์ด / เบส เช่น C . F .' };
-  const inp = (f, cls) => '<input data-f="' + f + '" value="' + esc(m[f]) + '" placeholder="' + ph[f] + '" ' + (f === 'mel' && S.keypad ? 'inputmode="none" ' : '') +
+  const inp = (f, cls) => '<input data-f="' + f + '" value="' + esc(m[f]) + '" placeholder="' + ph[f] + '" ' + ((f === 'mel' || f === 'chd') && S.keypad ? 'inputmode="none" ' : '') +
     'spellcheck="false" autocomplete="off" autocapitalize="off" autocorrect="off" class="' + cls + ' w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-100 placeholder-slate-600">';
   const btn = (a, t, cls) => '<button data-act="' + a + '" class="px-2 py-1 rounded-md ' + (cls || 'bg-slate-800 text-slate-300 border border-slate-700') + ' text-[11px]">' + t + '</button>';
   return '<div class="mcard bg-slate-900 border border-slate-800 rounded-xl p-2.5 space-y-1.5" data-i="' + i + '">' +
@@ -1306,17 +1306,35 @@ function togglePlay(from) {
   });
 }
 
-/* keypad for the melody field */
-let kpTarget = null;
-function showKeypad() { if (S.keypad && state.currentView === 'review') byId('keypad').classList.remove('hidden'); }
-function hideKeypad() { byId('keypad').classList.add('hidden'); }
+/* the app's own keypads: numbers for the melody field, chords for the chord field (the phone keyboard only when asked for with the keyboard key) */
+let kpTarget = null, kpSystem = null;
+function showKeypad(kind) {
+  if (!S.keypad || state.currentView !== 'review') return;
+  const chd = kind === 'chd', on = byId(chd ? 'keypad-chd' : 'keypad');
+  byId('keypad').classList.toggle('hidden', chd); byId('keypad-chd').classList.toggle('hidden', !chd);
+  document.body.style.paddingBottom = (on.offsetHeight + 24) + 'px';   // the last cards can still be scrolled above it
+  if (kpTarget) setTimeout(() => {
+    const r = kpTarget.getBoundingClientRect(), room = innerHeight - on.offsetHeight - 8;
+    if (r.bottom > room) window.scrollBy({ top: r.bottom - room + 8, behavior: 'smooth' });
+  }, 60);
+}
+function hideKeypad() {
+  byId('keypad').classList.add('hidden'); byId('keypad-chd').classList.add('hidden');
+  if (!Fix.at) document.body.style.paddingBottom = '';
+}
 function applyKeypadMode() {
-  $$('#rv-list input[data-f="mel"]').forEach(i => { i.inputMode = S.keypad ? 'none' : 'text'; });
+  $$('#rv-list input[data-f="mel"], #rv-list input[data-f="chd"]').forEach(i => { i.inputMode = S.keypad ? 'none' : 'text'; });
   if (!S.keypad) hideKeypad();
 }
 function keypadPress(k) {
   if (k === 'close') { hideKeypad(); if (document.activeElement) document.activeElement.blur(); return; }
   if (k === 'undo') { Undo.undo(); return; }
+  if (k === 'kbd') {   // the phone keyboard for this field only (rare symbols); the keypad comes back on the next field
+    const t0 = kpTarget;
+    if (!t0) return;
+    kpSystem = t0; t0.inputMode = 'text'; hideKeypad(); t0.blur(); setTimeout(() => t0.focus(), 30);
+    return;
+  }
   const t = kpTarget;
   if (!t) return;
   t.focus();
@@ -1329,6 +1347,52 @@ function keypadPress(k) {
     t.setRangeText(k, a, b, 'end');
   }
   t.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+// buttons of a keypad: a tap types, holding the space key and sliding moves the cursor
+function wireKeypad(kp) {
+  kp.addEventListener('mousedown', e => e.preventDefault());   // keeps the field focused; not touchstart (iOS would drop the click)
+  let kpSwallow = false;
+  kp.addEventListener('click', e => {
+    const b = e.target.closest('button[data-k]');
+    if (!b) return;
+    if (kpSwallow && b.dataset.k === ' ') { kpSwallow = false; return; }   // that press moved the cursor: no space
+    keypadPress(b.dataset.k);
+  });
+  // hold the space key and slide: the cursor follows (like the phone keyboard), so a spot in the middle of the numbers is easy to reach
+  const sp = kp.querySelector('button[data-k=" "]');
+  if (sp) {
+    const label = sp.textContent;
+    let g = null;
+    const finish = () => {
+      if (!g) return;
+      clearTimeout(g.timer);
+      if (g.on) { sp.textContent = label; kpSwallow = true; setTimeout(() => { kpSwallow = false; }, 500); }
+      g = null;
+    };
+    sp.addEventListener('pointerdown', e => {
+      const t = kpTarget;
+      if (!t) return;
+      g = { t, x0: e.clientX, cx: e.clientX, on: false, id: e.pointerId };
+      g.timer = setTimeout(() => {
+        if (!g) return;
+        g.on = true; g.x = g.cx;
+        g.base = t.selectionStart == null ? t.value.length : t.selectionStart;
+        sp.textContent = '◂  ลากเพื่อเลื่อนเคอร์เซอร์  ▸';
+        try { sp.setPointerCapture(g.id); } catch (err) { /* not capturable */ }
+      }, 280);
+    });
+    sp.addEventListener('pointermove', e => {
+      if (!g) return;
+      g.cx = e.clientX;
+      if (!g.on) { if (Math.abs(e.clientX - g.x0) > 14) { clearTimeout(g.timer); g = null; } return; }
+      e.preventDefault();
+      const pos = clamp(g.base + Math.round((e.clientX - g.x) / 11), 0, g.t.value.length);
+      g.t.focus();
+      g.t.setSelectionRange(pos, pos);
+    });
+    ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev => sp.addEventListener(ev, finish));
+  }
 }
 
 function setupReview() {
@@ -1381,12 +1445,17 @@ function setupReview() {
     markDirty('typing'); refreshAfterEdit(i);
   });
   list.addEventListener('focusin', e => {
-    const inp = e.target.closest('input[data-f="mel"]');
-    if (inp) { kpTarget = inp; showKeypad(); }
+    const inp = e.target.closest('input[data-f="mel"], input[data-f="chd"]');
+    if (inp && inp === kpSystem) { hideKeypad(); return; }   // the phone keyboard was asked for on this field
+    if (inp) { kpTarget = inp; showKeypad(inp.dataset.f); }
     else if (e.target.matches('input')) hideKeypad();
   });
   list.addEventListener('focusout', () => {
-    setTimeout(() => { if (!document.activeElement || !document.activeElement.matches('input[data-f="mel"]')) hideKeypad(); }, 160);
+    setTimeout(() => {
+      const ae = document.activeElement;
+      if (kpSystem && ae !== kpSystem) { kpSystem.inputMode = S.keypad ? 'none' : 'text'; kpSystem = null; }
+      if (!ae || !ae.matches('input[data-f="mel"], input[data-f="chd"]')) hideKeypad();
+    }, 160);
   });
   list.addEventListener('click', e => {
     const chip = e.target.closest('.chip[data-n], .chip[data-c]');
@@ -1430,49 +1499,7 @@ function setupReview() {
   byId('rv-jump-prev').addEventListener('click', () => Fix.jump(-1));
   byId('rv-jump-next').addEventListener('click', () => Fix.jump(1));
 
-  const kp = byId('keypad');
-  kp.addEventListener('mousedown', e => e.preventDefault());   // keeps the field focused; not touchstart (iOS would drop the click)
-  let kpSwallow = false;
-  kp.addEventListener('click', e => {
-    const b = e.target.closest('button[data-k]');
-    if (!b) return;
-    if (kpSwallow && b.dataset.k === ' ') { kpSwallow = false; return; }   // that press moved the cursor: no space
-    keypadPress(b.dataset.k);
-  });
-  // hold the space key and slide: the cursor follows (like the phone keyboard), so a spot in the middle of the numbers is easy to reach
-  const sp = kp.querySelector('button[data-k=" "]');
-  if (sp) {
-    const label = sp.textContent;
-    let g = null;
-    const finish = () => {
-      if (!g) return;
-      clearTimeout(g.timer);
-      if (g.on) { sp.textContent = label; kpSwallow = true; setTimeout(() => { kpSwallow = false; }, 500); }
-      g = null;
-    };
-    sp.addEventListener('pointerdown', e => {
-      const t = kpTarget;
-      if (!t) return;
-      g = { t, x0: e.clientX, cx: e.clientX, on: false, id: e.pointerId };
-      g.timer = setTimeout(() => {
-        if (!g) return;
-        g.on = true; g.x = g.cx;
-        g.base = t.selectionStart == null ? t.value.length : t.selectionStart;
-        sp.textContent = '◂  ลากเพื่อเลื่อนเคอร์เซอร์  ▸';
-        try { sp.setPointerCapture(g.id); } catch (err) { /* not capturable */ }
-      }, 280);
-    });
-    sp.addEventListener('pointermove', e => {
-      if (!g) return;
-      g.cx = e.clientX;
-      if (!g.on) { if (Math.abs(e.clientX - g.x0) > 14) { clearTimeout(g.timer); g = null; } return; }
-      e.preventDefault();
-      const pos = clamp(g.base + Math.round((e.clientX - g.x) / 11), 0, g.t.value.length);
-      g.t.focus();
-      g.t.setSelectionRange(pos, pos);
-    });
-    ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev => sp.addEventListener(ev, finish));
-  }
+  wireKeypad(byId('keypad')); wireKeypad(byId('keypad-chd'));
 }
 
 async function saveSong() {
