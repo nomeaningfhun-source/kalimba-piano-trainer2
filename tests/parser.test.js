@@ -282,11 +282,27 @@ t('line gap: beats of rest before a measure that starts a new line', () => {
   const h = P.parseSong({ beats: 4, measures: [{ mel: '1', br: true }, { mel: '- 2', br: true, gap: 1 }] }, 'B4');
   assert.strictEqual(h.measures[0].notes[0].dur, 1);
 });
-t('photo songs: every new line pauses 1 beat unless its gap is 0; other songs keep exact timing', () => {
+t('photo songs: every new line pauses half a beat unless its gap is 0; other songs keep exact timing', () => {
   const ms = [{ mel: '1 2 3 4', br: true }, { mel: '5 6 7 1', br: true }, { mel: '2 3 4 5', br: true, gap: 0 }, { mel: '1 1 1 1' }];
   const p = P.parseSong({ beats: 4, source: 'photo', measures: ms }, 'B4');
-  assert.deepStrictEqual(p.measures.map(m => m.gap), [0, 1, 0, 0]);
-  assert.deepStrictEqual(p.measures.map(m => m.start), [0, 5, 9, 13]);
+  assert.deepStrictEqual(p.measures.map(m => m.gap), [0, 0.5, 0, 0]);
+  assert.deepStrictEqual(p.measures.map(m => m.start), [0, 4.5, 8.5, 12.5]);
   assert.deepStrictEqual(P.parseSong({ beats: 4, measures: ms }, 'B4').measures.map(m => m.start), [0, 4, 8, 12]);
+});
+t('tight numbers are eighth notes (half a beat each); 1_2_3 still fits one beat; chords follow their written beat', () => {
+  const m = P.parseMelody("4'3'2' 2' 6'", 0);
+  assert.deepStrictEqual(m.notes.map(n => [n.beat, n.dur]), [[0, 0.5], [0.5, 0.5], [1, 0.5], [1.5, 1], [2.5, 1]]);
+  assert.strictEqual(m.end, 3.5); assert.strictEqual(m.slots, 3);
+  assert.strictEqual(P.parseMelody('1_2_3 5', 0).notes[2].dur.toFixed(3), '0.333');
+  assert.strictEqual(P.parseMelody("2'2' 1'", 0).end, 2);                       // a pair is still one beat
+  const pm = P.parseSong({ beats: 4, source: 'photo', measures: [{ mel: "1'2'3' 5 6", chd: 'C . G' }, { mel: '1' }] }, 'B4');
+  assert.deepStrictEqual(pm.measures[0].chords.map(c => c.beat), [0, 2.5]);     // G sits under the 3rd written beat (6)
+  assert.strictEqual(pm.measures[1].start, 3.5);
+});
+t('photo sheets: a lone 0 is half a beat (typed songs keep a full beat)', () => {
+  const ph = P.parseSong({ beats: 4, source: 'photo', measures: [{ mel: "5' 0 4'3'2' 0 2'" }] }, 'B4').measures[0];
+  assert.deepStrictEqual(ph.items.filter(i => i.type === 'rest').map(i => i.dur), [0.5, 0.5]);
+  assert.strictEqual(ph.len, 1 + 0.5 + 1.5 + 0.5 + 1);
+  assert.strictEqual(P.parseSong({ beats: 4, measures: [{ mel: '1 0 2' }] }, 'B4').measures[0].len, 3);
 });
 console.log(n + ' passed');
