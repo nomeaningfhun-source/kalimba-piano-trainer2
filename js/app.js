@@ -409,6 +409,7 @@ $('set-retune').addEventListener('click', e => {
 });
 $('btn-open-settings').onclick = () => {
   renderRetune();
+  $('set-haptic').checked = Haptic.on;
   const l = document.querySelector('input[name="app-lang"][value="' + LANG + '"]');
   if (l) l.checked = true;
   try { $('set-real').checked = JSON.parse(localStorage.getItem('kt.hasReal')) === true; } catch (e) { $('set-real').checked = false; }
@@ -479,6 +480,37 @@ const ls = {
   get(k, d) { try { const v = localStorage.getItem('kt.' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem('kt.' + k, JSON.stringify(v)); } catch (e) { /* storage blocked */ } }
 };
+
+// a small tap on the phone when a key is pressed: Android vibrates; iPhone (Safari 17.4+) answers a toggled <input switch> with a haptic tick
+const Haptic = {
+  on: ls.get('haptic', true), lbl: null,
+  tick() {
+    if (!this.on) return;
+    try { if (navigator.vibrate && navigator.vibrate(8)) return; } catch (e) { /* no vibration here */ }
+    try {
+      if (!this.lbl) {
+        const l = document.createElement('label'), c = document.createElement('input');
+        l.setAttribute('aria-hidden', 'true');
+        l.style.cssText = 'position:fixed;left:-100px;top:-100px;width:1px;height:1px;opacity:0;pointer-events:none';
+        c.type = 'checkbox'; c.setAttribute('switch', ''); l.appendChild(c); document.body.appendChild(l); this.lbl = l;
+      }
+      this.lbl.click();
+    } catch (e) { /* no haptics here */ }
+  }
+};
+
+// light / dark: the choice is kept; the page already got it from the <head> script before it painted
+function setTheme(t) {
+  document.documentElement.dataset.theme = t;
+  try { localStorage.setItem('kt.theme', t); } catch (e) { /* storage blocked */ }
+  const m = document.querySelector('meta[name="theme-color"]');
+  if (m) m.content = t === 'dark' ? '#1A1D17' : '#F2EDE2';
+}
+const isDark = () => document.documentElement.dataset.theme === 'dark';
+setTheme(isDark() ? 'dark' : 'light');
+document.getElementById('btn-theme').addEventListener('click', () => { setTheme(isDark() ? 'light' : 'dark'); Haptic.tick(); });
+byId('set-haptic').addEventListener('change', e => { Haptic.on = e.target.checked; ls.set('haptic', Haptic.on); Haptic.tick(); });
+window.Haptic = Haptic;   // the settings page (outside this closure) reads it
 const uid = () => (window.crypto && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
 function el(tag, cls) { const e = document.createElement(tag); if (cls) e.className = cls; return e; }
 
@@ -542,8 +574,12 @@ const Player = {
     const endT = (parsed.totalBeats - base) * spb;
     this.bus = c.createGain(); this.bus.connect(Synth.master);
     this.onEnd = opt.onEnd; this.playing = true;
-    const T0 = c.currentTime + 0.15, bus = this.bus;
+    const bus = this.bus, token = this.token = (this.token || 0) + 1;
     let idx = 0;
+    // a context iOS has not woken yet has a frozen clock: scheduling on it plays nothing and never moves on.
+    // So wait until it runs; if it does not within 1.5 s, say so and make the next tap build a fresh one.
+    const begin = () => {
+    const T0 = c.currentTime + 0.15;
     this.timer = setInterval(() => {
       const now = c.currentTime;
       while (idx < ev.length && T0 + ev[idx].t < now + 0.25) {
@@ -561,8 +597,19 @@ const Player = {
       }
       if (idx >= ev.length && now > T0 + endT + 0.6) this.stop();
     }, 25);
+    };
+    if (c.state === 'running') begin();
+    else {
+      const t0 = performance.now();
+      this.timer = setInterval(() => {
+        if (this.token !== token) { clearInterval(this.timer); return; }
+        if (c.state === 'running') { clearInterval(this.timer); begin(); }
+        else if (performance.now() - t0 > 1500) { audio.stuck = true; this.stop(); toast('เสียงยังไม่ตื่น — แตะเล่นอีกครั้ง', 3000); }
+      }, 40);
+    }
   },
   stop() {
+    this.token = (this.token || 0) + 1;
     clearInterval(this.timer); this.timer = 0;
     this.ui.forEach(clearTimeout); this.ui = [];
     if (this.bus && Synth.ctx) {
@@ -721,7 +768,7 @@ function setupLibrary() {
         await DB.put({
           id: s.id || uid(), title: String(s.title || ''), tempo: +s.tempo || 100, beats: +s.beats || 4, octaveShift: +s.octaveShift || 0,
           created: s.created || Date.now(), updated: s.updated || Date.now(),
-          measures: s.measures.map(m => Object.assign({ mel: String(m.mel || ''), lyr: String(m.lyr || ''), chd: String(m.chd || ''), br: !!m.br }, m.br && m.gap != null ? { gap: Math.max(0, Math.min(4, +m.gap | 0)) } : {}))
+          measures: s.measures.map(m => Object.assign({ mel: String(m.mel || ''), lyr: String(m.lyr || ''), chd: String(m.chd || ''), br: !!m.br }, m.gap != null && (m.br || m.gap > 0) ? { gap: Math.max(0, Math.min(4, +m.gap | 0)) } : {}))
         });
         n++;
       }
@@ -943,10 +990,10 @@ function cardHTML(m, i) {
     'spellcheck="false" autocomplete="off" autocapitalize="off" autocorrect="off" class="' + cls + ' w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-100 placeholder-slate-600">';
   const btn = (a, t, cls) => '<button data-act="' + a + '" class="px-2 py-1 rounded-md ' + (cls || 'bg-slate-800 text-slate-300 border border-slate-700') + ' text-[11px]">' + t + '</button>';
   return '<div class="mcard bg-slate-900 border border-slate-800 rounded-xl p-2.5 space-y-1.5" data-i="' + i + '">' +
-    '<div class="flex items-center gap-1.5"><span class="text-xs font-semibold text-amber-300">ห้อง ' + (i + 1) + (m.br && i ? ' ·ท่อนใหม่' + (gapOf(m) > 0 ? ' · เว้น ' + gapOf(m) : '') : '') + '</span><span class="mbadge text-[10px]"></span>' +
+    '<div class="flex items-center gap-1.5"><span class="text-xs font-semibold text-amber-300">ห้อง ' + (i + 1) + (m.br && i ? ' ·ท่อนใหม่' : '') + (i && gapOf(m) > 0 ? ' · เว้น ' + gapOf(m) : '') + '</span><span class="mbadge text-[10px]"></span>' +
     '<div class="ml-auto flex gap-1">' + btn('play', '▶', 'bg-amber-600 text-white') + btn('oct-dn', '8↓') + btn('oct-up', '8↑') + btn('dup', '⧉') + btn('ins', '＋') + btn('del', '🗑', 'bg-slate-800 text-rose-300 border border-slate-700') + '</div></div>' +
     (i ? '<div class="flex items-center gap-1">' + btn('br', m.br ? '↵ เริ่มบรรทัดใหม่ ✓' : '↵ เริ่มบรรทัดใหม่', m.br ? 'bg-amber-500/20 text-amber-200 border border-amber-500/60' : '') +
-      (m.br ? btn('gap', 'เว้นก่อนบรรทัด: ' + gapTxt(gapOf(m))) : '') + '</div>' : '') +
+      btn('gap', (m.br ? 'เว้นก่อนบรรทัด: ' : 'เว้นก่อนห้อง: ') + gapTxt(gapOf(m)), gapOf(m) > 0 ? 'bg-amber-500/20 text-amber-200 border border-amber-500/60' : '') + '</div>' : '') +
     '<div class="chips flex flex-wrap gap-1 min-h-[1.6rem]"></div>' +
     inp('lyr', 'text-sm') + inp('mel', 'mono text-base') + inp('chd', 'mono text-sm') +
     '<ul class="issues text-[11px] space-y-0.5"></ul></div>';
@@ -1086,9 +1133,9 @@ const Fix = {
     this.at = { i: +card.dataset.i, n: chip.dataset.n != null ? +chip.dataset.n : null, c: chip.dataset.c != null ? +chip.dataset.c : null };
     $$('#rv-list .chip.sel').forEach(x => x.classList.remove('sel'));
     chip.classList.add('sel');
-    const pop = byId('fix-pop'), m = S.review.song.measures[this.at.i];
+    const pop = byId('fix-pop'), body = byId('fix-body'), m = S.review.song.measures[this.at.i];
     if (this.at.c != null) {
-      pop.innerHTML = '<div class="flex gap-1 items-center"><span class="text-[11px] text-slate-400 shrink-0">คอร์ด/เบส</span>' +
+      body.innerHTML = '<div class="flex gap-1 items-center"><span class="text-[11px] text-slate-400 shrink-0">คอร์ด/เบส</span>' +
         '<input id="fix-chord" value="' + esc(chdToks(m.chd)[this.at.c] || '') + '" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" class="mono min-w-0 flex-1 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-slate-100">' +
         '<button data-fx="ok" class="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm font-bold">✓</button><button data-fx="cdel" class="px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-rose-300">⌫</button>' +
         '<button data-fx="x" class="px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300">✕</button></div>' +
@@ -1130,26 +1177,26 @@ const Fix = {
         }
       }
       h += sec('จัดการ') + '<div class="grid grid-cols-3 gap-1.5">' + nb('ins', '＋ เพิ่มซ้ำ') + nb('del', '🗑 ลบโน้ต', 'bg-slate-800 border border-slate-700 text-rose-300') + nb('undo', '↶ ย้อนกลับ') + '</div>';
-      pop.innerHTML = h;
+      body.innerHTML = h;
       // the lyric word this note sings, edited as a whole word; the app splits it over the same notes again
       const li = this.lyrIndex(this.at.i, this.at.n);
       if (li >= 0) {
         const lt = lyricTokens(m.lyr), w = lyrWordAt(lt, li);
         this.at.lw = w;
         const word = lt.slice(w[0], w[1] + 1).filter(x => x !== '~' && x !== '_').join('');
-        pop.innerHTML += '<div class="flex gap-1 items-center mt-1.5"><span class="text-[11px] text-slate-400 shrink-0">เนื้อร้อง</span>' +
+        body.innerHTML += '<div class="fix-keep flex gap-1 items-center mt-1.5"><span class="text-[11px] text-slate-400 shrink-0">เนื้อร้อง</span>' +
           '<input id="fix-lyr" value="' + esc(word) + '" autocomplete="off" autocapitalize="off" spellcheck="false" class="min-w-0 flex-1 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-slate-100">' +
           '<button data-fx="lyr" class="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm font-bold">✓</button></div>' +
-          '<div class="text-[10px] text-slate-500 mt-1">แก้ทั้งคำ แอปแบ่งพยางค์ให้เองตาม ' + (w[1] - w[0] + 1) + ' โน้ต · ว่าง = ไม่มีเนื้อร้อง</div>';
+          '<div class="fix-keep text-[10px] text-slate-500 mt-1">แก้ทั้งคำ แอปแบ่งพยางค์ให้เองตาม ' + (w[1] - w[0] + 1) + ' โน้ต · ว่าง = ไม่มีเนื้อร้อง</div>';
       }
     }
-    pop.classList.remove('hidden');
+    pop.classList.remove('hidden', 'typing');
     this.place(chip);
     if (this.at.c != null) setTimeout(() => { const f = byId('fix-chord'); if (f) f.focus(); }, 30);
   },
   // the panel stays at the bottom of the screen (above the iOS keyboard); the page scrolls so the chip being
   // fixed sits between the pinned photo strip and the panel, never under either
-  place(chip) {
+  place(chip, instant) {
     const pop = byId('fix-pop'), vv = window.visualViewport;
     const kb = vv ? Math.max(0, innerHeight - vv.height - vv.offsetTop) : 0;
     pop.style.bottom = 'calc(' + (kb + 8) + 'px + env(safe-area-inset-bottom))';
@@ -1158,8 +1205,9 @@ const Fix = {
     const line = chip.closest('.rv-line'), strip = line && $('.rv-strip', line);
     const top = (strip ? strip.getBoundingClientRect().bottom : byId('rv-bar').getBoundingClientRect().bottom) + 8;
     const bot = pop.getBoundingClientRect().top - 10, r = chip.getBoundingClientRect();
-    if (r.bottom > bot) window.scrollBy({ top: Math.min(r.bottom - bot, r.top - top), behavior: 'smooth' });
-    else if (r.top < top) window.scrollBy({ top: r.top - top, behavior: 'smooth' });
+    const behavior = instant ? 'auto' : 'smooth';
+    if (r.bottom > bot) window.scrollBy({ top: Math.min(r.bottom - bot, r.top - top), behavior });
+    else if (r.top < top) window.scrollBy({ top: r.top - top, behavior });
   },
   close() {
     byId('fix-pop').classList.add('hidden'); document.body.style.paddingBottom = '';
@@ -1378,6 +1426,7 @@ function showKeypad(kind) {
   if (!S.keypad || state.currentView !== 'review') return;
   const chd = kind === 'chd', on = byId(chd ? 'keypad-chd' : 'keypad');
   byId('keypad').classList.toggle('hidden', chd); byId('keypad-chd').classList.toggle('hidden', !chd);
+  if (!ls.get('kpTip', false)) { ls.set('kpTip', true); toast('เคล็ดลับ: กดปุ่มเว้นวรรคค้างแล้วลากซ้าย-ขวา เพื่อเลื่อนเคอร์เซอร์', 4500); }
   document.body.style.paddingBottom = (on.offsetHeight + 24) + 'px';   // the last cards can still be scrolled above it
   if (kpTarget) setTimeout(() => {
     const r = kpTarget.getBoundingClientRect(), room = innerHeight - on.offsetHeight - 8;
@@ -1423,17 +1472,18 @@ function wireKeypad(kp) {
     const b = e.target.closest('button[data-k]');
     if (!b) return;
     if (kpSwallow && b.dataset.k === ' ') { kpSwallow = false; return; }   // that press moved the cursor: no space
+    Haptic.tick();
     keypadPress(b.dataset.k);
   });
   // hold the space key and slide: the cursor follows (like the phone keyboard), so a spot in the middle of the numbers is easy to reach
   const sp = kp.querySelector('button[data-k=" "]');
   if (sp) {
-    const label = sp.textContent;
+    const label = sp.innerHTML;
     let g = null;
     const finish = () => {
       if (!g) return;
       clearTimeout(g.timer);
-      if (g.on) { sp.textContent = label; kpSwallow = true; setTimeout(() => { kpSwallow = false; }, 500); }
+      if (g.on) { sp.innerHTML = label; kpSwallow = true; setTimeout(() => { kpSwallow = false; }, 500); }
       g = null;
     };
     sp.addEventListener('pointerdown', e => {
@@ -1444,7 +1494,7 @@ function wireKeypad(kp) {
         if (!g) return;
         g.on = true; g.x = g.cx;
         g.base = t.selectionStart == null ? t.value.length : t.selectionStart;
-        sp.textContent = '◂  ลากเพื่อเลื่อนเคอร์เซอร์  ▸';
+        sp.textContent = '◂  เลื่อนเคอร์เซอร์  ▸';
         try { sp.setPointerCapture(g.id); } catch (err) { /* not capturable */ }
       }, 280);
     });
@@ -1455,6 +1505,7 @@ function wireKeypad(kp) {
       e.preventDefault();
       const pos = clamp(g.base + Math.round((e.clientX - g.x) / 11), 0, g.t.value.length);
       g.t.focus();
+      if (pos !== g.t.selectionStart) Haptic.tick();
       g.t.setSelectionRange(pos, pos);
     });
     ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev => sp.addEventListener(ev, finish));
@@ -1571,9 +1622,17 @@ function setupReview() {
   const pop = byId('fix-pop');
   // mousedown only: cancelling touchstart makes iOS drop the click, so none of the panel's buttons would work on a phone
   pop.addEventListener('mousedown', e => { if (!e.target.closest('input')) e.preventDefault(); });
-  pop.addEventListener('click', e => { const b = e.target.closest('[data-fx]'); if (b && !b.disabled) Fix.apply(b.dataset.fx, b); });
+  pop.addEventListener('click', e => { const b = e.target.closest('[data-fx]'); if (b && !b.disabled) { Haptic.tick(); Fix.apply(b.dataset.fx, b); } });
   pop.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'fix-chord') Fix.apply('ok'); if (e.key === 'Enter' && e.target.id === 'fix-lyr') Fix.apply('lyr'); });
-  if (window.visualViewport) window.visualViewport.addEventListener('resize', () => { if (Fix.at) Fix.place(null); });
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', () => { if (Fix.at) Fix.place(Fix.chip(), true); });
+  // typing a lyric: iOS scrolls the page by itself to reach the field, which threw the view to another bar.
+  // The panel shrinks to just the field (so the chip stays visible) and the chip is brought back while the keyboard slides up.
+  pop.addEventListener('focusin', e => {
+    if (!e.target.matches('input')) return;
+    if (e.target.id === 'fix-lyr') pop.classList.add('typing');
+    [60, 320, 700].forEach(ms => setTimeout(() => { if (Fix.at && pop.contains(document.activeElement)) Fix.place(Fix.chip(), true); }, ms));
+  });
+  pop.addEventListener('focusout', () => setTimeout(() => { if (!pop.contains(document.activeElement)) pop.classList.remove('typing'); }, 250));
   // tapping anywhere else closes it; scrolling keeps it next to its chip
   // (the path, not e.target: a button the panel just re-drew is already detached when this runs)
   document.addEventListener('click', e => {
@@ -1597,7 +1656,7 @@ async function saveSong() {
   const rec = {
     id: s.id || uid(), title: s.title, tempo: s.tempo, beats: s.beats, octaveShift: s.octaveShift || 0,
     created: s.created || now, updated: now,
-    measures: s.measures.map(m => Object.assign({ mel: m.mel || '', lyr: m.lyr || '', chd: m.chd || '', br: !!m.br }, m.src ? { src: m.src } : {}, m.br && m.gap != null ? { gap: m.gap } : {}))
+    measures: s.measures.map(m => Object.assign({ mel: m.mel || '', lyr: m.lyr || '', chd: m.chd || '', br: !!m.br }, m.src ? { src: m.src } : {}, m.gap != null && (m.br || m.gap > 0) ? { gap: m.gap } : {}))
   };
   if (s.source) rec.source = s.source;
   if (s.photos && s.photos.length) rec.photos = s.photos;
@@ -2488,12 +2547,12 @@ const Fall = {
     now = now != null ? now : clock();
     g.clearRect(0, 0, W, H);
     // lanes
-    Object.values(this.lanes).forEach((ln, i) => { g.fillStyle = i % 2 ? '#F6F1E7' : '#FBF9F4'; g.fillRect(ln.x - ln.w / 2, 0, ln.w, H); });
+    Object.values(this.lanes).forEach((ln, i) => { g.fillStyle = isDark() ? (i % 2 ? '#20241C' : '#252922') : (i % 2 ? '#F6F1E7' : '#FBF9F4'); g.fillRect(ln.x - ln.w / 2, 0, ln.w, H); });
     // beats and measures
     for (let b = Math.ceil(this.pos); ; b++) {
       const y = hitY - (b - this.pos) * pxb;
       if (y < 0) break;
-      g.fillStyle = b % this.beats === 0 ? '#E0D8C8' : '#ECE5D8';
+      g.fillStyle = isDark() ? (b % this.beats === 0 ? '#3A3F34' : '#2E3229') : (b % this.beats === 0 ? '#E0D8C8' : '#ECE5D8');
       g.fillRect(0, Math.round(y), W, 1);
     }
     // notes
@@ -2507,7 +2566,7 @@ const Fall = {
       const ln = this.lanes[e.pitch];
       if (!ln) continue;
       const w = Math.max(10, Math.min(ln.w - 2, 44)), x = ln.x - w / 2;
-      g.fillStyle = e.res === 'miss' ? '#E5DFD3' : HAND_COLOR[ln.hand] || HAND_COLOR.C;
+      g.fillStyle = e.res === 'miss' ? (isDark() ? '#4A4F44' : '#E5DFD3') : HAND_COLOR[ln.hand] || HAND_COLOR.C;
       this.round(x, y - h, w, h, Math.min(7, h / 2));
       g.fill();
       if (i === this.next && !this.demo) { g.lineWidth = 2; g.strokeStyle = '#3A402F'; g.stroke(); }
@@ -2609,11 +2668,9 @@ const Sheet = {
     this.notes = []; this.lines = [];
     const close = () => { if (line.length) { html.push('<div class="sh-line">' + line.join('') + '</div>'); line = []; } };
     this.parsed.measures.forEach((pm, i) => {
-      if (i && song && song.measures && song.measures[i] && song.measures[i].br) {
-        close();
-        // the beats of rest the sheet leaves before this line
-        if (pm.gap) line.push('<div class="sh-bar">' + this.restCell({ type: 'rest' }, null).repeat(Math.ceil(pm.gap)) + '</div>');
-      }
+      if (i && song && song.measures && song.measures[i] && song.measures[i].br) close();
+      // the beats of rest the sheet leaves before this line (or before a room the player gave a pause)
+      if (i && pm.gap) line.push('<div class="sh-bar">' + this.restCell({ type: 'rest' }, null).repeat(Math.ceil(pm.gap)) + '</div>');
       // each chord goes under the first note or rest that starts on or after its beat
       const items = pm.items || pm.notes, chdAt = new Map();
       (pm.chords || []).forEach(c => {

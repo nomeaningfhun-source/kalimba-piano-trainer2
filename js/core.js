@@ -360,7 +360,8 @@ function parseMeasure(m, ctx) {
 }
 
 // beats of rest before a measure that starts a new line: its own gap, else def (songs read from a photo use half a beat)
-const lineGap = (m, i, def) => (i && m && m.br ? Math.max(0, Math.min(4, m.gap == null ? (def || 0) : Math.round(+m.gap || 0))) : 0);
+// beats of rest before a measure: at a new line by default (def), or anywhere the player set one
+const lineGap = (m, i, def) => (i && m && (m.br || +m.gap > 0) ? Math.max(0, Math.min(4, m.gap == null ? (m.br ? def || 0 : 0) : Math.round(+m.gap || 0))) : 0);
 function parseSong(song, tuning) {
   const measures = [], issues = [];
   let prev = null, start = 0;

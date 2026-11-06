@@ -1,11 +1,30 @@
-:root { --nav-h: 60px; --tine-h: 200px; }
+:root { --nav-h: 60px; --tine-h: 200px; color-scheme: light;
+  /* colours the Tailwind classes read (rgb triplets) */
+  --slate-50:46 51 37; --slate-100:58 64 47; --slate-200:65 71 58; --slate-300:74 80 64; --slate-400:90 97 80; --slate-500:95 102 82; --slate-600:195 187 169; --slate-700:224 216 200; --slate-800:234 227 213; --slate-900:250 247 240; --slate-950:242 237 226; --amber-50:74 39 22; --amber-100:107 56 32; --amber-200:126 66 39; --amber-300:142 75 46; --amber-400:158 86 54; --amber-500:169 96 63; --amber-600:169 96 63; --amber-700:196 122 92; --amber-800:224 180 159; --amber-900:240 215 203; --amber-950:248 236 230; --emerald-50:44 50 34; --emerald-100:58 65 48; --emerald-200:74 82 61; --emerald-300:85 96 67; --emerald-400:79 90 62; --emerald-500:91 99 75; --emerald-600:79 87 65; --emerald-700:167 181 156; --emerald-800:203 212 194; --emerald-900:228 233 222; --emerald-950:240 243 236; --red-50:74 35 27; --red-100:110 52 40; --red-200:142 75 46; --red-300:154 74 58; --red-400:162 79 62; --red-500:196 122 92; --red-600:169 96 63; --red-700:142 75 46; --red-800:231 185 178; --red-900:245 224 220; --red-950:250 239 236; --rose-300:154 74 58; --rose-400:162 79 62; --rose-500:196 122 92; --rose-600:169 96 63; --rose-700:142 75 46; --rose-900:245 224 220; --rose-950:250 239 236; --sky-300:79 98 116; --sky-400:86 105 124; --sky-500:133 151 170; --sky-600:94 115 137; --sky-700:79 98 116; --sky-800:221 229 238; --sky-900:235 240 245;
+  /* colours used by the stylesheet itself */
+  --c-ink: #3A402F; --c-ink2: #5F6652; --c-line: #E0D8C8; --c-accent: #9E5636; --c-accent-solid: #A9603F; --c-sage: #5B634B; --c-done: #C3BBA9; --c-hit: #4F7A3A; --c-bad: #A24F3E;
+  --c-chord: #B0382E; --c-target-bg: #F0D7CB; --c-wrong-bg: #F5E0DC; --c-ok: #A7B59C; --c-arc: #EAE3D5;
+  /* liquid glass */
+  --glass-tint: rgba(255, 255, 255, .34); --glass-edge: rgba(255, 255, 255, .85); --glass-solid: rgba(250, 247, 240, .96); --glass-shadow: rgba(58, 64, 47, .22);
+  --glass-key: rgba(255, 255, 255, .62); --glass-key-edge: rgba(255, 255, 255, .8); --glass-key-shadow: rgba(58, 64, 47, .16); }
+:root[data-theme="dark"] { color-scheme: dark;
+  --slate-50:245 241 231; --slate-100:236 231 218; --slate-200:218 213 199; --slate-300:201 196 182; --slate-400:171 166 151; --slate-500:155 150 134; --slate-600:75 80 67; --slate-700:58 63 52; --slate-800:46 50 41; --slate-900:37 41 34; --slate-950:26 29 23; --amber-50:248 236 230; --amber-100:240 215 203; --amber-200:231 194 176; --amber-300:223 174 150; --amber-400:216 154 124; --amber-500:208 138 102; --amber-600:169 96 63; --amber-700:142 75 46; --amber-800:90 51 36; --amber-900:62 37 25; --amber-950:42 26 18; --emerald-50:240 243 236; --emerald-100:228 233 222; --emerald-200:203 212 194; --emerald-300:179 192 166; --emerald-400:167 181 156; --emerald-500:143 160 127; --emerald-600:95 122 76; --emerald-700:74 95 60; --emerald-800:52 66 43; --emerald-900:38 50 32; --emerald-950:28 37 24; --red-50:250 239 236; --red-100:245 224 220; --red-200:235 195 187; --red-300:227 154 138; --red-400:220 132 112; --red-500:208 116 94; --red-600:185 96 76; --red-700:142 75 46; --red-800:94 46 35; --red-900:74 35 27; --red-950:51 23 16; --rose-300:232 165 150; --rose-400:224 139 121; --rose-500:208 116 94; --rose-600:185 96 76; --rose-700:142 75 46; --rose-900:74 35 27; --rose-950:51 23 16; --sky-300:169 189 208; --sky-400:148 170 192; --sky-500:127 150 174; --sky-600:109 134 159; --sky-700:169 189 208; --sky-800:44 58 72; --sky-900:34 45 56;
+  --c-ink: #ECE7DA; --c-ink2: #A9A494; --c-line: #3A3F34; --c-accent: #E0A283; --c-accent-solid: #B5694A; --c-sage: #6E7D5C; --c-done: #5A5F52; --c-hit: #8DBA70; --c-bad: #E08B79;
+  --c-chord: #EE9686; --c-target-bg: #4A2D20; --c-wrong-bg: #4A231B; --c-ok: #6E8260; --c-arc: #2E3229;
+  --glass-tint: rgba(34, 38, 29, .42); --glass-edge: rgba(255, 255, 255, .26); --glass-solid: rgba(37, 41, 34, .96); --glass-shadow: rgba(0, 0, 0, .55);
+  --glass-key: rgba(255, 255, 255, .12); --glass-key-edge: rgba(255, 255, 255, .2); --glass-key-shadow: rgba(0, 0, 0, .35); }
+/* soft colour behind everything, so the glass has something to bend */
+body { background-image: radial-gradient(60% 38% at 12% 0%, rgba(196, 122, 92, .16), transparent 70%), radial-gradient(55% 34% at 100% 28%, rgba(167, 181, 156, .26), transparent 70%), radial-gradient(60% 40% at 0% 100%, rgba(183, 198, 214, .26), transparent 70%); background-attachment: fixed; }
+:root[data-theme="dark"] body { background-image: radial-gradient(60% 38% at 12% 0%, rgba(196, 122, 92, .14), transparent 70%), radial-gradient(55% 34% at 100% 28%, rgba(110, 130, 96, .2), transparent 70%), radial-gradient(60% 40% at 0% 100%, rgba(100, 120, 150, .18), transparent 70%); }
+#btn-theme .ic-sun { display: none; } :root[data-theme="dark"] #btn-theme .ic-moon { display: none; } :root[data-theme="dark"] #btn-theme .ic-sun { display: block; }
+.tu-arc { stroke: var(--c-arc); } .tu-tick { stroke: var(--c-done); }
 body { font-family: 'IBM Plex Sans Thai', -apple-system, system-ui, sans-serif; line-height: 1.5; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: manipulation; padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom)); }
 body.no-nav { padding-bottom: 0; }
 body.no-nav .bottom-nav { display: none; }
 body.in-player #install-banner { display: none !important; }
 h1, h2, h3, h4, .font-heading { font-family: 'IBM Plex Sans Thai', -apple-system, system-ui, sans-serif; }
 button { -webkit-tap-highlight-color: transparent; }
-:focus-visible { outline: 2px solid #A9603F; outline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--c-accent-solid); outline-offset: 2px; }
 
 /* kalimba: walnut body with silver tines */
 .kalimba-body { background: linear-gradient(180deg, #7A5440 0%, #6B4936 55%, #5E3F2E 100%); border: 1px solid #4E3426; box-shadow: 0 8px 22px rgba(58, 64, 47, .16); }
@@ -56,14 +75,14 @@ body.on-play header.app-header { display: none; }
 
 /* bottom navigation */
 .bottom-nav { padding-bottom: env(safe-area-inset-bottom); }
-.nav-btn { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; height: var(--nav-h); font-size: 11px; font-weight: 500; color: #5F6652; transition: color .15s; }
-.nav-btn[aria-current="page"] { color: #9E5636; }
-.nav-btn[aria-current="page"]::before { content: ''; position: absolute; top: 0; left: 30%; right: 30%; height: 2px; border-radius: 0 0 2px 2px; background: #9E5636; }
+.nav-btn { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; height: var(--nav-h); font-size: 11px; font-weight: 500; color: var(--c-ink2); transition: color .15s; }
+.nav-btn[aria-current="page"] { color: var(--c-accent); }
+.nav-btn[aria-current="page"]::before { content: ''; position: absolute; top: 0; left: 30%; right: 30%; height: 2px; border-radius: 0 0 2px 2px; background: var(--c-accent); }
 
 /* segmented controls and toggles */
-.seg-on { background: #5B634B; color: #F2EDE2; font-weight: 600; }
-.seg-off { color: #5F6652; }
-.tog-on { border-color: #9E5636 !important; color: #9E5636 !important; }
+.seg-on { background: var(--c-sage); color: #F2EDE2; font-weight: 600; }
+.seg-off { color: var(--c-ink2); }
+.tog-on { border-color: var(--c-accent) !important; color: var(--c-accent) !important; }
 #pl-mic.tog-on { background: #A9603F; color: #FFF9F0 !important; }
 
 /* player fills the space between the header and the bottom nav */
@@ -76,40 +95,40 @@ body.on-play header.app-header { display: none; }
 
 /* song sheet: numbers over lyrics, like the kalimba tabs people share online */
 .sh-line { display: flex; flex-wrap: wrap; row-gap: 14px; }
-.sh-bar { display: flex; align-items: flex-start; padding: 0 4px; border-left: 1px solid #E0D8C8; }
+.sh-bar { display: flex; align-items: flex-start; padding: 0 4px; border-left: 1px solid var(--c-line); }
 .sh-n { display: flex; flex-direction: column; align-items: center; min-width: 1.85rem; padding: 2px 3px 3px; border-radius: 10px; transition: background .1s; }
-.sh-up, .sh-dn { height: 8px; font-size: 10px; line-height: 8px; letter-spacing: -1px; color: #9E5636; }
-.sh-d { font-size: 21px; font-weight: 600; line-height: 1.15; color: #3A402F; font-variant-numeric: tabular-nums; }
+.sh-up, .sh-dn { height: 8px; font-size: 10px; line-height: 8px; letter-spacing: -1px; color: var(--c-accent); }
+.sh-d { font-size: 21px; font-weight: 600; line-height: 1.15; color: var(--c-ink); font-variant-numeric: tabular-nums; }
 .sh-d small { font-size: 12px; font-weight: 500; }
-.sh-l { font-size: 12px; line-height: 18px; min-height: 18px; color: #5F6652; white-space: nowrap; }
-.sh-n.done .sh-d { color: #C3BBA9; }
+.sh-l { font-size: 12px; line-height: 18px; min-height: 18px; color: var(--c-ink2); white-space: nowrap; }
+.sh-n.done .sh-d { color: var(--c-done); }
 .sh-n.sh-tie { min-width: 1.2rem; padding-left: 0; padding-right: 0; }
-.sh-n.hit .sh-d { color: #4F7A3A; }
-.sh-n.hit .sh-l { color: #4F7A3A; }
+.sh-n.hit .sh-d { color: var(--c-hit); }
+.sh-n.hit .sh-l { color: var(--c-hit); }
 .sh-rest { display: flex; flex-direction: column; align-items: center; min-width: 1.85rem; padding: 2px 3px 3px; }
-.sh-rest .sh-d { color: #C3BBA9; font-weight: 400; }
-.sh-c { display: block; min-height: 14px; font-size: 10px; line-height: 14px; font-weight: 600; color: #B0382E; white-space: nowrap; }
+.sh-rest .sh-d { color: var(--c-done); font-weight: 400; }
+.sh-c { display: block; min-height: 14px; font-size: 10px; line-height: 14px; font-weight: 600; color: var(--c-chord); white-space: nowrap; }
 .sh-n.sel { box-shadow: inset 0 0 0 1.5px #A9603F; }
 .sh-n.on { background: #A9603F; }
 .sh-n.on .sh-d, .sh-n.on .sh-l, .sh-n.on .sh-up, .sh-n.on .sh-dn { color: #FFF9F0; }
 
 /* sheet practice: the note to play now, and the mini kalimba */
-.sh-n.target { background: #F0D7CB; box-shadow: inset 0 0 0 2px #A9603F; }
-.sh-n.wrong { background: #F5E0DC; box-shadow: inset 0 0 0 2px #A24F3E; }
-.sh-n.wrong .sh-d { color: #A24F3E; }
-.sh-n.miss .sh-d { color: #A24F3E; text-decoration: line-through; }
-.ms-t { flex: 1 1 0; max-width: 24px; min-height: 30px; border-radius: 0 0 8px 8px; background: #E0D8C8; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 3px; transition: background .12s; }
-.ms-t span { font: 600 9px ui-monospace, Menlo, monospace; color: #5F6652; }
+.sh-n.target { background: var(--c-target-bg); box-shadow: inset 0 0 0 2px #A9603F; }
+.sh-n.wrong { background: var(--c-wrong-bg); box-shadow: inset 0 0 0 2px #A24F3E; }
+.sh-n.wrong .sh-d { color: var(--c-bad); }
+.sh-n.miss .sh-d { color: var(--c-bad); text-decoration: line-through; }
+.ms-t { flex: 1 1 0; max-width: 24px; min-height: 30px; border-radius: 0 0 8px 8px; background: var(--c-line); display: flex; align-items: flex-end; justify-content: center; padding-bottom: 3px; transition: background .12s; }
+.ms-t span { font: 600 9px ui-monospace, Menlo, monospace; color: var(--c-ink2); }
 .ms-t.target { background: #C47A5C; } .ms-t.target span { color: #FFF9F0; }
 .ms-t.hint { background: #E6B49D; }
-.ms-t.hit { background: #A7B59C; }
+.ms-t.hit { background: var(--c-ok); }
 .ms-t.bad { background: #A24F3E; } .ms-t.bad span { color: #FFF9F0; }
 
 /* tuner tine strip */
-.tu-tine { width: 14px; border-radius: 0 0 6px 6px; background: #E0D8C8; transition: background .2s; }
-.tu-tine.ok { background: #A7B59C; }
+.tu-tine { width: 14px; border-radius: 0 0 6px 6px; background: var(--c-line); transition: background .2s; }
+.tu-tine.ok { background: var(--c-ok); }
 .tu-tine.off { background: #C47A5C; }
-.tu-tine.now { outline: 2px solid #3A402F; outline-offset: 1px; }
+.tu-tine.now { outline: 2px solid var(--c-ink); outline-offset: 1px; }
 
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -118,7 +137,7 @@ input, textarea, select { -webkit-user-select: text; user-select: text; font-siz
 select#select-label-mode, select#select-note-system { font-size: 13px; }
 .mono { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; }
 header.app-header { padding-top: max(0.5rem, env(safe-area-inset-top)); }
-.strip-key { background: #E0D8C8; transition: background .08s, transform .08s; }
+.strip-key { background: var(--c-line); transition: background .08s, transform .08s; }
 .strip-key.lit { background: #C47A5C; transform: scaleY(1.12); }
 .mcard.playing { box-shadow: 0 0 0 2px #A9603F; }
 .chip { min-width: 1.9rem; }
@@ -127,7 +146,6 @@ header.app-header { padding-top: max(0.5rem, env(safe-area-inset-top)); }
 .rv-strip { position: sticky; top: calc(var(--hdr, 60px) + var(--rvbar, 84px)); z-index: 10; overflow: hidden; background: #fff;
   border: 1px solid #D8CDBE; border-radius: 10px; box-shadow: 0 2px 6px rgba(60, 40, 20, .12); }
 .rv-strip img { position: absolute; max-width: none; height: auto; }
-#keypad button { touch-action: manipulation; }
 @media (prefers-reduced-motion: reduce) { .kalimba-tine.guide-target { animation: none; } * { transition: none !important; } }
 .moved-bar { background: #FFF3D6; color: #4A3A22; border-bottom: 1px solid #E2C98F; padding: 10px 16px; font-size: 13px; line-height: 1.45; display: flex; flex-direction: column; gap: 6px; }
 .moved-bar b { font-size: 14px; }
@@ -135,3 +153,44 @@ header.app-header { padding-top: max(0.5rem, env(safe-area-inset-top)); }
 .moved-bar button, .moved-bar a { padding: 6px 12px; border-radius: 8px; font-weight: 600; text-decoration: none; }
 .moved-bar button { background: #fff; border: 1px solid #C9A85E; color: #4A3A22; }
 .moved-bar a { background: #B0382E; color: #fff; }
+
+/* ---- liquid glass: blur + a little refraction + a bright edge, on the keypads and the note panel ---- */
+.liquid { position: relative; isolation: isolate; overflow: hidden; contain: paint; border-radius: 26px; box-shadow: 0 12px 34px var(--glass-shadow), 0 2px 8px rgba(0, 0, 0, .06); }
+.liquid .glass-filter { position: absolute; inset: 0; z-index: 0; -webkit-backdrop-filter: blur(16px) saturate(1.7); backdrop-filter: blur(16px) saturate(1.7); }
+@supports not (-webkit-touch-callout: none) { .liquid .glass-filter { filter: url(#liquid-glass); } }   /* refraction only where the browser can (Chrome); iPhone keeps the blur */
+.liquid .glass-tint { position: absolute; inset: 0; z-index: 1; background: var(--glass-tint); }
+.liquid .glass-specular { position: absolute; inset: 0; z-index: 2; border-radius: inherit; pointer-events: none;
+  box-shadow: inset 1px 1px 0 var(--glass-edge), inset 0 0 9px var(--glass-edge), inset 0 -1px 0 rgba(0, 0, 0, .05); }
+.liquid .glass-content { position: relative; z-index: 3; }
+@media (prefers-reduced-transparency: reduce) { .liquid .glass-filter { display: none; } .liquid .glass-tint { background: var(--glass-solid); } }
+
+/* keypads: a floating glass sheet at the bottom */
+.kp { left: 8px; right: 8px; bottom: max(8px, env(safe-area-inset-bottom)); max-width: 36rem; margin: 0 auto; }
+.kp-pad { padding: 9px; }
+.kp-rows { display: flex; flex-direction: column; gap: 6px; }
+.kp-row { display: grid; gap: 6px; }
+.kp-key { height: 46px; border-radius: 13px; background: var(--glass-key); color: var(--c-ink); font-weight: 600; font-size: 20px; line-height: 1;
+  border: 1px solid var(--glass-key-edge); box-shadow: 0 1.5px 0 var(--glass-key-shadow), inset 0 1px 0 rgba(255, 255, 255, .35);
+  display: flex; align-items: center; justify-content: center; padding: 0; touch-action: manipulation; -webkit-user-select: none; user-select: none;
+  -webkit-tap-highlight-color: transparent; transition: transform .05s, background .1s; }
+.kp-key:active { transform: translateY(1.5px) scale(.985); box-shadow: none; background: var(--glass-tint); }
+.kp-key svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.kp-mod { background: rgba(167, 181, 156, .5); font-size: 18px; }
+.kp-fn { color: var(--c-ink2); background: rgba(224, 216, 200, .5); }
+.kp-acc { color: var(--c-accent); background: rgba(196, 122, 92, .22); }
+.kp-del { color: var(--c-bad); background: rgba(196, 122, 92, .16); }
+.kp-space { color: var(--c-ink2); font-size: 15px; }
+:root[data-theme="dark"] .kp-mod { background: rgba(143, 160, 127, .22); }
+:root[data-theme="dark"] .kp-fn { background: rgba(255, 255, 255, .08); }
+:root[data-theme="dark"] .kp-acc { background: rgba(208, 138, 102, .22); }
+:root[data-theme="dark"] .kp-del { background: rgba(220, 132, 112, .18); }
+.kp-sm { font-size: 14px; }
+.kp-compact .kp-key { height: 40px; font-size: 17px; border-radius: 11px; }
+.kp-compact .kp-sm { font-size: 13px; }
+.kp-compact .kp-mod { font-size: 15px; }
+
+/* note panel */
+.liquid-pop { border-radius: 24px; max-height: 68vh; }
+.liquid-pop .glass-content { padding: 11px; max-height: 68vh; overflow-y: auto; }
+/* while a lyric is typed the note panel shrinks to the field, so the chip being edited stays in view above the keyboard */
+#fix-pop.typing #fix-body > :not(.fix-keep) { display: none; }
