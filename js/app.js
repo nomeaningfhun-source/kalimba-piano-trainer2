@@ -1066,8 +1066,9 @@ const Fix = {
     } else {
       const b = (k, t, cls) => '<button data-fx="' + k + '" class="h-10 rounded-lg ' + (cls || 'bg-slate-800 border border-slate-700 text-slate-100') + ' text-sm font-semibold">' + t + '</button>';
       pop.innerHTML = '<div class="grid grid-cols-7 gap-1">' + [1, 2, 3, 4, 5, 6, 7].map(d => b('d' + d, d)).join('') + '</div>' +
-        '<div class="grid grid-cols-8 gap-1 mt-1">' + b('up', "สูง '") + b('dn', 'ต่ำ') + b('sharp', '♯') + b('play', '▶', 'bg-amber-600 text-white') +
-        b('ins', '＋') + b('del', '⌫', 'bg-slate-800 border border-slate-700 text-rose-300') + b('x', '✕', 'bg-slate-800 border border-slate-700 text-slate-400') + b('undo', '↶') + '</div>';
+        '<div class="grid grid-cols-7 gap-1 mt-1">' + b('up', "สูง '") + b('dn', 'ต่ำ') + b('sharp', '♯') + b('play', '▶', 'bg-amber-600 text-white') +
+        b('ins', '＋') + b('del', '⌫', 'bg-slate-800 border border-slate-700 text-rose-300') + b('x', '✕', 'bg-slate-800 border border-slate-700 text-slate-400') + '</div>' +
+        '<button data-fx="undo" class="w-full h-8 mt-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-100 text-xs font-semibold">↶ ย้อนกลับการแก้ล่าสุด</button>';
       // rhythm: which notes share a beat, and where the gaps are
       const sl = melSlots(m.mel), rp = melChipPos(sl)[this.at.n];
       if (rp) {
@@ -1258,12 +1259,15 @@ const Undo = {
   undo() {
     if (!this.stack.length) { toast('ไม่มีอะไรให้ย้อนกลับ'); return; }
     const prev = this.stack.pop(), d = JSON.parse(prev), s = S.review.song;
+    // remember which field the cursor was in, to put it back after the cards are redrawn (the keypad stays open)
+    const ae = document.activeElement, ac = ae && ae.closest && ae.closest('.mcard'), at = ac ? { i: +ac.dataset.i, f: ae.dataset.f } : null;
     this.busy = true;
     Fix.close();
     s.measures = d.m; s.octaveShift = d.o; s.tempo = d.tempo; s.beats = d.beats; s.title = d.title;
     byId('rv-title').value = s.title || ''; byId('rv-tempo').value = s.tempo; byId('rv-beats').value = s.beats;
     byId('rv-shift').textContent = (s.octaveShift > 0 ? '+' : '') + (s.octaveShift || 0);
     renderCards();
+    if (at) { const card = cardEl(Math.min(at.i, s.measures.length - 1)), inp = card && $('input[data-f="' + at.f + '"]', card); if (inp) inp.focus(); }
     this.last = prev; this.kind = null; this.busy = false; this.sync();
     toast('ย้อนกลับแล้ว');
   },
@@ -1312,6 +1316,7 @@ function applyKeypadMode() {
 }
 function keypadPress(k) {
   if (k === 'close') { hideKeypad(); if (document.activeElement) document.activeElement.blur(); return; }
+  if (k === 'undo') { Undo.undo(); return; }
   const t = kpTarget;
   if (!t) return;
   t.focus();

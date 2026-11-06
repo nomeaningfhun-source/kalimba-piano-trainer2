@@ -271,8 +271,10 @@ const SheetRead = (() => {
       const x0 = lead ? lead.x0 : d.x0, last = toks[toks.length - 1];
       const gap = last ? x0 - last.right : Infinity;
       // chords are written without spaces (135); melody numbers without a space share a beat
-      if (last && gap < dh * (isChord ? 0.45 : MELODY_JOIN)) { last.t += note; last.x1 = d.x1; last.right = d.right; last.xs.push(x0); }
-      else toks.push({ t: note, x0, x1: d.x1, right: d.right, xs: [x0] });
+      const near = !!last && gap < dh * (isChord ? 0.45 : MELODY_JOIN);
+      // layout rhythm: every melody number is its own beat (a chord can sit under any one of them), so tight numbers are only marked
+      if (near && (isChord || !LAYOUT_RHYTHM)) { last.t += note; last.x1 = d.x1; last.right = d.right; last.xs.push(x0); }
+      else toks.push({ t: note, x0, x1: d.x1, right: d.right, xs: [x0], tight: near && !isChord });
     });
     if (isChord) toks.forEach(t => { t.strum = lines.some(l => l.x0 <= t.x0 + 2 && l.x1 >= t.x1 - 2); });
     else {
@@ -295,7 +297,7 @@ const SheetRead = (() => {
     const ds = [];
     mel.forEach(r => r.toks.forEach((tk, i) => {
       const nx = r.toks[i + 1];
-      if (nx && tk.xs && nx.xs && tk.xs.length === 1) ds.push(nx.xs[0] - tk.xs[0]);
+      if (nx && tk.xs && nx.xs && tk.xs.length === 1 && !nx.tight) ds.push(nx.xs[0] - tk.xs[0]);   // tight pairs say nothing about the pitch
     }));
     if (ds.length < 4) return 0;
     ds.sort((a, b) => a - b);

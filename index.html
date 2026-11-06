@@ -484,7 +484,7 @@
     <div id="rv-bar" class="sticky z-20 bg-slate-950/95 backdrop-blur border border-slate-800 rounded-xl p-2 space-y-1.5" style="top: var(--hdr, 6rem);">
       <div class="flex items-center gap-2">
         <button id="btn-play-all" class="px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-semibold whitespace-nowrap">▶ ฟังทั้งเพลง</button>
-        <button id="rv-undo" disabled aria-label="ย้อนกลับ" title="ย้อนกลับ" class="w-9 h-9 shrink-0 rounded-full bg-slate-800 border border-slate-600 text-slate-100 text-lg leading-none">↶</button>
+        <button id="rv-undo" disabled class="px-2 py-1.5 shrink-0 rounded-lg bg-slate-800 border border-slate-600 text-slate-100 text-[11px] font-semibold whitespace-nowrap">↶ ย้อนกลับ</button>
         <label class="flex items-center gap-1 text-[11px] text-slate-300"><input id="rv-chords" type="checkbox" checked class="accent-amber-500"> คอร์ด</label>
         <label class="flex items-center gap-1 text-[11px] text-slate-300"><input id="rv-kp" type="checkbox" checked class="accent-amber-500"> แป้นเลข</label>
         <div id="rv-jump" class="hidden flex items-center gap-1 text-[11px] text-red-200">
@@ -531,8 +531,9 @@
         <button data-k="b" class="py-2 rounded-lg bg-slate-700 text-white">♭</button>
         <button data-k="bs" class="py-2 rounded-lg bg-rose-900 text-white">⌫</button>
       </div>
-      <div class="grid grid-cols-3 gap-1 text-xs">
+      <div class="grid grid-cols-4 gap-1 text-xs">
         <button data-k=" " class="col-span-2 py-2 rounded-lg bg-slate-600 text-white select-none" style="touch-action:none;-webkit-touch-callout:none">เว้นวรรค · กดค้างลาก = เลื่อนเคอร์เซอร์</button>
+        <button data-k="undo" class="py-2 rounded-lg bg-amber-800 text-white font-semibold">↶ ย้อนกลับ</button>
         <button data-k="close" class="py-2 rounded-lg bg-slate-700 text-slate-200">ซ่อน</button>
       </div>
     </div>
