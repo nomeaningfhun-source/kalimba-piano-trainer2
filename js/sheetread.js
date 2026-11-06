@@ -11,7 +11,12 @@ const SheetRead = (() => {
   const PAPER = 215;       // brighter than this = paper
   const ON = 110;          // ink strength that counts as a pixel of a glyph
   const MELODY_JOIN = 0.5; // melody numbers closer than this (in digit heights) share one beat like 5'5' (measured: tight pairs 0.3-0.45, separate beats 0.55+)
-  const REST_GAP = 2;      // a blank this many digit heights wide between melody numbers is a rest
+  // Blanks between melody numbers are the typist's word spacing, not rests (measured against the real song: line 1-2 fit best with no rests),
+  // so none is written as 0 by default; the reviewer adds the real pauses. Set a number of digit heights here to turn the guess back on.
+  // LAYOUT_RHYTHM: the room a number takes on the sheet is its length (a blank after it = the note keeps sounding: '-' per slot, '~' per half slot).
+  // Set false to go back to the first version: every blank of 2+ digit heights becomes a 0 rest of one beat.
+  const LAYOUT_RHYTHM = true;
+  const REST_GAP = LAYOUT_RHYTHM ? Infinity : 2;      // a blank this many digit heights wide between melody numbers is a rest
 
   // ink strength 0..255 per pixel, one layer for red ink and one for everything else
   function splitLayers(px, w, h, ch) {
@@ -266,8 +271,8 @@ const SheetRead = (() => {
       const x0 = lead ? lead.x0 : d.x0, last = toks[toks.length - 1];
       const gap = last ? x0 - last.right : Infinity;
       // chords are written without spaces (135); melody numbers without a space share a beat
-      if (last && gap < dh * (isChord ? 0.45 : MELODY_JOIN)) { last.t += note; last.x1 = d.x1; last.right = d.right; }
-      else toks.push({ t: note, x0, x1: d.x1, right: d.right });
+      if (last && gap < dh * (isChord ? 0.45 : MELODY_JOIN)) { last.t += note; last.x1 = d.x1; last.right = d.right; last.xs.push(x0); }
+      else toks.push({ t: note, x0, x1: d.x1, right: d.right, xs: [x0] });
     });
     if (isChord) toks.forEach(t => { t.strum = lines.some(l => l.x0 <= t.x0 + 2 && l.x1 >= t.x1 - 2); });
     else {
@@ -280,6 +285,39 @@ const SheetRead = (() => {
       }
     }
     return toks;
+  }
+
+  // Rhythm from the layout: the pitch of one written beat is the usual distance between neighbouring single numbers on the page;
+  // a note followed by a blank wider than that keeps sounding for the extra room ('-' = a beat, '~' = half a beat).
+  // Numbers written tight together are eighths (half a beat each). Returns the pitch in px (0 = too little to measure).
+  function spaceByLayout(rows) {
+    const mel = rows.filter(r => r.kind === 'melody' && r.toks);
+    const ds = [];
+    mel.forEach(r => r.toks.forEach((tk, i) => {
+      const nx = r.toks[i + 1];
+      if (nx && tk.xs && nx.xs && tk.xs.length === 1) ds.push(nx.xs[0] - tk.xs[0]);
+    }));
+    if (ds.length < 4) return 0;
+    ds.sort((a, b) => a - b);
+    const low = ds.slice(0, Math.max(3, Math.ceil(ds.length / 2))), P = low[Math.floor(low.length / 2)];
+    if (!(P > 4)) return 0;
+    mel.forEach(r => {
+      const out = [];
+      r.toks.forEach((tk, i) => {
+        out.push(tk);
+        const nx = r.toks[i + 1];
+        if (!nx || !tk.xs || !nx.xs) return;
+        const nominal = tk.xs.length > 1 ? 0.5 : 1;
+        let extra = Math.min(4, Math.round(((nx.xs[0] - tk.xs[tk.xs.length - 1]) / P - nominal) * 2) / 2);
+        while (extra >= 0.5) {
+          const full = extra >= 1;
+          out.push({ t: full ? '-' : '~', rest: true, x0: tk.right + 1, x1: tk.right + 1, right: tk.right + 1, xs: [tk.right + 1] });
+          extra -= full ? 1 : 0.5;
+        }
+      });
+      r.toks = out;
+    });
+    return P;
   }
 
   const THAI = /[฀-๿]/g, LATIN = /[A-Za-z]/g, DIGIT = /[0-9]/g;
@@ -409,9 +447,10 @@ const SheetRead = (() => {
       tick();
     }
     const rows = dRows.concat(rRows).sort((a, b) => a.y0 - b.y0), rects = [];
-    return { text: assemble(rows, rects), title, rows, rects };
+    const pitch = LAYOUT_RHYTHM ? spaceByLayout(rows) : 0;
+    return { text: assemble(rows, rects), title, rows, rects, pitch };
   }
 
-  return { splitLayers, findRows, components, numberPieces, readNumberRow, classify, lyricGroups, assemble, read };
+  return { splitLayers, findRows, components, numberPieces, readNumberRow, spaceByLayout, classify, lyricGroups, assemble, read };
 })();
 if (typeof module !== 'undefined') module.exports = SheetRead;

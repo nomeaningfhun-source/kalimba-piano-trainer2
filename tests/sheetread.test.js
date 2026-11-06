@@ -68,17 +68,17 @@ t('a pale chord is read several ways and the most common answer wins (135, not 1
   assert.deepStrictEqual(toks.map(x => x.t), ['135']);
   assert(calls >= 3);
 });
-t('a wide blank between melody numbers is a rest (0) that keeps the word of the number before it', async () => {
+t('a wide blank between melody numbers is word spacing, not a rest (no 0 is written)', async () => {
   const rects = [[10, 20, 19, 35, GREY], [31, 20, 40, 35, GREY], [80, 20, 89, 35, GREY]];
   const L = SR.splitLayers(page(110, 50, rects), 110, 50, 4);
   const r = SR.findRows(L.dark, 110, 50)[0];
   const toks = await SR.readNumberRow(L.dark, 110, r, async () => [{ text: '356' }], false);
-  assert.deepStrictEqual(toks.map(x => x.t), ['3', '5', '0', '6']);
+  assert.deepStrictEqual(toks.map(x => x.t), ['3', '5', '6']);
   const rows = [
     { kind: 'lyric', y0: 0, y1: 15, hgt: 16, x0: 0, x1: 110, groups: [{ x0: 8, x1: 36, text: 'กลับ' }, { x0: 78, x1: 92, text: 'มา' }] },
     Object.assign({ kind: 'melody', y0: 20, y1: 35, hgt: 16, x0: 10, x1: 89 }, { toks })
   ];
-  assert.strictEqual(SR.assemble(rows).split('\n')[1], '3 5 0   6');
+  assert.strictEqual(SR.assemble(rows).split('\n')[1], '3 5   6');
 });
 t('numbers written tight together (5\'5\', 4\'3\'2\') share one beat; a normal space keeps them apart', async () => {
   // 18 px digits; gaps of 5 px (0.28 digit heights) join, 11 px (0.6) do not
@@ -87,6 +87,18 @@ t('numbers written tight together (5\'5\', 4\'3\'2\') share one beat; a normal s
   const r = SR.findRows(L.dark, 100, 50)[0];
   const toks = await SR.readNumberRow(L.dark, 100, r, async () => [{ text: '43226' }], false);
   assert.deepStrictEqual(toks.map(x => x.t), ['432', '2', '6']);
+});
+t('rhythm from the layout: the room after a number is how long it keeps sounding (real positions of IMG_9863 line 1)', () => {
+  const tok = (t, ...xs) => ({ t, xs, x0: xs[0], x1: xs[xs.length - 1] + 10, right: xs[xs.length - 1] + 14 });
+  const row = { kind: 'melody', toks: [tok("3'", 138), tok("5'", 191), tok("5'", 216), tok("6'", 247), tok("3'", 271), tok("5'5'", 296, 316),
+    tok("3'", 375), tok("5'5'", 434, 453), tok("3'2''2''3''", 490, 508, 532, 555)] };
+  const P = SR.spaceByLayout([row]);
+  assert.strictEqual(P, 25);
+  assert.deepStrictEqual(row.toks.map(x => x.t), ["3'", '-', "5'", "5'", "6'", "3'", "5'5'", '-', '-', "3'", '-', '~', "5'5'", '-', "3'2''2''3''"]);
+  assert(row.toks.filter(x => x.t === '-' || x.t === '~').every(x => x.rest));     // they take a neighbour's word
+  // not enough numbers to measure the pitch: untouched
+  const few = { kind: 'melody', toks: [tok('1', 10), tok('2', 80)] };
+  assert.strictEqual(SR.spaceByLayout([few]), 0); assert.strictEqual(few.toks.length, 2);
 });
 t('a whole song a semitone up or down: melody, number chords, bass and letter chords', () => {
   assert.strictEqual(P.transposeMelody("3' 2'2' #4 7 0 -", 1), "4' #2'#2' 5 1' 0 -");

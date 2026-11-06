@@ -282,12 +282,13 @@ t('line gap: beats of rest before a measure that starts a new line', () => {
   const h = P.parseSong({ beats: 4, measures: [{ mel: '1', br: true }, { mel: '- 2', br: true, gap: 1 }] }, 'B4');
   assert.strictEqual(h.measures[0].notes[0].dur, 1);
 });
-t('photo songs: every new line pauses half a beat unless its gap is 0; other songs keep exact timing', () => {
-  const ms = [{ mel: '1 2 3 4', br: true }, { mel: '5 6 7 1', br: true }, { mel: '2 3 4 5', br: true, gap: 0 }, { mel: '1 1 1 1' }];
-  const p = P.parseSong({ beats: 4, source: 'photo', measures: ms }, 'B4');
-  assert.deepStrictEqual(p.measures.map(m => m.gap), [0, 0.5, 0, 0]);
-  assert.deepStrictEqual(p.measures.map(m => m.start), [0, 4.5, 8.5, 12.5]);
-  assert.deepStrictEqual(P.parseSong({ beats: 4, measures: ms }, 'B4').measures.map(m => m.start), [0, 4, 8, 12]);
+t('a new line pauses only when its gap is set (default none)', () => {
+  const ms = [{ mel: '1 2 3 4', br: true }, { mel: '5 6 7 1', br: true }, { mel: '2 3 4 5', br: true, gap: 0.5 }, { mel: '1 1 1 1' }];
+  for (const source of ['photo', undefined]) {
+    const p = P.parseSong({ beats: 4, source, measures: ms }, 'B4');
+    assert.deepStrictEqual(p.measures.map(m => m.gap), [0, 0, 0.5, 0]);
+    assert.deepStrictEqual(p.measures.map(m => m.start), [0, 4, 8.5, 12.5]);
+  }
 });
 t('tight numbers are eighth notes (half a beat each); 1_2_3 still fits one beat; chords follow their written beat', () => {
   const m = P.parseMelody("4'3'2' 2' 6'", 0);
@@ -304,5 +305,11 @@ t('photo sheets: a lone 0 is half a beat (typed songs keep a full beat)', () => 
   assert.deepStrictEqual(ph.items.filter(i => i.type === 'rest').map(i => i.dur), [0.5, 0.5]);
   assert.strictEqual(ph.len, 1 + 0.5 + 1.5 + 0.5 + 1);
   assert.strictEqual(P.parseSong({ beats: 4, measures: [{ mel: '1 0 2' }] }, 'B4').measures[0].len, 3);
+});
+t('~ is half a beat of the note before it (photo reader), - a full beat', () => {
+  const m = P.parseMelody("5' ~ 3' - 2'", 0);
+  assert.deepStrictEqual(m.notes.map(n => [n.beat, n.dur]), [[0, 1.5], [1.5, 2], [3.5, 1]]);
+  assert.strictEqual(m.end, 4.5);
+  assert.strictEqual(P.parseNoteToken('~').type, 'hold');
 });
 console.log(n + ' passed');

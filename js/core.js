@@ -70,6 +70,7 @@ const NOTE_RE = /^([#b]?)([0-7])('{0,3}|,{0,3})$/;
 function parseNoteToken(raw) {
   const tok = normTok(raw);
   if (tok === '-') return { type: 'hold' };
+  if (tok === '~') return { type: 'hold', half: true };   // half a beat of the note before (written by the photo reader)
   const m = NOTE_RE.exec(tok);
   if (!m) return { type: 'bad' };
   const deg = +m[2];
@@ -95,7 +96,8 @@ function parseMelody(str, shift, prev, restBeat) {
     if (!subs.length) { pos += 1; continue; }
     // numbers written tight together (2'2', 4'3'2') are eighth notes, half a beat each; 1_2_3 squeezes its notes into one beat
     // a lone 0 lasts restBeat (photo sheets: half a beat, since their blanks are only the typist's spacing)
-    const d = tight ? 0.5 : subs.length === 1 && restBeat && parseNoteToken(subs[0]).type === 'rest' ? restBeat : 1 / subs.length;
+    const one = subs.length === 1 ? parseNoteToken(subs[0]) : null;
+    const d = tight ? 0.5 : one && one.half ? 0.5 : one && restBeat && one.type === 'rest' ? restBeat : 1 / subs.length;
     for (const sub of subs) {
       const t = parseNoteToken(sub);
       if (t.type === 'note') {
@@ -105,7 +107,7 @@ function parseMelody(str, shift, prev, restBeat) {
         items.push({ type: 'rest', beat: pos, dur: d, tok: '0' }); last = null;
       } else if (t.type === 'hold') {
         if (last) last.dur += d; else issues.push({ level: 'warn', code: 'hold', tok: '-', msg: '"-" ไม่มีโน้ตให้ต่อเสียง' });
-        items.push({ type: 'hold', beat: pos, dur: d, tok: '-' });
+        items.push({ type: 'hold', beat: pos, dur: d, tok: t.half ? '~' : '-' });
       } else {
         issues.push({ level: 'error', code: 'bad', tok: sub, msg: 'อ่าน "' + sub + '" ไม่ได้' });
         items.push({ type: 'bad', beat: pos, dur: d, tok: sub }); last = null;
@@ -340,7 +342,7 @@ function parseSong(song, tuning) {
   let prev = null, start = 0;
   song.measures.forEach((m, i) => {
     // a measure that starts a new line can wait a few beats first (the rests the sheet leaves there)
-    const gap = lineGap(m, i, song.source === 'photo' ? 0.5 : 0);
+    const gap = lineGap(m, i, 0);
     start += gap;
     const pm = parseMeasure(m, { shift: song.octaveShift || 0, beats: song.beats, prev: gap ? null : prev, tuning, free: song.source === 'photo' });
     pm.index = i; pm.start = start; pm.gap = gap;

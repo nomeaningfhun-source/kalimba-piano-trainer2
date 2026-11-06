@@ -724,6 +724,7 @@ function setupLibrary() {
 }
 
 /* ---- import from a photo of a number sheet: read on the device by js/sheetread.js + Tesseract ---- */
+const PHOTO_TEMPO = 120;
 const PhotoOCR = {
   base: 'vendor/tesseract/', text: null, num: null, psm: {},
   loadLib() {
@@ -816,6 +817,7 @@ async function importPhotos(list) {
     if (!texts.length) throw new Error('ไม่พบเลขโน้ตในรูป — ลองรูปที่ชัดขึ้น หรือแคปหน้าจอแทนการถ่ายรูป');
     const text = texts.join('\n\n');
     byId('imp-text').value = text; byId('imp-title').value = title;
+    byId('imp-tempo').value = PHOTO_TEMPO;   // one written slot is about half a second on the sheets measured, so 1 slot = 1 beat at ~120
     S.photoDraft = { photos, meta };
     show(1, 'อ่านเสร็จ ✓ ตรวจโน้ตก่อนบันทึก');
     convertImport([{ level: 'info', msg: 'อ่านจากรูป ' + files.length + ' หน้า · ตัวที่อ่านไม่ออกเป็น ? ให้แก้ตามรูปต้นฉบับด้านล่าง' }]);
@@ -908,9 +910,9 @@ function renderReview() {
   requestAnimationFrame(() => document.documentElement.style.setProperty('--rvbar', (byId('rv-bar').offsetHeight + 6) + 'px'));
 }
 
-// beats of rest before this line: its own setting, else 1 for songs read from a photo
-const gapOf = m => lineGap(m, 1, S.review.song.source === 'photo' ? 0.5 : 0);
-const GAP_STEPS = [0.5, 1, 2, 0], gapTxt = g => g > 0 ? (g === 0.5 ? '½' : g) + ' จังหวะ' : 'ไม่เว้น';
+// beats of rest before this line: its own setting (none unless set)
+const gapOf = m => lineGap(m, 1, 0);
+const GAP_STEPS = [0, 0.5, 1, 2], gapTxt = g => g > 0 ? (g === 0.5 ? '½' : g) + ' จังหวะ' : 'ไม่เว้น';
 function cardHTML(m, i) {
   const ph = { lyr: 'เนื้อร้อง (แยกพยางค์ด้วยช่องว่าง)', mel: "ทำนอง เช่น 1 1 5 5'", chd: 'คอร์ด / เบส เช่น C . F .' };
   const inp = (f, cls) => '<input data-f="' + f + '" value="' + esc(m[f]) + '" placeholder="' + ph[f] + '" ' + (f === 'mel' && S.keypad ? 'inputmode="none" ' : '') +
@@ -989,7 +991,7 @@ function lyrWordAt(lt, li) {
 }
 
 // the notes a card shows as chips (holds "-" have none), as [slot, sub] positions
-const melChipPos = slots => { const out = []; slots.forEach((x, si) => x.subs.forEach((t, k) => { if (t !== '-') out.push([si, k]); })); return out; };
+const melChipPos = slots => { const out = []; slots.forEach((x, si) => x.subs.forEach((t, k) => { if (t !== '-' && t !== '~') out.push([si, k]); })); return out; };
 const chdToks = chd => String(chd || '').trim().split(/\s+/).filter(Boolean);
 
 function chipsHTML(pm, m) {
