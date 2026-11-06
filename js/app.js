@@ -1047,7 +1047,7 @@ const Fix = {
       const sl = melSlots(m.mel), rp = melChipPos(sl)[this.at.n];
       if (rp) {
         const s = sl[rp[0]], last = rp[1] === s.subs.length - 1, split = !last, canJoin = split || !!sl[rp[0] + 1];
-        const rb = (k, t, on) => '<button data-fx="' + k + '" ' + (on ? '' : 'disabled ') + 'class="h-9 rounded-lg bg-slate-800 border border-slate-700 text-xs ' + (on ? 'text-sky-200' : 'text-slate-600') + '">' + t + '</button>';
+        const rb = (k, t, on) => '<button data-fx="' + k + '" ' + (on ? '' : 'disabled ') + 'class="h-9 rounded-lg bg-slate-800 border border-slate-700 text-xs ' + (on ? 'text-slate-100' : 'text-slate-600') + '">' + t + '</button>';
         pop.innerHTML += '<div class="grid grid-cols-4 gap-1 mt-1">' + rb('rj', split ? '✂ แยกจังหวะ' : '⌒ ติดตัวถัดไป', canJoin) +
           rb('rb', '0◂ พักก่อน', true) + rb('ra', '▸0 พักหลัง', true) + rb('rh', '− ต่อเสียง', last) + '</div>' +
           '<div class="text-[10px] text-slate-500 mt-1">ติด = ดีดในจังหวะเดียว (5\'5\') · พัก = เว้น 1 จังหวะ · ต่อเสียง = ยืดโน้ตนี้อีก 1 จังหวะ</div>';
@@ -1350,7 +1350,8 @@ function setupReview() {
   });
 
   const pop = byId('fix-pop');
-  ['mousedown', 'touchstart'].forEach(ev => pop.addEventListener(ev, e => { if (!e.target.closest('input')) e.preventDefault(); }, { passive: false }));
+  // mousedown only: cancelling touchstart makes iOS drop the click, so none of the panel's buttons would work on a phone
+  pop.addEventListener('mousedown', e => { if (!e.target.closest('input')) e.preventDefault(); });
   pop.addEventListener('click', e => { const b = e.target.closest('[data-fx]'); if (b) Fix.apply(b.dataset.fx); });
   pop.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'fix-chord') Fix.apply('ok'); if (e.key === 'Enter' && e.target.id === 'fix-lyr') Fix.apply('lyr'); });
   if (window.visualViewport) window.visualViewport.addEventListener('resize', () => { if (Fix.at) Fix.place(null); });
@@ -1363,7 +1364,7 @@ function setupReview() {
   byId('rv-jump-next').addEventListener('click', () => Fix.jump(1));
 
   const kp = byId('keypad');
-  ['mousedown', 'touchstart'].forEach(ev => kp.addEventListener(ev, e => e.preventDefault(), { passive: false }));
+  kp.addEventListener('mousedown', e => e.preventDefault());   // keeps the field focused; not touchstart (iOS would drop the click)
   kp.addEventListener('click', e => { const b = e.target.closest('button[data-k]'); if (b) keypadPress(b.dataset.k); });
 }
 
