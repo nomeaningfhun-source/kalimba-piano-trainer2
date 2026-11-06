@@ -10,7 +10,8 @@ const SheetRead = (() => {
   const RED = 16;          // r - max(g, b) above this = red ink
   const PAPER = 215;       // brighter than this = paper
   const ON = 110;          // ink strength that counts as a pixel of a glyph
-  const REST_GAP = 3.5;    // a blank this many digit heights wide between melody numbers is a rest (the gaps between words are 2-2.8, a pause between phrases 4+)
+  const MELODY_JOIN = 0.5; // melody numbers closer than this (in digit heights) share one beat like 5'5' (measured: tight pairs 0.3-0.45, separate beats 0.55+)
+  const REST_GAP = 2;      // a blank this many digit heights wide between melody numbers is a rest
 
   // ink strength 0..255 per pixel, one layer for red ink and one for everything else
   function splitLayers(px, w, h, ch) {
@@ -265,7 +266,7 @@ const SheetRead = (() => {
       const x0 = lead ? lead.x0 : d.x0, last = toks[toks.length - 1];
       const gap = last ? x0 - last.right : Infinity;
       // chords are written without spaces (135); melody numbers without a space share a beat
-      if (last && gap < dh * (isChord ? 0.45 : 0.22)) { last.t += note; last.x1 = d.x1; last.right = d.right; }
+      if (last && gap < dh * (isChord ? 0.45 : MELODY_JOIN)) { last.t += note; last.x1 = d.x1; last.right = d.right; }
       else toks.push({ t: note, x0, x1: d.x1, right: d.right });
     });
     if (isChord) toks.forEach(t => { t.strum = lines.some(l => l.x0 <= t.x0 + 2 && l.x1 >= t.x1 - 2); });
