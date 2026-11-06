@@ -84,11 +84,14 @@ class AudioEngine {
   init() {
     // iOS can leave the context 'interrupted' for good (after the photo picker or a long photo read): resume()
     // never brings it back, so a new one is made — this runs inside a tap, where iOS allows that
-    if (this.ctx && (this.ctx.state === 'interrupted' || this.ctx.state === 'closed' || this.stuck)) {
+    // (a context that is still not running a second after it was made was suspended by iOS - say after the first play - and resume() does
+    // not always bring it back, which was the silent second play)
+    if (this.ctx && (this.ctx.state === 'interrupted' || this.ctx.state === 'closed' || this.stuck ||
+        (this.ctx.state !== 'running' && performance.now() - (this.madeAt || 0) > 1000))) {
       try { this.ctx.close(); } catch (e) { /* already gone */ }
       this.ctx = null; this.stuck = false;
     }
-    if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (!this.ctx) { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); this.madeAt = performance.now(); }
     const c = this.ctx;
     if (c.state !== 'running') {
       // a resume that has not taken hold by the next tap means this context is stuck
@@ -775,17 +778,29 @@ const PhotoOCR = {
 
 // a picked image → RGBA pixels at most 1600 px wide, plus a small JPEG kept with the song for checking
 function loadPage(file) {
+  const draw = (src, nw, nh) => {
+    const k = Math.min(1, 1600 / nw), w = Math.round(nw * k), h = Math.round(nh * k);
+    const cv = el('canvas'); cv.width = w; cv.height = h;
+    const c = cv.getContext('2d'); c.fillStyle = '#fff'; c.fillRect(0, 0, w, h); c.drawImage(src, 0, 0, w, h);
+    const tk = Math.min(1, 900 / w), tc = el('canvas'); tc.width = Math.round(w * tk); tc.height = Math.round(h * tk);
+    tc.getContext('2d').drawImage(cv, 0, 0, tc.width, tc.height);
+    return { data: c.getImageData(0, 0, w, h).data, width: w, height: h, channels: 4, thumb: tc.toDataURL('image/jpeg', 0.72) };
+  };
   return new Promise((res, rej) => {
     const u = URL.createObjectURL(file), im = new Image();
-    im.onerror = () => { URL.revokeObjectURL(u); rej(new Error('เปิดรูปไม่ได้: ' + file.name)); };
+    let done = false;
+    const bad = () => rej(new Error('เปิดรูปไม่ได้: ' + file.name));
+    // the picker sometimes hands over a file <img> cannot decode (or never answers): try the browser's other decoder before giving up
+    const fallback = async () => {
+      if (done) return; done = true; clearTimeout(timer); URL.revokeObjectURL(u);
+      try { const bm = await createImageBitmap(file); const out = draw(bm, bm.width, bm.height); if (bm.close) bm.close(); res(out); }
+      catch (e) { bad(); }
+    };
+    const timer = setTimeout(fallback, 15000);
+    im.onerror = fallback;
     im.onload = () => {
-      URL.revokeObjectURL(u);
-      const k = Math.min(1, 1600 / im.naturalWidth), w = Math.round(im.naturalWidth * k), h = Math.round(im.naturalHeight * k);
-      const cv = el('canvas'); cv.width = w; cv.height = h;
-      const c = cv.getContext('2d'); c.fillStyle = '#fff'; c.fillRect(0, 0, w, h); c.drawImage(im, 0, 0, w, h);
-      const tk = Math.min(1, 900 / w), tc = el('canvas'); tc.width = Math.round(w * tk); tc.height = Math.round(h * tk);
-      tc.getContext('2d').drawImage(cv, 0, 0, tc.width, tc.height);
-      res({ data: c.getImageData(0, 0, w, h).data, width: w, height: h, channels: 4, thumb: tc.toDataURL('image/jpeg', 0.72) });
+      if (done) return; done = true; clearTimeout(timer); URL.revokeObjectURL(u);
+      try { res(draw(im, im.naturalWidth, im.naturalHeight)); } catch (e) { bad(); }
     };
     im.src = u;
   });
@@ -800,27 +815,31 @@ async function importPhotos(list) {
   try {
     show(0.02, 'กำลังเปิดตัวอ่านรูป…');
     await PhotoOCR.start(m => { if (m && /load/.test(m.status || '')) show(0.02 + 0.08 * (m.progress || 0), 'กำลังโหลดตัวอ่านรูป (ครั้งแรกราว 8 MB)…'); });
-    const texts = [], photos = [], meta = [];
+    const texts = [], photos = [], meta = [], failed = [];
     let title = '';
     for (let i = 0; i < files.length; i++) {
-      const page = await loadPage(files[i]);
-      photos.push(page.thumb);
-      const res = await SheetRead.read(page, (k, img) => PhotoOCR.ocr(k, img),
-        f => show(0.1 + 0.9 * (i + f) / files.length, 'กำลังอ่านหน้า ' + (i + 1) + '/' + files.length + '…'));
-      if (!title) title = res.title;
-      if (res.text) texts.push(res.text);
-      // each line's box as fractions of the page (a little margin around it)
-      const W = page.width, H = page.height, pad = Math.round(W * 0.012), padY = Math.round(W * 0.022);
-      res.rects.forEach(r => meta.push({ p: i, ar: +(W / H).toFixed(4),
-        x0: Math.max(0, r.x0 - pad) / W, x1: Math.min(W, r.x1 + pad) / W, y0: Math.max(0, r.y0 - padY) / H, y1: Math.min(H, r.y1 + padY) / H }));
+      try {
+        const page = await loadPage(files[i]);
+        const res = await SheetRead.read(page, (k, img) => PhotoOCR.ocr(k, img),
+          f => show(0.1 + 0.9 * (i + f) / files.length, 'กำลังอ่านหน้า ' + (i + 1) + '/' + files.length + '…'));
+        if (!title) title = res.title;
+        if (!res.text) { failed.push('หน้า ' + (i + 1) + ' ไม่พบเลขโน้ต'); continue; }
+        const pi = photos.length;
+        photos.push(page.thumb); texts.push(res.text);
+        // each line's box as fractions of the page (a little margin around it)
+        const W = page.width, H = page.height, pad = Math.round(W * 0.012), padY = Math.round(W * 0.022);
+        res.rects.forEach(r => meta.push({ p: pi, ar: +(W / H).toFixed(4),
+          x0: Math.max(0, r.x0 - pad) / W, x1: Math.min(W, r.x1 + pad) / W, y0: Math.max(0, r.y0 - padY) / H, y1: Math.min(H, r.y1 + padY) / H }));
+      } catch (e) { failed.push('หน้า ' + (i + 1) + ': ' + (e && e.message || e)); }
     }
-    if (!texts.length) throw new Error('ไม่พบเลขโน้ตในรูป — ลองรูปที่ชัดขึ้น หรือแคปหน้าจอแทนการถ่ายรูป');
+    if (!texts.length) throw new Error(failed.length ? failed.join(' · ') + ' — ลองเลือกรูปใหม่ หรือแคปหน้าจอแทนการถ่ายรูป' : 'ไม่พบเลขโน้ตในรูป — ลองรูปที่ชัดขึ้น หรือแคปหน้าจอแทนการถ่ายรูป');
     const text = texts.join('\n\n');
     byId('imp-text').value = text; byId('imp-title').value = title;
     byId('imp-tempo').value = PHOTO_TEMPO;   // one written slot is about half a second on the sheets measured, so 1 slot = 1 beat at ~120
     S.photoDraft = { photos, meta };
     show(1, 'อ่านเสร็จ ✓ ตรวจโน้ตก่อนบันทึก');
-    convertImport([{ level: 'info', msg: 'อ่านจากรูป ' + files.length + ' หน้า · ตัวที่อ่านไม่ออกเป็น ? ให้แก้ตามรูปต้นฉบับด้านล่าง' }]);
+    convertImport([{ level: 'info', msg: 'อ่านจากรูป ' + texts.length + ' หน้า · ตัวที่อ่านไม่ออกเป็น ? ให้แก้ตามรูปต้นฉบับด้านล่าง' }]
+      .concat(failed.length ? [{ level: 'warn', msg: 'อ่านไม่ได้: ' + failed.join(' · ') + ' — เลือกรูปที่ขาดไปอีกครั้งได้' }] : []));
   } catch (e) {
     show(0, '✖ ' + (e && e.message || e));
   } finally {
@@ -881,6 +900,7 @@ function openReview(song, opt) {
   song.measures = song.measures || [];
   Fix.close(); Fix.cur = -1;
   S.review = { song, dirty: !!opt.isNew, from: opt.from || 'import', notes: opt.notes || [] };
+  Undo.reset();
   switchView('review');
   renderReview();
   window.scrollTo(0, 0);
@@ -1046,14 +1066,21 @@ const Fix = {
     } else {
       const b = (k, t, cls) => '<button data-fx="' + k + '" class="h-10 rounded-lg ' + (cls || 'bg-slate-800 border border-slate-700 text-slate-100') + ' text-sm font-semibold">' + t + '</button>';
       pop.innerHTML = '<div class="grid grid-cols-7 gap-1">' + [1, 2, 3, 4, 5, 6, 7].map(d => b('d' + d, d)).join('') + '</div>' +
-        '<div class="grid grid-cols-7 gap-1 mt-1">' + b('up', "สูง '") + b('dn', 'ต่ำ') + b('sharp', '♯') + b('play', '▶', 'bg-amber-600 text-white') +
-        b('ins', '＋') + b('del', '⌫', 'bg-slate-800 border border-slate-700 text-rose-300') + b('x', '✕', 'bg-slate-800 border border-slate-700 text-slate-400') + '</div>';
+        '<div class="grid grid-cols-8 gap-1 mt-1">' + b('up', "สูง '") + b('dn', 'ต่ำ') + b('sharp', '♯') + b('play', '▶', 'bg-amber-600 text-white') +
+        b('ins', '＋') + b('del', '⌫', 'bg-slate-800 border border-slate-700 text-rose-300') + b('x', '✕', 'bg-slate-800 border border-slate-700 text-slate-400') + b('undo', '↶') + '</div>';
       // rhythm: which notes share a beat, and where the gaps are
       const sl = melSlots(m.mel), rp = melChipPos(sl)[this.at.n];
       if (rp) {
         const s = sl[rp[0]], last = rp[1] === s.subs.length - 1, split = !last, canJoin = split || !!sl[rp[0] + 1];
         const rb = (k, t, on) => '<button data-fx="' + k + '" ' + (on ? '' : 'disabled ') + 'class="h-9 rounded-lg bg-slate-800 border border-slate-700 text-xs ' + (on ? 'text-slate-100' : 'text-slate-600') + '">' + t + '</button>';
-        pop.innerHTML += '<div class="grid grid-cols-4 gap-1 mt-1">' + rb('rj', split ? '✂ แยกจังหวะ' : '⌒ ติดตัวถัดไป', canJoin) +
+        if (S.review.song.source === 'photo') {
+          // photo songs: every number is a beat and gaps are holds (-), so no silent rests here
+          const hz = x => !!x && x.subs.length === 1 && (x.subs[0] === '-' || x.subs[0] === '~');
+          const canHx = (last && hz(sl[rp[0] + 1])) || (rp[1] === 0 && rp[0] > 0 && hz(sl[rp[0] - 1]));
+          pop.innerHTML += '<div class="grid grid-cols-2 gap-1 mt-1">' + rb('rj', split ? '✂ แยกจังหวะ' : '⌒ ติดตัวถัดไป', canJoin) +
+            rb('hb', '−◂ ยืดตัวก่อนหน้า', this.at.n > 0 || this.at.i > 0) + rb('ha', '▸− ต่อเสียง', true) + rb('hx', '✕− เอาต่อเสียงออก', !!canHx) + '</div>' +
+            '<div class="text-[10px] text-slate-500 mt-1">เพลงจากรูป: ทุกตัวเลข = 1 จังหวะ · ต่อเสียง = ยืดโน้ตนี้อีก 1 จังหวะ · ยืดตัวก่อนหน้า = โน้ตก่อนหน้าค้างอีก 1 จังหวะ · พักเงียบ พิมพ์ 0 เอง</div>';
+        } else pop.innerHTML += '<div class="grid grid-cols-4 gap-1 mt-1">' + rb('rj', split ? '✂ แยกจังหวะ' : '⌒ ติดตัวถัดไป', canJoin) +
           rb('rb', '0◂ พักก่อน', true) + rb('ra', '▸0 พักหลัง', true) + rb('rh', '− ต่อเสียง', last) + '</div>' +
           '<div class="text-[10px] text-slate-500 mt-1">ติด = ดีดในจังหวะเดียว (5\'5\') · พัก = เว้น 1 จังหวะเงียบ · ต่อเสียง = ยืดโน้ตนี้อีก 1 จังหวะ</div>';
       }
@@ -1105,6 +1132,7 @@ const Fix = {
     const at = this.at;
     if (!at) return;
     if (act === 'x') { this.close(); return; }
+    if (act === 'undo') { Undo.undo(); return; }
     const m = S.review.song.measures[at.i];
     if (at.c != null) {
       const toks = chdToks(m.chd), v = (byId('fix-chord').value || '').trim().replace(/\s+/g, '');
@@ -1134,7 +1162,7 @@ const Fix = {
       if (p.type === 'note') { unlockAudioUI(); if (Synth.ensure()) Synth.kalimba(Synth.master, p.midi + 12 * (S.review.song.octaveShift || 0), Synth.ctx.currentTime + 0.01, 0.9); }
       return;
     }
-    if (act === 'rj' || act === 'rb' || act === 'ra' || act === 'rh') {
+    if (act === 'rj' || act === 'rb' || act === 'ra' || act === 'rh' || act === 'ha' || act === 'hb' || act === 'hx') {
       const shift = melRhythm(slots, si, k, act);
       if (shift == null) return;
       m.mel = melJoin(slots);
@@ -1212,7 +1240,35 @@ function renderSummary() {
   box.innerHTML = html;
 }
 
-function markDirty() { S.review.dirty = true; }
+function markDirty(kind) { S.review.dirty = true; Undo.note(kind); }
+// ↶ undo for the review page: every change that calls markDirty() is noticed by comparing the song with how it was a moment ago;
+// quick typing in one field counts as one step
+const Undo = {
+  stack: [], last: '', t: 0, kind: null, busy: false,
+  snap() { const s = S.review.song; return JSON.stringify({ m: s.measures, o: s.octaveShift || 0, tempo: s.tempo, beats: s.beats, title: s.title }); },
+  reset() { this.stack = []; this.kind = null; this.last = this.snap(); this.sync(); },
+  note(kind) {
+    if (this.busy || !S.review || !S.review.song) return;
+    const cur = this.snap();
+    if (cur === this.last) return;
+    const now = Date.now();
+    if (!(kind === 'typing' && this.kind === 'typing' && now - this.t < 800)) { this.stack.push(this.last); if (this.stack.length > 60) this.stack.shift(); }
+    this.last = cur; this.t = now; this.kind = kind || null; this.sync();
+  },
+  undo() {
+    if (!this.stack.length) { toast('ไม่มีอะไรให้ย้อนกลับ'); return; }
+    const prev = this.stack.pop(), d = JSON.parse(prev), s = S.review.song;
+    this.busy = true;
+    Fix.close();
+    s.measures = d.m; s.octaveShift = d.o; s.tempo = d.tempo; s.beats = d.beats; s.title = d.title;
+    byId('rv-title').value = s.title || ''; byId('rv-tempo').value = s.tempo; byId('rv-beats').value = s.beats;
+    byId('rv-shift').textContent = (s.octaveShift > 0 ? '+' : '') + (s.octaveShift || 0);
+    renderCards();
+    this.last = prev; this.kind = null; this.busy = false; this.sync();
+    toast('ย้อนกลับแล้ว');
+  },
+  sync() { const b = byId('rv-undo'); if (b) b.disabled = !this.stack.length; }
+};
 function refreshAfterEdit(i) { reparse(); refreshCard(i); refreshCard(i + 1); renderSummary(); }
 function refreshAll() { reparse(); S.review.song.measures.forEach((_, i) => refreshCard(i)); renderSummary(); }
 
@@ -1274,8 +1330,9 @@ function setupReview() {
   Strip.build();
   const rs = () => S.review.song;
   byId('btn-review-back').addEventListener('click', () => go(S.review.from === 'library' ? 'library' : 'import'));
-  byId('rv-title').addEventListener('input', e => { rs().title = e.target.value; markDirty(); });
-  byId('rv-tempo').addEventListener('input', e => { rs().tempo = clamp(parseInt(e.target.value, 10) || 100, 30, 240); markDirty(); });
+  byId('rv-title').addEventListener('input', e => { rs().title = e.target.value; markDirty('typing'); });
+  byId('rv-undo').addEventListener('click', () => Undo.undo());
+  byId('rv-tempo').addEventListener('input', e => { rs().tempo = clamp(parseInt(e.target.value, 10) || 100, 30, 240); markDirty('typing'); });
   byId('rv-beats').addEventListener('change', e => { rs().beats = parseInt(e.target.value, 10) || 4; markDirty(); refreshAll(); });
   const shift = d => {
     rs().octaveShift = clamp((rs().octaveShift || 0) + d, -3, 3); markDirty();
@@ -1316,7 +1373,7 @@ function setupReview() {
     if (!inp) return;
     const i = +inp.closest('.mcard').dataset.i;
     rs().measures[i][inp.dataset.f] = inp.value;
-    markDirty(); refreshAfterEdit(i);
+    markDirty('typing'); refreshAfterEdit(i);
   });
   list.addEventListener('focusin', e => {
     const inp = e.target.closest('input[data-f="mel"]');
@@ -1370,7 +1427,47 @@ function setupReview() {
 
   const kp = byId('keypad');
   kp.addEventListener('mousedown', e => e.preventDefault());   // keeps the field focused; not touchstart (iOS would drop the click)
-  kp.addEventListener('click', e => { const b = e.target.closest('button[data-k]'); if (b) keypadPress(b.dataset.k); });
+  let kpSwallow = false;
+  kp.addEventListener('click', e => {
+    const b = e.target.closest('button[data-k]');
+    if (!b) return;
+    if (kpSwallow && b.dataset.k === ' ') { kpSwallow = false; return; }   // that press moved the cursor: no space
+    keypadPress(b.dataset.k);
+  });
+  // hold the space key and slide: the cursor follows (like the phone keyboard), so a spot in the middle of the numbers is easy to reach
+  const sp = kp.querySelector('button[data-k=" "]');
+  if (sp) {
+    const label = sp.textContent;
+    let g = null;
+    const finish = () => {
+      if (!g) return;
+      clearTimeout(g.timer);
+      if (g.on) { sp.textContent = label; kpSwallow = true; setTimeout(() => { kpSwallow = false; }, 500); }
+      g = null;
+    };
+    sp.addEventListener('pointerdown', e => {
+      const t = kpTarget;
+      if (!t) return;
+      g = { t, x0: e.clientX, cx: e.clientX, on: false, id: e.pointerId };
+      g.timer = setTimeout(() => {
+        if (!g) return;
+        g.on = true; g.x = g.cx;
+        g.base = t.selectionStart == null ? t.value.length : t.selectionStart;
+        sp.textContent = '◂  ลากเพื่อเลื่อนเคอร์เซอร์  ▸';
+        try { sp.setPointerCapture(g.id); } catch (err) { /* not capturable */ }
+      }, 280);
+    });
+    sp.addEventListener('pointermove', e => {
+      if (!g) return;
+      g.cx = e.clientX;
+      if (!g.on) { if (Math.abs(e.clientX - g.x0) > 14) { clearTimeout(g.timer); g = null; } return; }
+      e.preventDefault();
+      const pos = clamp(g.base + Math.round((e.clientX - g.x) / 11), 0, g.t.value.length);
+      g.t.focus();
+      g.t.setSelectionRange(pos, pos);
+    });
+    ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev => sp.addEventListener(ev, finish));
+  }
 }
 
 async function saveSong() {

@@ -319,4 +319,30 @@ t('~ is half a beat of the note before it (photo reader), - a full beat', () => 
 t('photo songs: an old half-beat hold ~ counts as a whole beat', () => {
   assert.strictEqual(P.parseSong({ beats: 4, source: 'photo', measures: [{ mel: "5' ~ 3'" }] }, 'B4').measures[0].notes[1].beat, 2);
 });
+t('photo songs: hold after / before a note, also inside a tight run', () => {
+  const mk = (...a) => a.map(x => Array.isArray(x) ? { subs: x, sep: '' } : { subs: [x], sep: '_' });
+  const str = sl => sl.map(x => x.subs.join(x.sep)).join(' ');
+  let sl = mk('1', '2', '3');
+  assert.strictEqual(P.melRhythm(sl, 1, 0, 'ha'), 0); assert.strictEqual(str(sl), '1 2 - 3');
+  sl = mk('1', '2', '3'); P.melRhythm(sl, 1, 0, 'hb'); assert.strictEqual(str(sl), '1 - 2 3');
+  sl = mk(["5'", "5'", "6'"], '1');                                             // 5'5'6' 1: hold after the first 5'
+  P.melRhythm(sl, 0, 0, 'ha'); assert.strictEqual(str(sl), "5' - 5'6' 1");
+  sl = mk(["5'", "5'", "6'"], '1');                                             // hold before the 6'
+  P.melRhythm(sl, 0, 2, 'hb'); assert.strictEqual(str(sl), "5'5' - 6' 1");
+  sl = mk(["5'", "5'"]); P.melRhythm(sl, 0, 1, 'ha'); assert.strictEqual(str(sl), "5'5' -");
+  const song = { beats: 4, source: 'photo', measures: [{ mel: "5'5' - 6' 1" }] };
+  assert.deepStrictEqual(P.parseSong(song, 'B4').measures[0].notes.map(n => [n.beat, n.dur]), [[0, 1], [1, 2], [3, 1], [4, 1]]);
+});
+t('photo songs: take a hold away again (after the note, or the one before it)', () => {
+  const mk = (...a) => a.map(x => Array.isArray(x) ? { subs: x, sep: '' } : { subs: [x], sep: '_' });
+  const str = sl => sl.map(x => x.subs.join(x.sep)).join(' ');
+  let sl = mk('1', '-', '2', '3');
+  assert.strictEqual(P.melRhythm(sl, 0, 0, 'hx'), 0); assert.strictEqual(str(sl), '1 2 3');
+  sl = mk('1', '-', '2', '3');                                                   // from the note after the hold
+  assert.strictEqual(P.melRhythm(sl, 2, 0, 'hx'), 0); assert.strictEqual(str(sl), '1 2 3');
+  sl = mk('1', '-', '-', '2'); P.melRhythm(sl, 0, 0, 'hx'); assert.strictEqual(str(sl), '1 - 2');   // one beat at a time
+  sl = mk('1', '2'); assert.strictEqual(P.melRhythm(sl, 0, 0, 'hx'), null);
+  sl = mk(["5'", "5'"], '-'); assert.strictEqual(P.melRhythm(sl, 0, 0, 'hx'), null);   // not the last note of its run: its hold is the other one's
+  assert.strictEqual(P.melRhythm(sl, 0, 1, 'hx'), 0); assert.strictEqual(str(sl), "5'5'");
+});
 console.log(n + ' passed');

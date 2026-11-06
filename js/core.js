@@ -142,6 +142,26 @@ function melRhythm(slots, si, k, act) {
     s.sep = !under && s.subs.every(plain) ? '' : '_';
     return 0;
   }
+  // photo songs: holds instead of rests. 'ha' = this note keeps sounding one more beat, 'hb' = the note before it does
+  // (a note inside a tight run first gets a beat of its own, so the hold lands between the right two notes)
+  if (act === 'ha' || act === 'hb') {
+    const hold = { subs: ['-'], sep: '_' };
+    if (act === 'ha') {
+      if (k < s.subs.length - 1) slots.splice(si + 1, 0, { subs: s.subs.splice(k + 1), sep: s.sep });
+      slots.splice(si + 1, 0, hold);
+    } else if (k > 0) {
+      slots.splice(si + 1, 0, { subs: s.subs.splice(k), sep: s.sep });
+      slots.splice(si + 1, 0, hold);
+    } else slots.splice(si, 0, hold);
+    return 0;
+  }
+  // 'hx': take away a hold right after this note, or right before it (the one 'hb' of the next note added)
+  if (act === 'hx') {
+    const isHold = x => !!x && x.subs.length === 1 && (x.subs[0] === '-' || x.subs[0] === '~');
+    if (k === s.subs.length - 1 && isHold(slots[si + 1])) { slots.splice(si + 1, 1); return 0; }
+    if (k === 0 && si > 0 && isHold(slots[si - 1])) { slots.splice(si - 1, 1); return 0; }
+    return null;
+  }
   if (act === 'rb') { slots.splice(si, 0, { subs: ['0'], sep: '_' }); return 1; }
   if (act === 'ra') { slots.splice(si + 1, 0, { subs: ['0'], sep: '_' }); return 0; }
   if (act === 'rh') {
