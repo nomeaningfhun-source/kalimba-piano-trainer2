@@ -3,7 +3,7 @@
   "short_name": "ครูฝึกคาลิมบา",
   "description": "ฝึกคาลิมบา 17 คีย์ นำเข้าเพลงเองได้ ใช้ออฟไลน์",
   "lang": "th",
-  "start_url": "./index.html",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",

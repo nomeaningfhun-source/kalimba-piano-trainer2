@@ -1,10 +1,9 @@
 // Offline cache: app shell is precached, CDN assets (Tailwind, Google Fonts) are cached on first online visit.
-const CACHE = 'kalimba-trainer-v3-23';
+const CACHE = 'kalimba-trainer-v3-24';
 // the photo reader (Tesseract, ~8 MB) is fetched on first use and kept across app updates
 const OCR_CACHE = 'kalimba-ocr-v1';
 const SHELL = [
   './',
-  './index.html',
   './css/app.css',
   './js/i18n.js',
   './js/icons.js',
@@ -51,14 +50,15 @@ self.addEventListener('fetch', e => {
       const hit = await cache.match(req, { ignoreSearch: req.mode === 'navigate' });
       const net = fetch(req)
         .then(res => {
-          if (res && (res.ok || res.type === 'opaque')) cache.put(req, res.clone());
+          // Cloudflare Pages redirects /index.html to /; a redirected response must never answer a navigation
+          if (res && !res.redirected && (res.ok || res.type === 'opaque')) cache.put(req, res.clone());
           return res;
         })
         .catch(() => null);
       if (hit) return hit;
       const res = await net;
       if (res) return res;
-      return req.mode === 'navigate' ? (await cache.match('./index.html')) || Response.error() : Response.error();
+      return req.mode === 'navigate' ? (await cache.match('./')) || Response.error() : Response.error();
     })
   );
 });

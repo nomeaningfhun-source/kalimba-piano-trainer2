@@ -2714,9 +2714,22 @@ function initPlayer() {
   Fall.controls(); Fall.message(); Tuner.render(); micUI();
 }
 
+// the app moved to playkalimba.pages.dev; songs live per site, so the old address offers a backup first (no auto-redirect)
+function initMoved() {
+  if (!/\.github\.io$/.test(location.hostname)) return;
+  const NEW = 'https://playkalimba.pages.dev/';
+  const bar = el('div', 'moved-bar');
+  bar.innerHTML = '<b>แอปย้ายบ้านแล้ว → playkalimba.pages.dev</b>' +
+    '<span>เพลงที่บันทึกไว้อยู่ที่เว็บนี้ ① กดสำรองเพลง ② เปิดเว็บใหม่ แล้วกด "กู้คืนจากไฟล์" ③ เพิ่มไอคอนใหม่ลงหน้าโฮม</span>' +
+    '<div><button type="button" data-mv="backup">⬇️ สำรองเพลง</button><a href="' + NEW + '" target="_blank" rel="noopener">เปิดเว็บใหม่ ↗</a></div>';
+  bar.querySelector('[data-mv="backup"]').onclick = () => byId('btn-backup').click();
+  document.body.prepend(bar);
+}
+
 initM2();
 initGrowth();
 initMidi();
 initPlayer();
+initMoved();
 
 })();
