@@ -10,7 +10,7 @@ const SheetRead = (() => {
   const RED = 16;          // r - max(g, b) above this = red ink
   const PAPER = 215;       // brighter than this = paper
   const ON = 110;          // ink strength that counts as a pixel of a glyph
-  const REST_GAP = 2;      // a blank this many digit heights wide between melody numbers is a rest
+  const REST_GAP = 3.5;    // a blank this many digit heights wide between melody numbers is a rest (the gaps between words are 2-2.8, a pause between phrases 4+)
 
   // ink strength 0..255 per pixel, one layer for red ink and one for everything else
   function splitLayers(px, w, h, ch) {

@@ -69,16 +69,23 @@ t('a pale chord is read several ways and the most common answer wins (135, not 1
   assert(calls >= 3);
 });
 t('a wide blank between melody numbers is a rest (0) that keeps the word of the number before it', async () => {
-  const rects = [[10, 20, 19, 35, GREY], [25, 20, 34, 35, GREY], [80, 20, 89, 35, GREY]];
+  const rects = [[10, 20, 19, 35, GREY], [25, 20, 34, 35, GREY], [100, 20, 109, 35, GREY]];
+  const L = SR.splitLayers(page(130, 50, rects), 130, 50, 4);
+  const r = SR.findRows(L.dark, 130, 50)[0];
+  const toks = await SR.readNumberRow(L.dark, 130, r, async () => [{ text: '356' }], false);
+  assert.deepStrictEqual(toks.map(x => x.t), ['3', '5', '0', '6']);
+  const rows = [
+    { kind: 'lyric', y0: 0, y1: 15, hgt: 16, x0: 0, x1: 130, groups: [{ x0: 8, x1: 36, text: 'กลับ' }, { x0: 98, x1: 112, text: 'มา' }] },
+    Object.assign({ kind: 'melody', y0: 20, y1: 35, hgt: 16, x0: 10, x1: 109 }, { toks })
+  ];
+  assert.strictEqual(SR.assemble(rows).split('\n')[1], '3 5 0   6');
+});
+t('a blank as wide as the space between lyric words (under 3.5 digit heights) is not a rest', async () => {
+  const rects = [[10, 20, 19, 35, GREY], [25, 20, 34, 35, GREY], [80, 20, 89, 35, GREY]];   // 2.9 digit heights
   const L = SR.splitLayers(page(110, 50, rects), 110, 50, 4);
   const r = SR.findRows(L.dark, 110, 50)[0];
   const toks = await SR.readNumberRow(L.dark, 110, r, async () => [{ text: '356' }], false);
-  assert.deepStrictEqual(toks.map(x => x.t), ['3', '5', '0', '6']);
-  const rows = [
-    { kind: 'lyric', y0: 0, y1: 15, hgt: 16, x0: 0, x1: 110, groups: [{ x0: 8, x1: 36, text: 'กลับ' }, { x0: 78, x1: 92, text: 'มา' }] },
-    Object.assign({ kind: 'melody', y0: 20, y1: 35, hgt: 16, x0: 10, x1: 89 }, { toks })
-  ];
-  assert.strictEqual(SR.assemble(rows).split('\n')[1], '3 5 0   6');
+  assert.deepStrictEqual(toks.map(x => x.t), ['3', '5', '6']);
 });
 t('a whole song a semitone up or down: melody, number chords, bass and letter chords', () => {
   assert.strictEqual(P.transposeMelody("3' 2'2' #4 7 0 -", 1), "4' #2'#2' 5 1' 0 -");
