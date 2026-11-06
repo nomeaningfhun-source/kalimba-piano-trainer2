@@ -714,7 +714,7 @@ function setupLibrary() {
         await DB.put({
           id: s.id || uid(), title: String(s.title || ''), tempo: +s.tempo || 100, beats: +s.beats || 4, octaveShift: +s.octaveShift || 0,
           created: s.created || Date.now(), updated: s.updated || Date.now(),
-          measures: s.measures.map(m => Object.assign({ mel: String(m.mel || ''), lyr: String(m.lyr || ''), chd: String(m.chd || ''), br: !!m.br }, m.br && m.gap > 0 ? { gap: Math.min(4, +m.gap | 0) } : {}))
+          measures: s.measures.map(m => Object.assign({ mel: String(m.mel || ''), lyr: String(m.lyr || ''), chd: String(m.chd || ''), br: !!m.br }, m.br && m.gap != null ? { gap: Math.max(0, Math.min(4, +m.gap | 0)) } : {}))
         });
         n++;
       }
@@ -908,16 +908,18 @@ function renderReview() {
   requestAnimationFrame(() => document.documentElement.style.setProperty('--rvbar', (byId('rv-bar').offsetHeight + 6) + 'px'));
 }
 
+// beats of rest before this line: its own setting, else 1 for songs read from a photo
+const gapOf = m => lineGap(m, 1, S.review.song.source === 'photo' ? 1 : 0);
 function cardHTML(m, i) {
   const ph = { lyr: 'เนื้อร้อง (แยกพยางค์ด้วยช่องว่าง)', mel: "ทำนอง เช่น 1 1 5 5'", chd: 'คอร์ด / เบส เช่น C . F .' };
   const inp = (f, cls) => '<input data-f="' + f + '" value="' + esc(m[f]) + '" placeholder="' + ph[f] + '" ' + (f === 'mel' && S.keypad ? 'inputmode="none" ' : '') +
     'spellcheck="false" autocomplete="off" autocapitalize="off" autocorrect="off" class="' + cls + ' w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-100 placeholder-slate-600">';
   const btn = (a, t, cls) => '<button data-act="' + a + '" class="px-2 py-1 rounded-md ' + (cls || 'bg-slate-800 text-slate-300 border border-slate-700') + ' text-[11px]">' + t + '</button>';
   return '<div class="mcard bg-slate-900 border border-slate-800 rounded-xl p-2.5 space-y-1.5" data-i="' + i + '">' +
-    '<div class="flex items-center gap-1.5"><span class="text-xs font-semibold text-amber-300">ห้อง ' + (i + 1) + (m.br && i ? ' ·ท่อนใหม่' + (m.gap > 0 ? ' · เว้น ' + m.gap : '') : '') + '</span><span class="mbadge text-[10px]"></span>' +
+    '<div class="flex items-center gap-1.5"><span class="text-xs font-semibold text-amber-300">ห้อง ' + (i + 1) + (m.br && i ? ' ·ท่อนใหม่' + (gapOf(m) > 0 ? ' · เว้น ' + gapOf(m) : '') : '') + '</span><span class="mbadge text-[10px]"></span>' +
     '<div class="ml-auto flex gap-1">' + btn('play', '▶', 'bg-amber-600 text-white') + btn('oct-dn', '8↓') + btn('oct-up', '8↑') + btn('dup', '⧉') + btn('ins', '＋') + btn('del', '🗑', 'bg-slate-800 text-rose-300 border border-slate-700') + '</div></div>' +
     (i ? '<div class="flex items-center gap-1">' + btn('br', m.br ? '↵ เริ่มบรรทัดใหม่ ✓' : '↵ เริ่มบรรทัดใหม่', m.br ? 'bg-amber-500/20 text-amber-200 border border-amber-500/60' : '') +
-      (m.br ? btn('gap', 'เว้นก่อนบรรทัด: ' + (m.gap > 0 ? m.gap + ' จังหวะ' : 'ไม่เว้น')) : '') + '</div>' : '') +
+      (m.br ? btn('gap', 'เว้นก่อนบรรทัด: ' + (gapOf(m) > 0 ? gapOf(m) + ' จังหวะ' : 'ไม่เว้น')) : '') + '</div>' : '') +
     '<div class="chips flex flex-wrap gap-1 min-h-[1.6rem]"></div>' +
     inp('lyr', 'text-sm') + inp('mel', 'mono text-base') + inp('chd', 'mono text-sm') +
     '<ul class="issues text-[11px] space-y-0.5"></ul></div>';
@@ -1336,15 +1338,15 @@ function setupReview() {
       const m = ms[i]; m.mel = shiftMelodyStr(m.mel, act === 'oct-up' ? 1 : -1);
       $('input[data-f="mel"]', card).value = m.mel; markDirty(); refreshAfterEdit(i);
     } else if (act === 'br') {
-      const mm = ms[i]; mm.br = !mm.br; if (!mm.br) mm.gap = 0; markDirty(); renderCards(); const c = cardEl(i); if (c) c.scrollIntoView({ block: 'nearest' });
+      const mm = ms[i]; mm.br = !mm.br; delete mm.gap; markDirty(); renderCards(); const c = cardEl(i); if (c) c.scrollIntoView({ block: 'nearest' });
     } else if (act === 'gap') {
-      ms[i].gap = ((ms[i].gap || 0) + 1) % 4; markDirty(); renderCards(); const c = cardEl(i); if (c) c.scrollIntoView({ block: 'nearest' });
-    } else if (act === 'dup') { ms.splice(i + 1, 0, Object.assign({}, ms[i], { br: false, gap: 0 })); markDirty(); renderCards(); }
+      ms[i].gap = (gapOf(ms[i]) + 1) % 4; markDirty(); renderCards(); const c = cardEl(i); if (c) c.scrollIntoView({ block: 'nearest' });
+    } else if (act === 'dup') { { const d = Object.assign({}, ms[i], { br: false }); delete d.gap; ms.splice(i + 1, 0, d); } markDirty(); renderCards(); }
     else if (act === 'ins') { ms.splice(i + 1, 0, { mel: '', lyr: '', chd: '', br: false }); markDirty(); renderCards(); }
     else if (act === 'del') {
       const m = ms[i];
       if ((m.mel + m.lyr + m.chd).trim() && !confirm('ลบห้อง ' + (i + 1) + ' ?')) return;
-      if (m.br && ms[i + 1]) { if (!ms[i + 1].br) ms[i + 1].gap = m.gap || 0; ms[i + 1].br = true; }
+      if (m.br && ms[i + 1]) { if (!ms[i + 1].br) { if (m.gap == null) delete ms[i + 1].gap; else ms[i + 1].gap = m.gap; } ms[i + 1].br = true; }
       ms.splice(i, 1); markDirty(); renderCards();
     }
   });
@@ -1380,7 +1382,7 @@ async function saveSong() {
   const rec = {
     id: s.id || uid(), title: s.title, tempo: s.tempo, beats: s.beats, octaveShift: s.octaveShift || 0,
     created: s.created || now, updated: now,
-    measures: s.measures.map(m => Object.assign({ mel: m.mel || '', lyr: m.lyr || '', chd: m.chd || '', br: !!m.br }, m.src ? { src: m.src } : {}, m.br && m.gap > 0 ? { gap: m.gap } : {}))
+    measures: s.measures.map(m => Object.assign({ mel: m.mel || '', lyr: m.lyr || '', chd: m.chd || '', br: !!m.br }, m.src ? { src: m.src } : {}, m.br && m.gap != null ? { gap: m.gap } : {}))
   };
   if (s.source) rec.source = s.source;
   if (s.photos && s.photos.length) rec.photos = s.photos;

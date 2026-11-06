@@ -282,4 +282,11 @@ t('line gap: beats of rest before a measure that starts a new line', () => {
   const h = P.parseSong({ beats: 4, measures: [{ mel: '1', br: true }, { mel: '- 2', br: true, gap: 1 }] }, 'B4');
   assert.strictEqual(h.measures[0].notes[0].dur, 1);
 });
+t('photo songs: every new line pauses 1 beat unless its gap is 0; other songs keep exact timing', () => {
+  const ms = [{ mel: '1 2 3 4', br: true }, { mel: '5 6 7 1', br: true }, { mel: '2 3 4 5', br: true, gap: 0 }, { mel: '1 1 1 1' }];
+  const p = P.parseSong({ beats: 4, source: 'photo', measures: ms }, 'B4');
+  assert.deepStrictEqual(p.measures.map(m => m.gap), [0, 1, 0, 0]);
+  assert.deepStrictEqual(p.measures.map(m => m.start), [0, 5, 9, 13]);
+  assert.deepStrictEqual(P.parseSong({ beats: 4, measures: ms }, 'B4').measures.map(m => m.start), [0, 4, 8, 12]);
+});
 console.log(n + ' passed');
