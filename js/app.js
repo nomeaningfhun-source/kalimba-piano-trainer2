@@ -912,14 +912,14 @@ function renderReview() {
 
 // beats of rest before this line: its own setting (none unless set)
 const gapOf = m => lineGap(m, 1, 0);
-const GAP_STEPS = [0, 0.5, 1, 2], gapTxt = g => g > 0 ? (g === 0.5 ? '½' : g) + ' จังหวะ' : 'ไม่เว้น';
+const GAP_STEPS = [0, 1, 2], gapTxt = g => g > 0 ? g + ' จังหวะ' : 'ไม่เว้น';   // whole beats only: a half beat would put the line off the beat
 function cardHTML(m, i) {
   const ph = { lyr: 'เนื้อร้อง (แยกพยางค์ด้วยช่องว่าง)', mel: "ทำนอง เช่น 1 1 5 5'", chd: 'คอร์ด / เบส เช่น C . F .' };
   const inp = (f, cls) => '<input data-f="' + f + '" value="' + esc(m[f]) + '" placeholder="' + ph[f] + '" ' + (f === 'mel' && S.keypad ? 'inputmode="none" ' : '') +
     'spellcheck="false" autocomplete="off" autocapitalize="off" autocorrect="off" class="' + cls + ' w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-100 placeholder-slate-600">';
   const btn = (a, t, cls) => '<button data-act="' + a + '" class="px-2 py-1 rounded-md ' + (cls || 'bg-slate-800 text-slate-300 border border-slate-700') + ' text-[11px]">' + t + '</button>';
   return '<div class="mcard bg-slate-900 border border-slate-800 rounded-xl p-2.5 space-y-1.5" data-i="' + i + '">' +
-    '<div class="flex items-center gap-1.5"><span class="text-xs font-semibold text-amber-300">ห้อง ' + (i + 1) + (m.br && i ? ' ·ท่อนใหม่' + (gapOf(m) > 0 ? ' · เว้น ' + (gapOf(m) === 0.5 ? '½' : gapOf(m)) : '') : '') + '</span><span class="mbadge text-[10px]"></span>' +
+    '<div class="flex items-center gap-1.5"><span class="text-xs font-semibold text-amber-300">ห้อง ' + (i + 1) + (m.br && i ? ' ·ท่อนใหม่' + (gapOf(m) > 0 ? ' · เว้น ' + gapOf(m) : '') : '') + '</span><span class="mbadge text-[10px]"></span>' +
     '<div class="ml-auto flex gap-1">' + btn('play', '▶', 'bg-amber-600 text-white') + btn('oct-dn', '8↓') + btn('oct-up', '8↑') + btn('dup', '⧉') + btn('ins', '＋') + btn('del', '🗑', 'bg-slate-800 text-rose-300 border border-slate-700') + '</div></div>' +
     (i ? '<div class="flex items-center gap-1">' + btn('br', m.br ? '↵ เริ่มบรรทัดใหม่ ✓' : '↵ เริ่มบรรทัดใหม่', m.br ? 'bg-amber-500/20 text-amber-200 border border-amber-500/60' : '') +
       (m.br ? btn('gap', 'เว้นก่อนบรรทัด: ' + gapTxt(gapOf(m))) : '') + '</div>' : '') +
@@ -1055,7 +1055,7 @@ const Fix = {
         const rb = (k, t, on) => '<button data-fx="' + k + '" ' + (on ? '' : 'disabled ') + 'class="h-9 rounded-lg bg-slate-800 border border-slate-700 text-xs ' + (on ? 'text-slate-100' : 'text-slate-600') + '">' + t + '</button>';
         pop.innerHTML += '<div class="grid grid-cols-4 gap-1 mt-1">' + rb('rj', split ? '✂ แยกจังหวะ' : '⌒ ติดตัวถัดไป', canJoin) +
           rb('rb', '0◂ พักก่อน', true) + rb('ra', '▸0 พักหลัง', true) + rb('rh', '− ต่อเสียง', last) + '</div>' +
-          '<div class="text-[10px] text-slate-500 mt-1">ติด = ดีดในจังหวะเดียว (5\'5\') · พัก = เว้นสั้นๆ (เพลงจากรูป ½ จังหวะ) · ต่อเสียง = ยืดโน้ตนี้อีก 1 จังหวะ</div>';
+          '<div class="text-[10px] text-slate-500 mt-1">ติด = ดีดในจังหวะเดียว (5\'5\') · พัก = เว้น 1 จังหวะเงียบ · ต่อเสียง = ยืดโน้ตนี้อีก 1 จังหวะ</div>';
       }
       // the lyric word this note sings, edited as a whole word; the app splits it over the same notes again
       const li = this.lyrIndex(this.at.i, this.at.n);

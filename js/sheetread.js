@@ -13,7 +13,7 @@ const SheetRead = (() => {
   const MELODY_JOIN = 0.5; // melody numbers closer than this (in digit heights) share one beat like 5'5' (measured: tight pairs 0.3-0.45, separate beats 0.55+)
   // Blanks between melody numbers are the typist's word spacing, not rests (measured against the real song: line 1-2 fit best with no rests),
   // so none is written as 0 by default; the reviewer adds the real pauses. Set a number of digit heights here to turn the guess back on.
-  // LAYOUT_RHYTHM: the room a number takes on the sheet is its length (a blank after it = the note keeps sounding: '-' per slot, '~' per half slot).
+  // LAYOUT_RHYTHM: the room a number takes on the sheet is its length (a blank after it = the note keeps sounding: '-' per beat).
   // Set false to go back to the first version: every blank of 2+ digit heights becomes a 0 rest of one beat.
   const LAYOUT_RHYTHM = true;
   const REST_GAP = LAYOUT_RHYTHM ? Infinity : 2;      // a blank this many digit heights wide between melody numbers is a rest
@@ -288,8 +288,8 @@ const SheetRead = (() => {
   }
 
   // Rhythm from the layout: the pitch of one written beat is the usual distance between neighbouring single numbers on the page;
-  // a note followed by a blank wider than that keeps sounding for the extra room ('-' = a beat, '~' = half a beat).
-  // Numbers written tight together are eighths (half a beat each). Returns the pitch in px (0 = too little to measure).
+  // a note followed by a blank wider than that keeps sounding for the extra room, in whole beats ('-' each).
+  // Every number is one beat, written tight together or not (the app plays photo songs evenly). Returns the pitch in px (0 = too little to measure).
   function spaceByLayout(rows) {
     const mel = rows.filter(r => r.kind === 'melody' && r.toks);
     const ds = [];
@@ -307,13 +307,10 @@ const SheetRead = (() => {
         out.push(tk);
         const nx = r.toks[i + 1];
         if (!nx || !tk.xs || !nx.xs) return;
-        const nominal = tk.xs.length > 1 ? 0.5 : 1;
-        let extra = Math.min(4, Math.round(((nx.xs[0] - tk.xs[tk.xs.length - 1]) / P - nominal) * 2) / 2);
-        while (extra >= 0.5) {
-          const full = extra >= 1;
-          out.push({ t: full ? '-' : '~', rest: true, x0: tk.right + 1, x1: tk.right + 1, right: tk.right + 1, xs: [tk.right + 1] });
-          extra -= full ? 1 : 0.5;
-        }
+        // every number is one beat (tight or not), so what is left of the room up to the next number is held, in whole beats
+        const k = tk.xs.length;
+        let extra = Math.min(4, Math.max(0, Math.round((nx.xs[0] - tk.xs[k - 1]) / P - 1)));
+        while (extra-- > 0) out.push({ t: '-', rest: true, x0: tk.right + 1, x1: tk.right + 1, right: tk.right + 1, xs: [tk.right + 1] });
       });
       r.toks = out;
     });

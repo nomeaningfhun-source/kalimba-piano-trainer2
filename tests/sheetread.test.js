@@ -94,7 +94,7 @@ t('rhythm from the layout: the room after a number is how long it keeps sounding
     tok("3'", 375), tok("5'5'", 434, 453), tok("3'2''2''3''", 490, 508, 532, 555)] };
   const P = SR.spaceByLayout([row]);
   assert.strictEqual(P, 25);
-  assert.deepStrictEqual(row.toks.map(x => x.t), ["3'", '-', "5'", "5'", "6'", "3'", "5'5'", '-', '-', "3'", '-', '~', "5'5'", '-', "3'2''2''3''"]);
+  assert.deepStrictEqual(row.toks.map(x => x.t), ["3'", '-', "5'", "5'", "6'", "3'", "5'5'", '-', "3'", '-', "5'5'", "3'2''2''3''"]);
   assert(row.toks.filter(x => x.t === '-' || x.t === '~').every(x => x.rest));     // they take a neighbour's word
   // not enough numbers to measure the pitch: untouched
   const few = { kind: 'melody', toks: [tok('1', 10), tok('2', 80)] };

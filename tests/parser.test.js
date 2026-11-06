@@ -283,33 +283,40 @@ t('line gap: beats of rest before a measure that starts a new line', () => {
   assert.strictEqual(h.measures[0].notes[0].dur, 1);
 });
 t('a new line pauses only when its gap is set (default none)', () => {
-  const ms = [{ mel: '1 2 3 4', br: true }, { mel: '5 6 7 1', br: true }, { mel: '2 3 4 5', br: true, gap: 0.5 }, { mel: '1 1 1 1' }];
+  const ms = [{ mel: '1 2 3 4', br: true }, { mel: '5 6 7 1', br: true }, { mel: '2 3 4 5', br: true, gap: 1 }, { mel: '1 1 1 1' }];
   for (const source of ['photo', undefined]) {
     const p = P.parseSong({ beats: 4, source, measures: ms }, 'B4');
-    assert.deepStrictEqual(p.measures.map(m => m.gap), [0, 0, 0.5, 0]);
-    assert.deepStrictEqual(p.measures.map(m => m.start), [0, 4, 8.5, 12.5]);
+    assert.deepStrictEqual(p.measures.map(m => m.gap), [0, 0, 1, 0]);
+    assert.deepStrictEqual(p.measures.map(m => m.start), [0, 4, 9, 13]);
   }
 });
 t('tight numbers are eighth notes (half a beat each); 1_2_3 still fits one beat; chords follow their written beat', () => {
-  const m = P.parseMelody("4'3'2' 2' 6'", 0);
-  assert.deepStrictEqual(m.notes.map(n => [n.beat, n.dur]), [[0, 0.5], [0.5, 0.5], [1, 0.5], [1.5, 1], [2.5, 1]]);
-  assert.strictEqual(m.end, 3.5); assert.strictEqual(m.slots, 3);
+  const m = P.parseMelody("4'3'2' 2' 6'", 0);   // an odd run ends on a whole beat: the last note takes it
+  assert.deepStrictEqual(m.notes.map(n => [n.beat, n.dur]), [[0, 0.5], [0.5, 0.5], [1, 1], [2, 1], [3, 1]]);
+  assert.strictEqual(m.end, 4); assert.strictEqual(m.slots, 3);
+  assert.strictEqual(P.parseMelody("1'2'3'4' 5", 0).end, 3);                    // an even run is unchanged
   assert.strictEqual(P.parseMelody('1_2_3 5', 0).notes[2].dur.toFixed(3), '0.333');
   assert.strictEqual(P.parseMelody("2'2' 1'", 0).end, 2);                       // a pair is still one beat
-  const pm = P.parseSong({ beats: 4, source: 'photo', measures: [{ mel: "1'2'3' 5 6", chd: 'C . G' }, { mel: '1' }] }, 'B4');
-  assert.deepStrictEqual(pm.measures[0].chords.map(c => c.beat), [0, 2.5]);     // G sits under the 3rd written beat (6)
-  assert.strictEqual(pm.measures[1].start, 3.5);
+  const pm = P.parseSong({ beats: 4, measures: [{ mel: "1'2'3' 5 6", chd: 'C . G' }, { mel: '1' }] }, 'B4');
+  assert.deepStrictEqual(pm.measures[0].chords.map(c => c.beat), [0, 3]);       // G sits under the 3rd written beat (6)
+  assert.strictEqual(pm.measures[1].start, 4);
 });
-t('photo sheets: a lone 0 is half a beat (typed songs keep a full beat)', () => {
-  const ph = P.parseSong({ beats: 4, source: 'photo', measures: [{ mel: "5' 0 4'3'2' 0 2'" }] }, 'B4').measures[0];
-  assert.deepStrictEqual(ph.items.filter(i => i.type === 'rest').map(i => i.dur), [0.5, 0.5]);
-  assert.strictEqual(ph.len, 1 + 0.5 + 1.5 + 0.5 + 1);
-  assert.strictEqual(P.parseSong({ beats: 4, measures: [{ mel: '1 0 2' }] }, 'B4').measures[0].len, 3);
+t('photo songs: every written number is one whole beat, tight or not (steady pulse); typed songs keep eighths', () => {
+  const ph = P.parseSong({ beats: 4, source: 'photo', measures: [{ mel: "5' 0 4'3'2' - 2'" }, { mel: '1' }] }, 'B4');
+  assert.deepStrictEqual(ph.measures[0].notes.map(n => [n.beat, n.dur]), [[0, 1], [2, 1], [3, 1], [4, 2], [6, 1]]);
+  assert.deepStrictEqual(ph.measures[0].items.filter(i => i.type === 'rest').map(i => i.dur), [1]);
+  assert.strictEqual(ph.measures[1].start, 7);
+  assert.strictEqual(P.parseSong({ beats: 4, measures: [{ mel: "5' 0 4'3'2' 2'" }] }, 'B4').measures[0].len, 1 + 1 + 2 + 1);   // typed: odd run ends on the beat
+  const ch = P.parseSong({ beats: 4, source: 'photo', measures: [{ mel: "1'2'3' 5 6", chd: 'C . G' }] }, 'B4').measures[0];
+  assert.deepStrictEqual(ch.chords.map(c => c.beat), [0, 4]);
 });
 t('~ is half a beat of the note before it (photo reader), - a full beat', () => {
   const m = P.parseMelody("5' ~ 3' - 2'", 0);
   assert.deepStrictEqual(m.notes.map(n => [n.beat, n.dur]), [[0, 1.5], [1.5, 2], [3.5, 1]]);
   assert.strictEqual(m.end, 4.5);
   assert.strictEqual(P.parseNoteToken('~').type, 'hold');
+});
+t('photo songs: an old half-beat hold ~ counts as a whole beat', () => {
+  assert.strictEqual(P.parseSong({ beats: 4, source: 'photo', measures: [{ mel: "5' ~ 3'" }] }, 'B4').measures[0].notes[1].beat, 2);
 });
 console.log(n + ' passed');

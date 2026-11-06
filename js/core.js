@@ -80,7 +80,7 @@ function parseNoteToken(raw) {
   return { type: 'note', deg, acc, oct, midi: 60 + SEMI[deg] + acc + 12 * oct };
 }
 
-function parseMelody(str, shift, prev, restBeat) {
+function parseMelody(str, shift, prev, even) {
   const items = [], notes = [], issues = [];
   const slots = String(str || '').trim().split(/\s+/).filter(Boolean);
   let pos = 0, last = slots.length ? (prev || null) : null;
@@ -97,8 +97,12 @@ function parseMelody(str, shift, prev, restBeat) {
     // numbers written tight together (2'2', 4'3'2') are eighth notes, half a beat each; 1_2_3 squeezes its notes into one beat
     // a lone 0 lasts restBeat (photo sheets: half a beat, since their blanks are only the typist's spacing)
     const one = subs.length === 1 ? parseNoteToken(subs[0]) : null;
-    const d = tight ? 0.5 : one && one.half ? 0.5 : one && restBeat && one.type === 'rest' ? restBeat : 1 / subs.length;
-    for (const sub of subs) {
+    // even (songs read from a photo): every written number is one whole beat, tight or not, so the pulse stays steady
+    const d0 = tight ? (even ? 1 : 0.5) : one && one.half ? (even ? 1 : 0.5) : 1 / subs.length;   // photo songs: an old half-beat hold ~ is a whole beat
+    // an odd run of tight notes (4'3'2') would end in the middle of a beat: its last note takes the whole beat, so what follows stays on the beat
+    const lastWhole = !even && tight && subs.length % 2 === 1;
+    for (let si = 0; si < subs.length; si++) {
+      const sub = subs[si], d = lastWhole && si === subs.length - 1 ? 1 : d0;
       const t = parseNoteToken(sub);
       if (t.type === 'note') {
         const n = { type: 'note', beat: pos, dur: d, midi: t.midi + 12 * shift, tok: normTok(sub), lyric: '' };
@@ -272,7 +276,7 @@ function lyricTokens(str) {
 }
 
 function parseMeasure(m, ctx) {
-  const mel = parseMelody(m.mel, ctx.shift, ctx.prev, ctx.free ? 0.5 : 1);
+  const mel = parseMelody(m.mel, ctx.shift, ctx.prev, !!ctx.free);
   const issues = mel.issues.map(i => Object.assign({}, i));
   const slots = mel.slots, len = slots ? mel.end : ctx.beats;   // len = beats the measure lasts; slots = written beats
 
@@ -336,7 +340,7 @@ function parseMeasure(m, ctx) {
 }
 
 // beats of rest before a measure that starts a new line: its own gap, else def (songs read from a photo use half a beat)
-const lineGap = (m, i, def) => (i && m && m.br ? Math.max(0, Math.min(4, m.gap == null ? (def || 0) : Math.round((+m.gap || 0) * 2) / 2)) : 0);
+const lineGap = (m, i, def) => (i && m && m.br ? Math.max(0, Math.min(4, m.gap == null ? (def || 0) : Math.round(+m.gap || 0))) : 0);
 function parseSong(song, tuning) {
   const measures = [], issues = [];
   let prev = null, start = 0;
