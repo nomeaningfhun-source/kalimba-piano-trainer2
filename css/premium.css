@@ -1,0 +1,107 @@
+/* ---- "Soft Mocha" premium look, from Fun's references (cream · sand · mocha · charcoal) --------------------------------------------
+   Loaded after app.css: it only re-defines the colour variables and adds the surface effects (neumorphism, inner shadow, bevel, warm
+   glow, satin, paper texture, serif headings). The kalimba body stays plain walnut (no glass there). */
+:root {
+  --slate-50:33 34 34; --slate-100:43 44 44; --slate-200:58 56 53; --slate-300:82 77 71; --slate-400:105 96 86; --slate-500:117 107 96;
+  --slate-600:196 182 165; --slate-700:223 212 199; --slate-800:233 225 215; --slate-900:249 246 241; --slate-950:242 237 230;
+  --amber-50:60 40 25; --amber-100:80 56 36; --amber-200:100 72 48; --amber-300:125 94 67; --amber-400:140 105 76; --amber-500:134 101 74; --amber-600:134 101 74;
+  --amber-700:166 134 104; --amber-800:217 201 184; --amber-900:232 221 207; --amber-950:243 236 227;
+  --emerald-50:40 52 36; --emerald-100:52 68 46; --emerald-200:64 84 55; --emerald-300:78 104 70; --emerald-400:70 94 62; --emerald-500:83 108 72; --emerald-600:70 92 62;
+  --emerald-700:167 181 156; --emerald-800:203 212 194; --emerald-900:228 233 222; --emerald-950:240 243 236;
+  --red-50:70 30 26; --red-100:104 42 36; --red-200:130 52 44; --red-300:156 62 54; --red-400:168 66 58; --red-500:190 84 74; --red-600:169 66 58; --red-700:142 52 46;
+  --red-800:231 185 178; --red-900:245 224 220; --red-950:250 239 236;
+  --rose-300:156 62 54; --rose-400:168 66 58; --rose-500:190 84 74; --rose-600:169 66 58; --rose-700:142 52 46; --rose-900:245 224 220; --rose-950:250 239 236;
+  --sky-50:44 42 38; --sky-100:60 56 50; --sky-200:76 72 66; --sky-300:92 88 82; --sky-400:100 96 90; --sky-500:150 144 136; --sky-600:110 104 96; --sky-700:92 88 82;
+  --sky-800:226 221 214; --sky-900:238 234 228; --sky-950:246 243 239;
+  --c-ink: #2B2C2C; --c-ink2: #6B6258; --c-line: #DFD4C7; --c-accent: #7D5E43; --c-accent-solid: #86654A; --c-sage: #2F3030; --c-done: #BDB1A2; --c-hit: #4E6846; --c-bad: #A8423A;
+  --c-chord: #A8362F; --c-target-bg: #EADCCB; --c-wrong-bg: #F3DDD9; --c-ok: #9DB08F; --c-arc: #E4DACD;
+  --glass-tint: rgba(255, 255, 255, .4); --glass-edge: rgba(255, 255, 255, .9); --glass-solid: rgba(250, 247, 242, .97); --glass-shadow: rgba(90, 70, 50, .22);
+  /* neumorphism: a light edge top-left, a warm shadow bottom-right */
+  --nm-hi: rgba(255, 255, 255, .95); --nm-lo: rgba(150, 120, 90, .26); --nm-edge: rgba(255, 255, 255, .7);
+  --tex-op: .07; --tex-blend: multiply;
+  --serif: ui-serif, 'New York', 'Iowan Old Style', Georgia, 'Times New Roman', 'IBM Plex Sans Thai', serif; }
+:root[data-theme="dark"] {
+  --slate-50:247 243 236; --slate-100:238 233 225; --slate-200:220 214 204; --slate-300:200 193 182; --slate-400:170 162 151; --slate-500:150 142 131;
+  --slate-600:78 78 76; --slate-700:62 62 60; --slate-800:50 51 51; --slate-900:41 42 42; --slate-950:31 32 32;
+  --amber-50:245 238 228; --amber-100:238 226 210; --amber-200:226 207 184; --amber-300:214 188 158; --amber-400:200 168 135; --amber-500:184 148 112; --amber-600:134 101 74;
+  --amber-700:110 82 58; --amber-800:74 56 40; --amber-900:52 40 30; --amber-950:38 30 24;
+  --sky-50:240 237 232; --sky-100:228 224 217; --sky-200:208 203 195; --sky-300:186 182 175; --sky-400:168 164 157; --sky-500:140 136 130; --sky-600:120 116 110; --sky-700:186 182 175;
+  --sky-800:52 53 53; --sky-900:42 43 43; --sky-950:36 37 37;
+  --c-ink: #F1ECE2; --c-ink2: #ADA597; --c-line: #3E3E3C; --c-accent: #D7B896; --c-accent-solid: #A68668; --c-sage: #6A5A48; --c-done: #66625B; --c-hit: #8DBA70; --c-bad: #E08B79;
+  --c-chord: #EE9686; --c-target-bg: #4A3A2A; --c-wrong-bg: #4A231B; --c-ok: #6E8260; --c-arc: #333432;
+  --glass-tint: rgba(44, 45, 45, .45); --glass-edge: rgba(255, 255, 255, .24); --glass-solid: rgba(36, 37, 37, .97); --glass-shadow: rgba(0, 0, 0, .55);
+  --nm-hi: rgba(255, 255, 255, .05); --nm-lo: rgba(0, 0, 0, .55); --nm-edge: rgba(255, 255, 255, .07);
+  --tex-op: .05; --tex-blend: screen; }
+
+/* page: a calm cream with a soft light top-left and a touch of sand bottom-right (no coloured blotches) */
+body { background-image: radial-gradient(70% 40% at 10% 0%, rgba(255, 255, 255, .7), transparent 70%), radial-gradient(60% 40% at 100% 100%, rgba(217, 201, 184, .5), transparent 70%); background-attachment: fixed; }
+:root[data-theme="dark"] body { background-image: radial-gradient(70% 40% at 10% 0%, rgba(255, 255, 255, .05), transparent 70%), radial-gradient(60% 40% at 100% 100%, rgba(166, 134, 104, .1), transparent 70%); }
+
+/* 10 · texture overlay: a fine paper grain over the whole page (it never takes a tap) */
+body::after { content: ''; position: fixed; inset: 0; z-index: 60; pointer-events: none; opacity: var(--tex-op); mix-blend-mode: var(--tex-blend);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .35  0 0 0 0 .28  0 0 0 0 .2  0 0 0 .9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
+
+/* serif for headings and the big numbers, Thai keeps the app font */
+h1, h2, h3, .font-heading, .text-4xl, .text-5xl, .text-6xl, .text-7xl, #le-q-label, #lesson-prompt-note, #le-res-stars { font-family: var(--serif); letter-spacing: .005em; }
+h1 { font-weight: 600; }
+
+/* 02 · neumorphism + 03 · drop shadow: cards and quiet buttons are soft raised pieces of the page */
+[class~="bg-slate-900"][class*="rounded"], .mcard {
+  background-image: linear-gradient(145deg, rgba(255, 255, 255, .5), rgba(255, 255, 255, 0) 55%); border-color: var(--nm-edge) !important;
+  box-shadow: 9px 9px 20px var(--nm-lo), -7px -7px 16px var(--nm-hi), inset 0 1px 0 var(--nm-edge); }
+:root[data-theme="dark"] [class~="bg-slate-900"][class*="rounded"], :root[data-theme="dark"] .mcard { background-image: linear-gradient(145deg, rgba(255, 255, 255, .04), rgba(255, 255, 255, 0) 55%); }
+.mcard { box-shadow: 6px 6px 13px var(--nm-lo), -5px -5px 11px var(--nm-hi), inset 0 1px 0 var(--nm-edge); }
+button[class~="border-slate-700"], label[class~="border-slate-700"] {
+  background-color: rgb(var(--slate-900)); border-color: var(--nm-edge) !important;
+  box-shadow: 5px 5px 11px var(--nm-lo), -4px -4px 9px var(--nm-hi); transition: box-shadow .12s, transform .06s; }
+header.app-header button[class~="border-slate-700"] { box-shadow: 3px 3px 7px var(--nm-lo), -3px -3px 6px var(--nm-hi); }
+/* 07 · inner shadow: a pressed button, a field you type in, a progress track */
+button[class~="border-slate-700"]:active { box-shadow: inset 4px 4px 9px var(--nm-lo), inset -3px -3px 7px var(--nm-hi); transform: translateY(1px); }
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select {
+  background-color: rgb(var(--slate-800)); border-color: transparent !important;
+  box-shadow: inset 4px 4px 9px var(--nm-lo), inset -3px -3px 7px var(--nm-hi); }
+input:focus-visible, textarea:focus-visible, select:focus-visible { box-shadow: inset 4px 4px 9px var(--nm-lo), inset -3px -3px 7px var(--nm-hi), 0 0 0 2px var(--c-accent-solid); outline: none; }
+.rounded-full.bg-slate-800.overflow-hidden, [class~="bg-slate-800"][class~="overflow-hidden"] { box-shadow: inset 2px 2px 5px var(--nm-lo), inset -2px -2px 4px var(--nm-hi); }
+
+/* 08 · bevel & emboss: the main buttons are pressed from mocha with a lit top edge and a dark lower edge */
+button[class~="bg-amber-500"], button[class~="bg-amber-600"], a[class~="bg-amber-500"] {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .26), rgba(255, 255, 255, 0) 48%, rgba(0, 0, 0, .12)); border: 1px solid rgba(70, 48, 30, .35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .42), inset 0 -2px 0 rgba(0, 0, 0, .2), 0 7px 14px rgba(110, 80, 52, .32); text-shadow: 0 -1px 0 rgba(0, 0, 0, .22); transition: box-shadow .1s, transform .06s; }
+button[class~="bg-amber-500"]:active, button[class~="bg-amber-600"]:active { transform: translateY(1px); box-shadow: inset 0 2px 4px rgba(0, 0, 0, .28), 0 2px 4px rgba(110, 80, 52, .25); }
+#pl-mic.tog-on { background-image: linear-gradient(180deg, rgba(255, 255, 255, .24), rgba(0, 0, 0, .1)); background-color: var(--c-accent-solid); }
+.seg-on { background-image: linear-gradient(180deg, rgba(255, 255, 255, .16), rgba(0, 0, 0, .12)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), 0 3px 8px rgba(0, 0, 0, .22); }
+
+/* 04 · glow: what is switched on, or what to play next, gives off a warm light */
+.tog-on { box-shadow: 0 0 0 1px var(--c-accent), 0 0 14px rgba(190, 150, 105, .5) !important; }
+.kalimba-tine.guide-target { box-shadow: 0 0 0 3px #FFF9F0, 0 0 20px 7px rgba(255, 205, 130, .8); }
+.sh-n.target, .ms-t.target { box-shadow: inset 0 0 0 2px var(--c-accent-solid), 0 0 14px rgba(190, 150, 105, .55); }
+.mcard.playing { box-shadow: 0 0 0 2px var(--c-accent-solid), 0 0 18px rgba(190, 150, 105, .6); }
+.nav-btn[aria-current="page"] { text-shadow: 0 0 14px rgba(190, 150, 105, .55); }
+.nav-btn[aria-current="page"]::before { box-shadow: 0 0 10px 1px rgba(190, 150, 105, .8); }
+
+/* 09 · satin + 05 · gradient overlay: the hero cards carry a soft diagonal sheen (mocha into sand, never purple) */
+#le-intro, #le-res, #le-q, #first-song-card, #pl-result > div, #fs-done > div, .satin {
+  background-image: linear-gradient(125deg, rgba(255, 255, 255, .6) 0%, rgba(255, 255, 255, 0) 32%, rgba(166, 134, 104, .16) 62%, rgba(255, 255, 255, .34) 100%); }
+:root[data-theme="dark"] #le-intro, :root[data-theme="dark"] #le-res, :root[data-theme="dark"] #le-q, :root[data-theme="dark"] #first-song-card, :root[data-theme="dark"] #pl-result > div, :root[data-theme="dark"] #fs-done > div, :root[data-theme="dark"] .satin {
+  background-image: linear-gradient(125deg, rgba(255, 255, 255, .07) 0%, rgba(255, 255, 255, 0) 32%, rgba(166, 134, 104, .13) 62%, rgba(255, 255, 255, .04) 100%); }
+#le-prog, .h-1\.5 > .bg-amber-500 { background-image: linear-gradient(90deg, #A68668, #D9C9B8); }
+
+/* 01 · glass: the header, the bottom bar, the floating keypads and note panel */
+header.app-header { background: color-mix(in srgb, rgb(var(--slate-950)) 72%, transparent); -webkit-backdrop-filter: blur(18px) saturate(1.5); backdrop-filter: blur(18px) saturate(1.5);
+  border-bottom-color: var(--nm-edge); box-shadow: 0 8px 22px -10px var(--nm-lo); }
+#bottom-nav { background: color-mix(in srgb, rgb(var(--slate-950)) 72%, transparent) !important; -webkit-backdrop-filter: blur(18px) saturate(1.5); backdrop-filter: blur(18px) saturate(1.5);
+  border-top-color: var(--nm-edge) !important; box-shadow: 0 -8px 22px -10px var(--nm-lo); }
+
+/* the rest of the hard-coded terracotta in app.css follows the new accent */
+.sh-n.sel { box-shadow: inset 0 0 0 1.5px var(--c-accent-solid); }
+.sh-n.on { background: var(--c-accent-solid); }
+.ms-t.target, .strip-key.lit, .tu-tine.off { background: #A68668; }
+.ms-t.hint { background: #D9C9B8; }
+.chip.sel { outline-color: var(--c-accent-solid); }
+.kp-acc { background: rgba(166, 134, 104, .24); }
+.kp-del { background: rgba(168, 66, 58, .12); }
+.kp-mod { background: rgba(157, 176, 143, .5); }
+:root[data-theme="dark"] .kp-acc { background: rgba(190, 150, 110, .22); }
+:root[data-theme="dark"] .kp-del { background: rgba(224, 139, 121, .16); }
+.rv-strip { border-color: var(--c-line); box-shadow: 0 4px 10px -2px var(--nm-lo); }
+@media (prefers-reduced-transparency: reduce) { header.app-header, #bottom-nav { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgb(var(--slate-950)) !important; } }

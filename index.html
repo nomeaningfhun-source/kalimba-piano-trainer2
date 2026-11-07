@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <script>(function () { var t = null; try { t = localStorage.getItem('kt.theme'); } catch (e) {} if (t !== 'dark' && t !== 'light') t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; document.documentElement.dataset.theme = t; })();</script>
-  <meta name="theme-color" content="#F2EDE2">
+  <meta name="theme-color" content="#F2EDE6">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -26,6 +26,7 @@
   <meta name="twitter:card" content="summary">
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script>
+    // (Replaced by the "Soft Mocha" palette in css/premium.css; the ramps below read its variables.)
     // "Nature" theme on a light oat page (Oat Milk #F2EDE2, Blush Petal #E7B9B2, Terracotta Clay #C47A5C,
     // Sage Whisper #A7B59C, Misty Sky #B7C6D6, Olive Grove #6E775C). The markup was written for a dark theme
     // with Tailwind's slate/amber/emerald/red/sky classes, so those ramps are remapped (to CSS variables, light and dark sets in css/app.css) and slate is inverted:
@@ -34,7 +35,7 @@
     tailwind.config = {
       theme: {
         extend: {
-          colors: Object.fromEntries(Object.entries({"slate": [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950], "amber": [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950], "emerald": [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950], "red": [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950], "rose": [300, 400, 500, 600, 700, 900, 950], "sky": [300, 400, 500, 600, 700, 800, 900]}).map(([n, sh]) => [n, Object.fromEntries(sh.map(k => [k, "rgb(var(--" + n + "-" + k + ") / <alpha-value>)"]))])),
+          colors: Object.fromEntries(Object.entries({"slate": [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950], "amber": [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950], "emerald": [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950], "red": [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950], "rose": [300, 400, 500, 600, 700, 900, 950], "sky": [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950]}).map(([n, sh]) => [n, Object.fromEntries(sh.map(k => [k, "rgb(var(--" + n + "-" + k + ") / <alpha-value>)"]))])),
           fontFamily: {
             sans: ['"IBM Plex Sans Thai"', '-apple-system', 'system-ui', 'sans-serif'],
             heading: ['"IBM Plex Sans Thai"', '-apple-system', 'system-ui', 'sans-serif']
@@ -47,6 +48,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/app.css">
+  <link rel="stylesheet" href="css/premium.css">
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col overflow-x-hidden">
   <svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="liquid-glass" x="0%" y="0%" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.008 0.008" numOctaves="2" seed="92" result="noise"/><feGaussianBlur in="noise" stdDeviation="2" result="smooth"/><feDisplacementMap in="SourceGraphic" in2="smooth" scale="38" xChannelSelector="R" yChannelSelector="G"/></filter></svg>
@@ -335,7 +337,7 @@
         <path d="M89.1 30.9 A100 100 0 0 1 150.9 30.9" fill="none" stroke="#A7B59C" stroke-width="12"/>
         <line class="tu-tick" x1="120" y1="14" x2="120" y2="22" stroke-width="2"/>
         <line id="tu-needle" x1="120" y1="126" x2="120" y2="38" stroke="#C3BBA9" stroke-width="3" stroke-linecap="round" style="transform-origin:120px 126px;transition:transform .12s ease-out,stroke .12s"/>
-        <circle cx="120" cy="126" r="6" fill="#C47A5C"/>
+        <circle cx="120" cy="126" r="6" fill="#A68668"/>
       </svg>
       <div id="tu-note" class="text-5xl font-semibold leading-tight -mt-1">–</div>
       <div id="tu-sub" class="text-[13px] text-slate-400 min-h-[20px]"></div>

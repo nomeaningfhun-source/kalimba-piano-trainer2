@@ -225,9 +225,9 @@ function tineNum(pitch) {
   return acc + n.replace(/[#b]/g, '');
 }
 
-// tine colours: the left hand's tines are warm (blush to terracotta), the right hand's cool (misty to olive),
+// tine colours: the left hand's tines are warm (sand to mocha), the right hand's cool (stone to charcoal),
 // darker towards the edges like the reference design; the middle tine is cream
-const TINE_COLORS = { L: ['#EDCBC2', '#B4613F'], R: ['#CDD8E3', '#5F6B50'], C: '#FBF8F2' };
+const TINE_COLORS = { L: ['#E9DCCB', '#8F6B4C'], R: ['#DDDAD4', '#3E3F40'], C: '#FBF8F2' };
 function mixHex(a, b, t) {
   const p = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
   const x = p(a), y = p(b);
@@ -525,7 +525,7 @@ function setTheme(t) {
   document.documentElement.dataset.theme = t;
   try { localStorage.setItem('kt.theme', t); } catch (e) { /* storage blocked */ }
   const m = document.querySelector('meta[name="theme-color"]');
-  if (m) m.content = t === 'dark' ? '#1A1D17' : '#F2EDE2';
+  if (m) m.content = t === 'dark' ? '#1F2020' : '#F2EDE6';
 }
 const isDark = () => document.documentElement.dataset.theme === 'dark';
 setTheme(isDark() ? 'dark' : 'light');
@@ -2308,7 +2308,7 @@ const Tuner = {
     byId('tu-status').textContent = inTune ? '✓ ' + t('tu.in') : t(c < 0 ? 'tu.low' : 'tu.high', { c: Math.abs(c) });
     byId('tu-status').className = 'text-[14px] font-medium mt-1 min-h-[22px] text-center ' + (inTune ? 'text-emerald-400' : 'text-red-400');
     needle.style.transform = 'rotate(' + (c / 50 * 90) + 'deg)';
-    needle.setAttribute('stroke', inTune ? '#5B634B' : '#A9603F');
+    needle.setAttribute('stroke', inTune ? '#4E6846' : '#A8423A');
     // a steady tone for ~0.2 s becomes that tine's reading
     if (lv.midi === this.runMidi) { this.run++; this.runCents.push(c); } else { this.runMidi = lv.midi; this.run = 1; this.runCents = [c]; }
     if (onKey && this.run >= 8 && this.run % 4 === 0) {
@@ -2327,7 +2327,7 @@ const Tuner = {
 };
 
 /* ---- song player: falling notes over the kalimba, judged from taps or a real kalimba ---- */
-const HAND_COLOR = { L: '#E7B9B2', R: '#B7C6D6', C: '#EFE6D6' };
+const HAND_COLOR = { L: '#D9C9B8', R: '#BDB9B2', C: '#F1ECE2' };
 const CHORD_COLOR = '#C4483C';   // chord tones fall red
 // the player runs on the page clock: iOS can suspend or interrupt the audio clock, which would freeze the notes
 const clock = () => performance.now() / 1000;
@@ -2495,7 +2495,7 @@ const Fall = {
         if (e.res) continue;
         e.res = 'demo';
         if (Synth.ensure()) Synth.kalimba(Synth.master, e.midi, Synth.ctx.currentTime, e.chord ? 0.5 : 0.85);
-        this.flash(e, '#E6B9A3', now);
+        this.flash(e, '#D9C0A0', now);
         const ln = this.lanes[e.pitch];
         if (ln) { ln.el.classList.add('active'); setTimeout(() => ln.el.classList.remove('active'), 160); }
       }
@@ -2545,7 +2545,7 @@ const Fall = {
     if (best) {
       const perfect = bestD <= w.perfect;
       best.res = perfect ? 'perfect' : 'good'; this.stats[best.res]++;
-      this.flash(best, perfect ? '#A7B59C' : '#B7C6D6', now);
+      this.flash(best, perfect ? '#9DB08F' : '#CFC8BC', now);
       this.next = this.firstOpenFrom(this.next);
     } else this.wrong(pitch, now);
     this.score();
@@ -2555,7 +2555,7 @@ const Fall = {
     this.stats.wrong++;
     const ln = this.lanes[pitch];
     if (ln) {
-      this.flashes.push({ x: ln.x, w: ln.w, t: now, color: '#C47A5C' });
+      this.flashes.push({ x: ln.x, w: ln.w, t: now, color: '#B8493E' });
       ln.el.classList.add('wrong'); setTimeout(() => ln.el.classList.remove('wrong'), 220);
     }
   },
@@ -2636,7 +2636,7 @@ const Fall = {
       if (w >= 14) { g.fillStyle = e.res === 'miss' ? '#8A8F80' : e.chord ? '#FFF6F2' : '#3A402F'; g.fillText(pitchToNumber(e.pitch), ln.x, y - h / 2 + 0.5); }
     }
     // hit line and flashes
-    g.fillStyle = '#C47A5C'; g.fillRect(0, hitY, W, 2);
+    g.fillStyle = '#A68668'; g.fillRect(0, hitY, W, 2);
     this.flashes.forEach(f => {
       const a = Math.max(0, 1 - (now - f.t) / 0.35);
       g.globalAlpha = a * 0.85; g.fillStyle = f.color;
