@@ -161,3 +161,5 @@ body.on-play::after { display: none; }
 .kal-compact .tl-num { font-size: 14px; } .kal-compact .tl-name { font-size: 10px; }
 
 .tu-tine.tgt { outline: 2px solid var(--c-accent-solid); outline-offset: 2px; box-shadow: 0 0 10px rgba(190, 150, 105, .6); }
+
+#tu-tines { gap: 2px; touch-action: manipulation; } #tu-tines button { padding: 6px 0; }

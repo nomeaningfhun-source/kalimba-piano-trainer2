@@ -137,6 +137,16 @@ class AudioEngine {
     }
     kalimbaVoice(this.ctx, this.kBus, freq, this.ctx.currentTime, 0.6);
   }
+  // the tuner's reference tone: the kalimba voice cut off after len seconds, so the player can pluck the real tine soon after
+  playRef(pitchStr, len = 1.0) {
+    this.init();
+    if (!this.ctx) return;
+    const c = this.ctx, g = c.createGain(), t = c.currentTime;
+    g.connect(c.destination);
+    kalimbaVoice(c, g, midiToFreq(pitchToMidi(pitchStr)), t, 0.6);
+    g.gain.setValueAtTime(1, t + len * 0.55); g.gain.linearRampToValueAtTime(0.0001, t + len);
+    setTimeout(() => { try { g.disconnect(); } catch (e) { /* gone */ } }, (len + 0.4) * 1000);
+  }
   playMetronome(isDownbeat = false) {
     if (!this.ctx || window.KTMicOn) return;   // the click would be heard as a note while listening
     const now = this.ctx.currentTime;
@@ -2274,7 +2284,7 @@ const Mic = {
     const ev = this.L.feed(this.buf, tm), lv = this.L.level(this.buf);
     // the app's own sound (a tapped tine, a preview) reaches the mic as well
     const own = kalimbaVoice.lastT != null && tm - kalimbaVoice.lastT > -0.2 && tm - kalimbaVoice.lastT < 0.35;
-    if (state.currentView === 'sheet' || state.currentView === 'tuner') {   // a level bar: shows that the microphone hears the kalimba
+    if (state.currentView === 'sheet' || state.currentView === 'tuner' || state.currentView === 'lesson') {   // a level bar: shows that the microphone hears the kalimba
       const w = Math.max(0, Math.min(100, (20 * Math.log10(rmsOf(this.buf) + 1e-9) + 62) / 40 * 100)).toFixed(0) + '%';
       $$('.mic-meter-bar').forEach(b => { b.style.width = w; });
     }
@@ -2287,7 +2297,7 @@ const Mic = {
   // tuner target mode: every 0.1 s measure the tone against the tine the player picked (not against the nearest semitone)
   targetTick(tm) {
     if ((this.tt = (this.tt || 0) + 1) % 4) return;
-    if (tm - (kalimbaVoice.lastT || -99) < 2.6) { Tuner.targetState('ref'); return; }   // the app's own reference tone is still ringing: it would read as 'in tune'
+    if (tm - (kalimbaVoice.lastT || -99) < 1.35) { Tuner.targetState('ref'); return; }   // the app's own reference tone is still sounding: it would read as 'in tune'
     this.an2.getFloatTimeDomainData(this.buf2);
     if (rmsOf(this.buf2) < 0.0015) { Tuner.targetState('quiet'); return; }
     Tuner.targetReading(centsAround(this.buf2, audio.ctx.sampleRate, Tuner.targetMidi()));
@@ -2317,6 +2327,7 @@ function micSync() {
 function micUI() {
   const pm = byId('pl-mic');
   pm.classList.toggle('tog-on', Real.on); pm.setAttribute('aria-pressed', String(Real.on));
+  const lm = byId('le-mic'); if (lm) { lm.classList.toggle('tog-on', Real.on); lm.setAttribute('aria-pressed', String(Real.on)); }
   byId('tu-toggle-label').textContent = t(Tuner.on ? 'tu.stop' : 'tu.start');
   byId('tu-toggle').className = 'h-12 rounded-full font-semibold flex items-center justify-center gap-2 ' +
     (Tuner.on ? 'border border-slate-700 text-slate-200' : 'bg-amber-500 text-slate-950');
@@ -2331,8 +2342,8 @@ const Tuner = {
   render() {
     byId('tu-kind').textContent = '17 · C' + (retuneSummary() ? ' · ' + retuneSummary() : '');
     byId('tu-tines').innerHTML = profileKeys().map(k =>
-      '<button class="flex flex-col items-center gap-1" data-tu="' + k.pitch + '" aria-label="' + k.pitch + '">' +
-      '<span class="tu-tine" style="height:' + Math.round(k.lengthPct * 0.55 + 12) + 'px"></span>' +
+      '<button class="flex flex-col items-center gap-1 flex-1 min-w-0" data-tu="' + k.pitch + '" aria-label="' + k.pitch + '">' +
+      '<span class="tu-tine" style="width:min(100%,24px);height:' + Math.round(k.lengthPct * 0.55 + 16) + 'px"></span>' +
       '<span class="text-[10px] text-slate-400 font-mono leading-none">' + pitchToNumber(k.pitch) + '</span></button>').join('');
     this.paint();
     this.level(this.lastLv || null);
@@ -3178,9 +3189,18 @@ function initPlayer() {
     if (!byId('pl-ctrl').classList.contains('hidden') && !e.target.closest('#pl-ctrl')) { byId('pl-ctrl').classList.add('hidden'); byId('pl-more').setAttribute('aria-expanded', 'false'); }
   });
   byId('pl-mic').onclick = () => { Real.on = !Real.on; ls.set('real', Real.on); micSync(); };
+  byId('le-mic').onclick = () => { Real.on = !Real.on; ls.set('real', Real.on); micSync(); };   // the lessons use the same switch
   byId('pl-progress').onclick = e => { const r = e.currentTarget.getBoundingClientRect(); Fall.seek((e.clientX - r.left) / r.width); };
   byId('tu-toggle').onclick = () => Tuner.toggle();
-  byId('tu-tines').addEventListener('click', e => { const b = e.target.closest('[data-tu]'); if (b) { audio.playPitch(b.dataset.tu); Tuner.setTarget(b.dataset.tu); } });
+  // a tap anywhere on the strip picks the NEAREST tine, the moment the finger lands (no waiting for a click); the highlight moves first, the sound after
+  byId('tu-tines').addEventListener('pointerdown', e => {
+    let best = null, bd = 1e9;
+    $$('#tu-tines [data-tu]').forEach(b => { const r = b.getBoundingClientRect(), d = Math.abs(e.clientX - (r.left + r.width / 2)); if (d < bd) { bd = d; best = b; } });
+    if (!best) return;
+    e.preventDefault();
+    Tuner.setTarget(best.dataset.tu);
+    try { audio.playRef(best.dataset.tu); } catch (err) { /* no sound yet */ }
+  });
   byId('tu-target-clear').onclick = () => Tuner.clearTarget();
   window.addEventListener('resize', () => { Fall.layout(); Fall.message(); });
   document.addEventListener('visibilitychange', () => {
@@ -3388,7 +3408,7 @@ function initLessons() {
     if (!first) Lesson.i++;
     if (Lesson.i >= Lesson.lv.n) { finish(); return; }
     Lesson.pos = 0; Lesson.got = new Set(); Lesson.curWrong = false; Lesson.locked = false;
-    glow([]); byId('le-fb').textContent = L(T('แตะก้าน หรือดีดคาลิมบาจริง (เปิดคาลิมบาจริงในเมนูเพลงหรือหน้าตั้งเสียง)', 'Tap a tine, or pluck your kalimba (turn on Real kalimba in Songs or Tuner)'));
+    glow([]); byId('le-fb').textContent = L(T('แตะก้านบนจอ หรือกดปุ่ม "คาลิมบาจริง" ด้านบนแล้วดีดคาลิมบาของคุณ', 'Tap a tine, or turn on "Real kalimba" above and pluck your own kalimba'));
     byId('le-fb').className = 'text-[13px] text-slate-400 min-h-[20px]';
     renderQ();
   }
