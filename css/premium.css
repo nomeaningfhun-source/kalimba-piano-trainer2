@@ -159,3 +159,5 @@ body.on-play::after { display: none; }
 .kal-compact { --tine-h: clamp(140px, 23dvh, 200px); }
 .kal-compact .kalimba-tine { --tip: 38px; }
 .kal-compact .tl-num { font-size: 14px; } .kal-compact .tl-name { font-size: 10px; }
+
+.tu-tine.tgt { outline: 2px solid var(--c-accent-solid); outline-offset: 2px; box-shadow: 0 0 10px rgba(190, 150, 105, .6); }

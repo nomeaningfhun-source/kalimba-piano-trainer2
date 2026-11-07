@@ -1110,4 +1110,25 @@ function makeKeyListener(sampleRate, opt) {
     }
   };
 }
+// The tuner's target mode: how many cents the strongest tone within ±span cents of midi is above (+) or below (-) it. Unlike centsNear this
+// reaches a whole semitone and more (a tine tuned far off). null when there is no clear single tone (silence, noise).
+function centsAround(buf, sampleRate, midi, span) {
+  span = span || 400;
+  const f0 = midiHz(midi), cs = [], amps = [];
+  for (let c = -span; c <= span; c += 8) { cs.push(c); amps.push(toneAmp(buf, sampleRate, f0 * Math.pow(2, c / 1200))); }
+  let bi = 0;
+  for (let i = 1; i < amps.length; i++) if (amps[i] > amps[bi]) bi = i;
+  const sorted = amps.slice().sort((a, b) => a - b), med = sorted[sorted.length >> 1];
+  if (amps[bi] < 0.003 || amps[bi] < 5 * (med + 1e-9)) return null;
+  const fine = [];
+  for (let c = cs[bi] - 8; c <= cs[bi] + 8; c += 2) fine.push([c, toneAmp(buf, sampleRate, f0 * Math.pow(2, c / 1200))]);
+  let fb = 0;
+  for (let i = 1; i < fine.length; i++) if (fine[i][1] > fine[fb][1]) fb = i;
+  let cents = fine[fb][0];
+  if (fb > 0 && fb < fine.length - 1) {
+    const l = fine[fb - 1][1], m = fine[fb][1], r = fine[fb + 1][1], den = l + r - 2 * m;
+    if (den) cents += 2 * (l - r) / (2 * den);
+  }
+  return { cents: Math.round(cents), amp: fine[fb][1], edge: Math.abs(cents) >= span - 8 };
+}
 /* @@PITCH-END */

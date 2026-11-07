@@ -2248,6 +2248,8 @@ const Mic = {
     this.an = c.createAnalyser(); this.an.fftSize = 4096;
     this.gain = c.createGain(); this.gain.gain.value = Mic.sens();   // kalimba plucks are quiet at the phone's microphone
     src.connect(this.gain); this.gain.connect(this.nodes[0]); this.nodes[0].connect(this.nodes[1]); this.nodes[1].connect(this.an);
+    this.an2 = c.createAnalyser(); this.an2.fftSize = 16384; this.nodes[1].connect(this.an2);   // a longer window: a finer pitch for the target mode
+    this.buf2 = new Float32Array(this.an2.fftSize); this.tt = 0;
     this.buf = new Float32Array(this.an.fftSize);
     this.L = makeKeyListener(c.sampleRate, { hop: 0.025, win: this.an.fftSize });
     this.timer = setInterval(() => this.tick(), 25);
@@ -2276,17 +2278,26 @@ const Mic = {
       const w = Math.max(0, Math.min(100, (20 * Math.log10(rmsOf(this.buf) + 1e-9) + 62) / 40 * 100)).toFixed(0) + '%';
       $$('.mic-meter-bar').forEach(b => { b.style.width = w; });
     }
+    if (Tuner.target && state.currentView === 'tuner') this.targetTick(tm);
     if (lv) { this.quietSince = 0; Tuner.level(lv); }
     else if (!this.quietSince) this.quietSince = tm;
     else if (tm - this.quietSince > 0.6) Tuner.level(null);
     if (ev && !own) this.heard(ev);
+  },
+  // tuner target mode: every 0.1 s measure the tone against the tine the player picked (not against the nearest semitone)
+  targetTick(tm) {
+    if ((this.tt = (this.tt || 0) + 1) % 4) return;
+    if (tm - (kalimbaVoice.lastT || -99) < 2.6) { Tuner.targetState('ref'); return; }   // the app's own reference tone is still ringing: it would read as 'in tune'
+    this.an2.getFloatTimeDomainData(this.buf2);
+    if (rmsOf(this.buf2) < 0.0015) { Tuner.targetState('quiet'); return; }
+    Tuner.targetReading(centsAround(this.buf2, audio.ctx.sampleRate, Tuner.targetMidi()));
   },
   heard(ev) {
     const pitch = midiToPitch(ev.midi);
     const tine = document.querySelector('#kalimba-tines-wrapper [data-pitch="' + pitch + '"]');
     if (tine) { tine.classList.add('active'); setTimeout(() => tine.classList.remove('active'), 160); }
     showPlayed(pitch);
-    Tuner.pluck(ev);
+    if (!Tuner.target) Tuner.pluck(ev);
     $$('.mic-meter-note').forEach(n => { n.textContent = noteName(pitch); });
     judgePitch(pitch, ev.t - MIC_LAG);
   }
@@ -2331,13 +2342,54 @@ const Tuner = {
     let checked = 0, ok = 0;
     $$('#tu-tines [data-tu]').forEach(b => {
       const p = b.dataset.tu, c = this.readings[p], bar = b.firstChild;
-      bar.className = 'tu-tine' + (c == null ? '' : Math.abs(c) <= 10 ? ' ok' : ' off') + (this.last === p ? ' now' : '');
+      bar.className = 'tu-tine' + (c == null ? '' : Math.abs(c) <= 10 ? ' ok' : ' off') + (this.last === p ? ' now' : '') + (this.target === p ? ' tgt' : '');
       if (c != null) { checked++; if (Math.abs(c) <= 10) ok++; }
     });
     byId('tu-summary').textContent = checked ? t('tu.checked', { a: checked, n: keys.length, ok }) : '';
   },
+  /* target mode: tap a tine on the screen to hear it and make it the target; the gauge then shows how far the real tine is from THAT pitch
+     (in cents, beyond a semitone too) and whether to make the tine shorter or longer */
+  target: null, tr: [],
+  targetMidi() { const m = pitchToMidi(this.target); return m + ((state.retune && state.retune[m]) || 0); },
+  setTarget(p) {
+    this.target = p; this.tr = [];
+    this.renderTarget(); this.paint();
+    this.targetState(Mic.on ? 'quiet' : 'idle');
+  },
+  clearTarget() { this.target = null; this.tr = []; this.renderTarget(); this.paint(); this.level(null); },
+  renderTarget() {
+    const row = byId('tu-target');
+    row.classList.toggle('hidden', !this.target);
+    if (this.target) byId('tu-target-name').textContent = pitchToNumber(this.target) + ' · ' + this.target;
+  },
+  targetShow(note, cents, status, tone) {
+    const needle = byId('tu-needle');
+    byId('tu-note').textContent = note;
+    byId('tu-sub').textContent = '';
+    byId('tu-cents').textContent = cents == null ? '–' : t('tu.c', { c: (cents > 0 ? '+' : '') + cents });
+    const s = byId('tu-status'); s.textContent = status;
+    s.className = 'text-[14px] font-medium mt-1 min-h-[22px] text-center ' + (tone === 'ok' ? 'text-emerald-400' : tone === 'bad' ? 'text-red-400' : 'text-slate-300');
+    const c = cents == null ? 0 : clamp(cents, -100, 100);
+    needle.style.transform = 'rotate(' + (c / 100 * 90) + 'deg)';
+    needle.setAttribute('stroke', tone === 'ok' ? '#4E6846' : tone === 'bad' ? '#A8423A' : '#C3BBA9');
+  },
+  targetState(kind) {
+    const note = state.noteSystem === 'western' ? this.target : noteName(this.target);
+    this.targetShow(note, null, t(kind === 'ref' ? 'tu.refwait' : kind === 'idle' ? 'tu.idle' : 'tu.tpluck'), '');
+  },
+  targetReading(r) {
+    const note = state.noteSystem === 'western' ? this.target : noteName(this.target);
+    if (!r) { this.tr = []; this.targetShow(note, null, t('tu.tpluck'), ''); return; }
+    if (r.edge) { this.tr = []; this.targetShow(note, null, t('tu.tfar'), 'bad'); return; }
+    this.tr.push(r.cents); if (this.tr.length > 3) this.tr.shift();
+    const s = this.tr.slice().sort((a, b) => a - b), c = s[s.length >> 1], a = Math.abs(c);
+    const ok = a <= 8;
+    this.targetShow(note, c, ok ? '✓ ' + t('tu.in') : t(c < 0 ? 'tu.tlow' : 'tu.thigh', { c: a }) + (a >= 50 ? ' · ' + t('tu.tsemi', { n: (a / 100).toFixed(1) }) : ''), ok ? 'ok' : 'bad');
+    this.readings[this.target] = c; this.last = this.target; this.paint();
+  },
   // live reading every 25 ms (null = quiet)
   level(lv) {
+    if (this.target && state.currentView === 'tuner') return;   // the target mode draws the gauge itself
     this.lastLv = lv;
     const needle = byId('tu-needle');
     if (!lv) {
@@ -3128,7 +3180,8 @@ function initPlayer() {
   byId('pl-mic').onclick = () => { Real.on = !Real.on; ls.set('real', Real.on); micSync(); };
   byId('pl-progress').onclick = e => { const r = e.currentTarget.getBoundingClientRect(); Fall.seek((e.clientX - r.left) / r.width); };
   byId('tu-toggle').onclick = () => Tuner.toggle();
-  byId('tu-tines').addEventListener('click', e => { const b = e.target.closest('[data-tu]'); if (b) audio.playPitch(b.dataset.tu); });
+  byId('tu-tines').addEventListener('click', e => { const b = e.target.closest('[data-tu]'); if (b) { audio.playPitch(b.dataset.tu); Tuner.setTarget(b.dataset.tu); } });
+  byId('tu-target-clear').onclick = () => Tuner.clearTarget();
   window.addEventListener('resize', () => { Fall.layout(); Fall.message(); });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) { goQuiet(); return; }

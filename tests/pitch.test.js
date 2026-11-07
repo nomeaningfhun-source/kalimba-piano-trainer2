@@ -93,3 +93,17 @@ t('silence and background noise give no notes', () => {
 });
 
 console.log(n + ' passed');
+
+// target mode: a tine tuned 100 cents flat of D4 is measured as about -100 against D4, +60 sharp as about +60, silence as null
+{
+  const sr = 48000, n = 16384, mk = (hz) => { const b = new Float32Array(n); for (let i = 0; i < n; i++) b[i] = 0.3 * Math.sin(2 * Math.PI * hz * i / sr); return b; };
+  const d4 = P.midiHz(62);
+  const flat = P.centsAround(mk(d4 * Math.pow(2, -100 / 1200)), sr, 62);
+  assert.ok(flat && Math.abs(flat.cents + 100) <= 8, 'flat ' + JSON.stringify(flat));
+  const sharp = P.centsAround(mk(d4 * Math.pow(2, 60 / 1200)), sr, 62);
+  assert.ok(sharp && Math.abs(sharp.cents - 60) <= 8, 'sharp ' + JSON.stringify(sharp));
+  const on = P.centsAround(mk(d4), sr, 62);
+  assert.ok(on && Math.abs(on.cents) <= 6, 'on ' + JSON.stringify(on));
+  assert.strictEqual(P.centsAround(new Float32Array(n), sr, 62), null);
+  console.log('ok target mode (centsAround)');
+}
