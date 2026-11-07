@@ -98,10 +98,13 @@ class AudioEngine {
     const frozen = c0 && c0.state === 'running' && this.chk && wall - this.chk.wall > 400 && c0.currentTime - this.chk.t < 0.05;
     if (c0 && (c0.state === 'interrupted' || c0.state === 'closed' || this.stuck || frozen ||
         (c0.state !== 'running' && wall - (this.madeAt || 0) > 1000))) this.drop();
-    if (!this.ctx) { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); this.madeAt = performance.now(); this.chk = null; }
+    if (!this.ctx) {
+      this.ctx = new (window.AudioContext || window.webkitAudioContext)(); this.madeAt = performance.now(); this.chk = null;
+      if (window.KTMicOn && window.KTMic) { KTMic.stop(); setTimeout(() => window.KTMicSync && KTMicSync(), 0); }   // the microphone was wired to the old context
+    }
     if (this.ctx.state === 'running' && (!this.chk || this.ctx.currentTime - this.chk.t > 0.05)) this.chk = { t: this.ctx.currentTime, wall };
     // iPhone: sound that follows the silent switch is the usual "no sound" report; ask for media-style playback (iOS 16.4+)
-    this.session(window.KTMicOn ? 'play-and-record' : 'playback');
+    this.session(window.KTMicOn || window.KTMicStarting ? 'play-and-record' : 'playback');   // capture needs play-and-record BEFORE getUserMedia, or iOS records silence
     const c = this.ctx;
     if (c.state !== 'running') {
       // a resume that has not taken hold by the next tap means this context is stuck
@@ -441,7 +444,7 @@ $('set-retune').addEventListener('click', e => {
 $('btn-open-settings').onclick = () => {
   renderRetune();
   Skin.render();
-  $('set-haptic').checked = Haptic.on;
+  $('set-haptic').checked = Haptic.on; if (window.KTMicSensUI) KTMicSensUI();
   const l = document.querySelector('input[name="app-lang"][value="' + LANG + '"]');
   if (l) l.checked = true;
   try { $('set-real').checked = JSON.parse(localStorage.getItem('kt.hasReal')) === true; } catch (e) { $('set-real').checked = false; }
@@ -545,8 +548,16 @@ function setTheme(t) {
 const isDark = () => document.documentElement.dataset.theme === 'dark';
 setTheme(isDark() ? 'dark' : 'light');
 document.getElementById('btn-theme').addEventListener('click', () => { setTheme(isDark() ? 'light' : 'dark'); Haptic.tick(); });
+const micSensUI = () => $$('#set-micsens [data-sens]').forEach(b => b.classList.toggle('tog-on', +b.dataset.sens === Mic.sens()));
+byId('set-micsens').addEventListener('click', e => {
+  const b = e.target.closest('[data-sens]');
+  if (!b) return;
+  ls.set('micSens', +b.dataset.sens); micSensUI();
+  if (Mic.on && Mic.gain) Mic.gain.gain.value = Mic.sens();
+});
 byId('set-haptic').addEventListener('change', e => { Haptic.on = e.target.checked; ls.set('haptic', Haptic.on); Haptic.tick(); });
 window.Haptic = Haptic;   // the settings page (outside this closure) reads it
+window.KTMicSensUI = () => micSensUI();
 const uid = () => (window.crypto && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
 function el(tag, cls) { const e = document.createElement(tag); if (cls) e.className = cls; return e; }
 
@@ -2196,22 +2207,36 @@ async function isMemberCode(code) {
 const MIC_LAG = 0.1;   // the listener reports a pluck about this long after it happens
 const Mic = {
   on: false, starting: false, stream: null, src: null, nodes: [], an: null, buf: null, timer: 0, L: null, quietSince: 0,
+  sens() { const v = +ls.get('micSens', 2.5); return v > 0 ? v : 2.5; },   // 1 low, 2.5 normal, 6 high
   async start() {
     if (this.on || this.starting) return true;
     if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) { toast(t('tu.nomic'), 3000); return false; }
+    window.KTMicStarting = true;
+    audio.session('play-and-record');
     unlockAudioUI();
     this.starting = true;
     let stream;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+      } catch (e1) {
+        if (e1 && e1.name === 'NotAllowedError') throw e1;
+        // some phones refuse the raw-audio settings or fail while the audio session switches: ask again with plain settings
+        await new Promise(r => setTimeout(r, 250));
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      }
     } catch (e) {
-      this.starting = false;
-      toast(e && e.name === 'NotAllowedError' ? t('tu.denied') : t('tu.fail'), 4500);
+      this.starting = false; window.KTMicStarting = false;
+      // the error name is shown so a failure on a real phone can be told apart (NotFound, NotReadable, Abort, ...)
+      toast(e && e.name === 'NotAllowedError' ? t('tu.denied') : t('tu.fail') + (e && e.name ? ' (' + e.name + ')' : ''), 5500);
       return false;
     }
-    this.starting = false;
+    this.starting = false; window.KTMicStarting = false;
     if (!micWanted()) { stream.getTracks().forEach(tr => tr.stop()); return false; }   // left the page meanwhile
-    this.listen(audio.ctx.createMediaStreamSource(stream), stream);
+    // the permission prompt and the switch to recording can leave the context suspended: a suspended one hears nothing
+    const c = audio.ctx;
+    if (c.state !== 'running') { try { await Promise.race([c.resume(), new Promise(r => setTimeout(r, 1200))]); } catch (e) { /* try again below */ } }
+    this.listen(c.createMediaStreamSource(stream), stream);
     return true;
   },
   listen(src, stream) {                 // src: any AudioNode — the microphone, or a test signal
@@ -2221,18 +2246,20 @@ const Mic = {
       const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = MIC_LOWPASS_HZ; f.Q.value = Math.SQRT1_2; return f;
     });
     this.an = c.createAnalyser(); this.an.fftSize = 4096;
-    src.connect(this.nodes[0]); this.nodes[0].connect(this.nodes[1]); this.nodes[1].connect(this.an);
+    this.gain = c.createGain(); this.gain.gain.value = Mic.sens();   // kalimba plucks are quiet at the phone's microphone
+    src.connect(this.gain); this.gain.connect(this.nodes[0]); this.nodes[0].connect(this.nodes[1]); this.nodes[1].connect(this.an);
     this.buf = new Float32Array(this.an.fftSize);
     this.L = makeKeyListener(c.sampleRate, { hop: 0.025, win: this.an.fftSize });
     this.timer = setInterval(() => this.tick(), 25);
     this.on = true; window.KTMicOn = true;
     audio.session('play-and-record');
+    c.onstatechange = () => { if (this.on && c.state !== 'running') c.resume().catch(() => { /* closed */ }); };   // iOS can suspend it again
     micUI();
   },
   stop() {
     if (!this.on) return;
     clearInterval(this.timer);
-    [this.src].concat(this.nodes).forEach(n => { try { n.disconnect(); } catch (e) { /* already gone */ } });
+    [this.src, this.gain].concat(this.nodes).forEach(n => { try { n.disconnect(); } catch (e) { /* already gone */ } });
     if (this.stream) this.stream.getTracks().forEach(tr => tr.stop());
     this.on = false; window.KTMicOn = false; this.stream = null;
     audio.session('playback');
@@ -2245,6 +2272,10 @@ const Mic = {
     const ev = this.L.feed(this.buf, tm), lv = this.L.level(this.buf);
     // the app's own sound (a tapped tine, a preview) reaches the mic as well
     const own = kalimbaVoice.lastT != null && tm - kalimbaVoice.lastT > -0.2 && tm - kalimbaVoice.lastT < 0.35;
+    if (state.currentView === 'sheet' || state.currentView === 'tuner') {   // a level bar: shows that the microphone hears the kalimba
+      const w = Math.max(0, Math.min(100, (20 * Math.log10(rmsOf(this.buf) + 1e-9) + 62) / 40 * 100)).toFixed(0) + '%';
+      $$('.mic-meter-bar').forEach(b => { b.style.width = w; });
+    }
     if (lv) { this.quietSince = 0; Tuner.level(lv); }
     else if (!this.quietSince) this.quietSince = tm;
     else if (tm - this.quietSince > 0.6) Tuner.level(null);
@@ -2256,6 +2287,7 @@ const Mic = {
     if (tine) { tine.classList.add('active'); setTimeout(() => tine.classList.remove('active'), 160); }
     showPlayed(pitch);
     Tuner.pluck(ev);
+    $$('.mic-meter-note').forEach(n => { n.textContent = noteName(pitch); });
     judgePitch(pitch, ev.t - MIC_LAG);
   }
 };
@@ -2278,6 +2310,7 @@ function micUI() {
   byId('tu-toggle').className = 'h-12 rounded-full font-semibold flex items-center justify-center gap-2 ' +
     (Tuner.on ? 'border border-slate-700 text-slate-200' : 'bg-amber-500 text-slate-950');
   if (!Mic.on) Tuner.level(null);
+  $$('.mic-meter').forEach(m => m.classList.toggle('hidden', !(Mic.on && state.currentView === m.dataset.meter)));
   Fall.message();
 }
 

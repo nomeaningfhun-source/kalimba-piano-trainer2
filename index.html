@@ -247,6 +247,7 @@
         <button data-shmode="rhythm" class="h-9 rounded-full text-[12px]" data-i18n="sh.mode.rhythm">ตามจังหวะ</button>
       </div>
       <div id="sh-strip" class="flex items-start justify-center gap-[3px] mt-2" aria-label="kalimba"></div>
+      <div class="mic-meter hidden flex items-center gap-2 mt-1.5 px-1" data-meter="sheet"><span aria-hidden="true">🎤</span><div class="flex-1 h-2 rounded-full bg-slate-800 overflow-hidden"><div class="mic-meter-bar h-full bg-emerald-500" style="width:0%"></div></div><span class="mic-meter-note w-12 text-right text-[12px] text-slate-300"></span></div>
       <div class="flex items-center gap-2 mt-2 text-xs">
         <button id="sh-play" class="h-11 px-5 shrink-0 rounded-full bg-amber-500 text-slate-950 font-semibold flex items-center gap-2"><span id="sh-play-icon"></span><span id="sh-play-label" data-i18n="sh.start">เริ่ม</span></button>
         <button id="sh-again" class="hidden h-11 px-3 shrink-0 rounded-full border border-slate-700 text-slate-200 text-[12px]" data-i18n="sh.again">ฟังท่อนนี้อีกครั้ง</button>
@@ -342,6 +343,7 @@
       <div id="tu-note" class="text-5xl font-semibold leading-tight -mt-1">–</div>
       <div id="tu-sub" class="text-[13px] text-slate-400 min-h-[20px]"></div>
       <div id="tu-status" class="text-[14px] font-medium mt-1 min-h-[22px] text-center"></div>
+      <div class="mic-meter hidden flex items-center gap-2 mt-1 px-1" data-meter="tuner"><span aria-hidden="true">🎤</span><div class="flex-1 h-2 rounded-full bg-slate-800 overflow-hidden"><div class="mic-meter-bar h-full bg-emerald-500" style="width:0%"></div></div><span class="mic-meter-note w-12 text-right text-[12px] text-slate-300"></span></div>
       <div class="w-full flex justify-between text-[11px] text-slate-400 mt-2"><span data-i18n="tu.flat">♭ ต่ำไป</span><span id="tu-cents" class="tabular-nums">–</span><span data-i18n="tu.sharp">สูงไป ♯</span></div>
     </div>
     <div class="rounded-2xl bg-slate-900 border border-slate-800 p-3 space-y-2">
@@ -684,6 +686,15 @@
           <span class="font-medium text-slate-200">สั่นเบาๆ เมื่อกดปุ่ม</span>
           <input id="set-haptic" type="checkbox" checked class="w-5 h-5 accent-amber-500">
         </label>
+        <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700 space-y-2">
+          <div class="font-medium text-slate-200">ความไวไมค์ (คาลิมบาจริง)</div>
+          <div class="text-[11px] text-slate-400">ถ้าแอปไม่ได้ยินคาลิมบา ให้ลองเพิ่มความไว ถ้าจับโน้ตเกินมา ให้ลดลง</div>
+          <div id="set-micsens" class="grid grid-cols-3 gap-2">
+            <button type="button" data-sens="1" class="h-9 rounded-lg border border-slate-700 text-slate-200">ต่ำ</button>
+            <button type="button" data-sens="2.5" class="h-9 rounded-lg border border-slate-700 text-slate-200">ปกติ</button>
+            <button type="button" data-sens="6" class="h-9 rounded-lg border border-slate-700 text-slate-200">สูง</button>
+          </div>
+        </div>
         <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700 space-y-2">
           <div class="font-medium text-slate-200">ก้านที่จูนเป็นชาร์ป / แฟลต</div>
           <div class="text-[11px] text-slate-400">แตะก้านเพื่อสลับ: ปกติ → ♯ (สูงขึ้นครึ่งเสียง) → ♭ (ต่ำลงครึ่งเสียง) · เพลงที่มี #4 ให้ตั้งก้าน 4 เป็น ♯4</div>

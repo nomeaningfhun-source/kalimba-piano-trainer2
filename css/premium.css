@@ -107,7 +107,7 @@ header.app-header { background: color-mix(in srgb, rgb(var(--slate-950)) 72%, tr
 @media (prefers-reduced-transparency: reduce) { header.app-header, #bottom-nav { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgb(var(--slate-950)) !important; } }
 
 /* ---- kalimba looks (js/skins.js sets the kb, hole and wood-tex variables and data-mat / data-shape on the html element) ---- */
-:root { --kb-1: #7A5440; --kb-2: #684633; --kb-3: #573828; --kb-b: #3F2A1E; --kb-ink: rgba(245, 236, 224, .82); --hole-1: #2C1D14; --hole-2: #1E130D; --hole-ink: #F5ECE0; --backdrop: #2E2018; --wood-tex: none;
+:root { --kb-1: #93571F; --kb-2: #804B18; --kb-3: #6C3D11; --kb-b: #4A2808; --kb-ink: rgba(252, 238, 220, .86); --hole-1: #2F1A08; --hole-2: #1F1005; --hole-ink: #FCEEDC; --backdrop: #3A2008; --wood-tex: none;
   --shade: linear-gradient(90deg, rgba(0, 0, 0, .22), rgba(0, 0, 0, 0) 14%, rgba(0, 0, 0, 0) 86%, rgba(0, 0, 0, .22)), linear-gradient(180deg, rgba(255, 255, 255, .1), rgba(255, 255, 255, 0) 30%, rgba(0, 0, 0, .18)); }
 /* real wood: the grain over a graded colour, darker at the sides like a planed board */
 .kalimba-body { background: var(--shade), var(--wood-tex), linear-gradient(180deg, var(--kb-1) 0%, var(--kb-2) 55%, var(--kb-3) 100%); background-size: auto, 360px 720px, auto; border-color: var(--kb-b); }
@@ -154,3 +154,8 @@ html[data-shape="curve"] .kalimba-body { border-radius: 0 0 48% 48% / 0 0 40% 40
 html:has(body.on-play) { background: var(--backdrop); }
 body.on-play { background-image: none; background-color: var(--backdrop); }
 body.on-play::after { display: none; }
+
+/* the on-screen kalimba of the practice pages (falling notes, lessons) is for people without a real kalimba: longer tines and bigger tips are easier to hit */
+.kal-compact { --tine-h: clamp(140px, 23dvh, 200px); }
+.kal-compact .kalimba-tine { --tip: 38px; }
+.kal-compact .tl-num { font-size: 14px; } .kal-compact .tl-name { font-size: 10px; }

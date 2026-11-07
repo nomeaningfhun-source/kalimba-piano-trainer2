@@ -1,15 +1,20 @@
 /* Kalimba looks. Independent choices:
-     material  - walnut, mahogany, maple, ebony, clear acrylic, rose acrylic: the surface (real wood grain, or see-through acrylic) AND the sound
+     material  - golden teak, walnut, mahogany, maple, ebony, clear acrylic, rose acrylic: the surface (real wood grain, or see-through acrylic) AND the sound
      shape     - flat board, resonator box, curved: the outline, AND a body resonance in the sound
      keys      - the colour set of the tines (and of the falling notes)
      chain     - a necklace draped across the tines (pearl, gold crystal, silver pearls)
      art       - a pattern on the body (sakura, engraved deer, moon and stars)
-   Free: walnut + flat board + the Aurora and Mocha key colours. The rest is for members (the member code that unlocks MIDI import unlocks
+   Free: golden teak + flat board + the Aurora and Mocha key colours. The rest is for members (the member code that unlocks MIDI import unlocks
    it too, until a real membership system exists). A choice the device is not unlocked for falls back to the free one. Kept in kt.mat,
    kt.shape, kt.keys, kt.chain, kt.art. */
 
 const MATERIALS = [
-  { id: 'walnut', premium: false, wood: true, name: { th: 'ไม้วอลนัท', en: 'Walnut' },
+  // the default: the warm teak colour Fun picked (sampled from her wood swatch and her own kalimba)
+  { id: 'teak', premium: false, wood: true, name: { th: 'ไม้สักทอง', en: 'Golden teak' },
+    body: ['#93571F', '#804B18', '#6C3D11'], border: '#4A2808', ink: 'rgba(252,238,220,.86)', hole: ['#2F1A08', '#1F1005'], holeInk: '#FCEEDC', backdrop: '#3A2008',
+    grain: { dark: [72, 36, 8], light: [176, 108, 46], seed: 5, fx: 0.075, wave: 0.8 },
+    sound: { decay: 1.0, partial: 0.8, ratio: 6.52, tone: 6800 } },
+  { id: 'walnut', premium: true, wood: true, name: { th: 'ไม้วอลนัท', en: 'Walnut' },
     body: ['#7A5440', '#684633', '#573828'], border: '#3F2A1E', ink: 'rgba(245,236,224,.82)', hole: ['#2C1D14', '#1E130D'], holeInk: '#F5ECE0', backdrop: '#2E2018',
     grain: { dark: [46, 28, 18], light: [150, 104, 72], seed: 3, fx: 0.07, wave: 0.9 },
     sound: { decay: 1.0, partial: 0.8, ratio: 6.52, tone: 6500 } },
@@ -72,7 +77,7 @@ const ARTS = [
 ];
 
 const Skin = {
-  mat: 'walnut', shape: 'board', keys: 'aurora', chain: 'none', art: 'none',
+  mat: 'teak', shape: 'board', keys: 'aurora', chain: 'none', art: 'none',
   tine: { L: [], R: [], C: '' },    // read live by tineColor() in app.js
   hand: { L: '', R: '', C: '' },    // read live by the falling-notes canvas
   sound: { decay: 1, partial: 1, ratio: 6.52, tone: 6500, body: null },   // read live by kalimbaVoice() in app.js
@@ -118,7 +123,7 @@ const Skin = {
       try { id = JSON.parse(localStorage.getItem(key)) || fallback; } catch (e) { /* storage blocked */ }
       return this.usable(this.pick(list, id)) ? id : fallback;
     };
-    this.mat = get('kt.mat', MATERIALS, 'walnut'); this.shape = get('kt.shape', SHAPES, 'board'); this.keys = get('kt.keys', KEYSETS, 'aurora');
+    this.mat = get('kt.mat', MATERIALS, 'teak'); this.shape = get('kt.shape', SHAPES, 'board'); this.keys = get('kt.keys', KEYSETS, 'aurora');
     this.chain = get('kt.chain', CHAINS, 'none'); this.art = get('kt.art', ARTS, 'none');
     this.apply();
   },
