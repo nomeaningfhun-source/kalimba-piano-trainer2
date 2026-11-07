@@ -155,7 +155,7 @@ const state = {
   lesson: { currentTarget: null, correctCount: 0, missMap: {}, timer: 0 },
   inspectingNotes: [],
   library: [
-    { id: 's1', title: 'ดาวส่องแสง (โดเมนสาธารณะ)', bpm: 85, notes: ['C4','C4','G4','G4','A4','A4','G4','F4','F4','E4','E4','D4','D4','C4'] }
+    { id: 's1', title: 'Twinkle, Twinkle, Little Star', bpm: 85, notes: ['C4','C4','G4','G4','A4','A4','G4','F4','F4','E4','E4','D4','D4','C4'] }
   ]
 };
 
@@ -198,7 +198,7 @@ function switchView(viewName) {
   const hdr = document.querySelector('header');   // the Play page hides the header; keep --hdr for the others
   if (hdr && hdr.offsetHeight) document.documentElement.style.setProperty('--hdr', (hdr.offsetHeight + 4) + 'px');
   if (KALIMBA_SLOT[viewName]) mountKalimba(KALIMBA_SLOT[viewName]);
-  if (viewName === 'lesson') startNextLessonQuestion();
+  if (viewName === 'lesson') { if (window.KTLesson) KTLesson.enter(); else startNextLessonQuestion(); }
   else if (viewName === 'add') renderLibrary();
   if (window.KTMicSync) KTMicSync();
   if (viewName === 'player' && window.KTFall) KTFall.layout();
@@ -310,6 +310,7 @@ function judgePitch(pitch, at) {
   if (state.currentView === 'player' && window.KTFall) KTFall.onNote(pitch, at);
   if (state.currentView === 'sheet' && window.KTSheet) KTSheet.onNote(pitch, at);
 
+  if (state.currentView === 'lesson' && window.KTLesson && KTLesson.mode === 'run') { KTLesson.onNote(pitch); return; }
   if (state.currentView === 'lesson' && state.lesson.currentTarget) {
     if (pitch === state.lesson.currentTarget) {
       $('lesson-feedback').innerHTML = '<span class="text-emerald-400 font-semibold">✓ ' + t('le.right') + '</span>';
@@ -378,6 +379,7 @@ $('select-note-system').onchange = e => {
   try { localStorage.setItem('kt.noteSystem', JSON.stringify(state.noteSystem)); } catch (err) { /* storage blocked */ }
   renderKalimba();
   if (state.currentView === 'lesson' && state.lesson.currentTarget) showLessonTarget();
+  if (window.KTLesson && state.currentView === 'lesson') KTLesson.relabel();
 };
 
 // Lesson: find the asked note on the kalimba
@@ -447,6 +449,7 @@ function setLang(l) {
   applyI18n();
   renderKalimba();
   if (state.currentView === 'lesson' && state.lesson.currentTarget) { showLessonTarget(); $('lesson-feedback').textContent = t('le.hint'); }
+  if (window.KTLesson && state.currentView === 'lesson') KTLesson.relabel();
   if (state.currentView === 'add') renderLibrary();
   if (window.KTFirst && KTFirst.running) KTFirst.render();
   if (window.KTFall) KTFall.relabel();
@@ -3104,7 +3107,208 @@ function initMoved() {
   document.body.prepend(bar);
 }
 
+/* ---- step-by-step lessons (Learn page): levels, each 10 questions (level 1: 5); at most 2 wrong passes (level 1: 1) and gives 1-3 stars,
+   a passed level unlocks the next. Taps and a real kalimba heard by the microphone both come in through judgePitch -> KTLesson.onNote. ---- */
+function initLessons() {
+  const L = o => (typeof o === 'string' ? o : (o[LANG] || o.th));
+  const P = tok => numberTokenToPitch(tok);
+  const T = (th, en) => ({ th, en });
+  const SETS = [['1', '3', '5'], ['4', '6'], ['2', '4', '6'], ['5', '7'], ['3', '5', '7'], ['2', '4']];   // red chord numbers as they appear on Fun's sheets
+  const LV = [
+    { id: 'l1', n: 5, kind: 'find', pool: ['1'], title: T('หาก้านกลาง', 'Find the middle tine'), sub: T('โน้ต 1 (โด)', 'Note 1 (do)'),
+      intro: T('ก้านยาวสุดตรงกลางคือโน้ต 1 (โด) ก้านที่กะพริบคือก้านที่ต้องดีด ลองดีดดู', 'The longest tine in the middle is note 1 (do). The tine that blinks is the one to play.') },
+    { id: 'l2', n: 10, kind: 'find', pool: ['1', '2', '3'], title: T('โน้ต 1-2-3', 'Notes 1-2-3'), sub: T('กลาง ซ้าย ขวา', 'Middle, left, right'),
+      intro: T('จากกลางออกไป ซ้ายเป็น 2 ขวาเป็น 3 ก้านจะสลับซ้ายขวา เสียงสูงขึ้นเรื่อยๆ', 'From the middle: left is 2, right is 3. The tines alternate left and right, getting higher.') },
+    { id: 'l3', n: 10, kind: 'find', pool: ['1', '2', '3', '4', '5'], title: T('โน้ต 1-5', 'Notes 1-5'), sub: T('เพิ่ม 4 และ 5', 'Add 4 and 5'),
+      intro: T('ต่อไปอีกสองก้าน ซ้ายเป็น 4 ขวาเป็น 5', 'Two more tines: left is 4, right is 5.') },
+    { id: 'l4', n: 10, kind: 'find', pool: ['1', '2', '3', '4', '5', '6', '7'], title: T('ครบ 1-7', 'All of 1-7'), sub: T('หนึ่งช่วงเสียงเต็ม', 'A full octave'),
+      intro: T('ซ้ายเป็น 6 ขวาเป็น 7 ครบ 1 ถึง 7 แล้ว', 'Left is 6, right is 7. Now you have 1 to 7.') },
+    { id: 'l5', n: 10, kind: 'find', pool: ['1', '3', '5', "1'", "3'", "5'", "1''", "3''"], title: T('เสียงสูง เสียงต่ำ', 'High and low'), sub: T("ขีด ' และ ''", "Marks ' and ''"),
+      intro: T("เลขที่มีขีดเล็ก 1' คือเสียงสูงขึ้นหนึ่งช่วง สองขีด 1'' สูงขึ้นอีก ยิ่งไปปลายซ้ายขวายิ่งสูง", "A number with a small mark, 1', is one octave higher. Two marks, 1'', is higher again. The tines at the far ends are the highest.") },
+    { id: 'l6', n: 10, kind: 'mix', title: T('อ่านแผ่นโน้ต', 'Reading a sheet'), sub: T('เลขเทา เลขแดง', 'Grey and red numbers'),
+      intro: T('ในแผ่นโน้ตรูปถ่าย เลขเทาคือทำนอง ดีดทีละตัวตามลำดับ เลขแดงคือคอร์ด ดีดทุกก้านพร้อมกัน (ตัวไหนก่อนก็ได้)', 'On a photo sheet grey numbers are the tune: play them one by one in order. Red numbers are a chord: play all of them together (any order).') },
+    { id: 'l7', n: 10, kind: 'seq', title: T('เพลงแรก Twinkle, Twinkle, Little Star', 'First song: Twinkle, Twinkle, Little Star'), sub: T('ทีละท่อน ช้าๆ', 'One phrase at a time'),
+      phrases: [['1', '1', '5', '5'], ['6', '6', '5'], ['4', '4', '3', '3'], ['2', '2', '1'], ['5', '5', '4', '4'], ['3', '3', '2']],
+      lyrics: ['ทวิง เคิล ทวิง เคิล', 'ลิต เติล สตาร์', 'ฮาว ไอ วัน เดอร์', 'ว็อต ยู อาร์', 'อัพ อะ บัฟ เดอะ', 'เวิลด์ โซ ไฮ'],
+      intro: T('เพลงแรกคือ Twinkle, Twinkle, Little Star ดีดทีละท่อน ดูเลขแล้วดีดตามลำดับ ตัวหนังสือเล็กๆ คือเนื้อร้องช่วยจำจังหวะ', 'The first song is Twinkle, Twinkle. Play one phrase at a time in order. The small words are the lyrics, to help you remember the rhythm.') },
+    { id: 'l8', n: 10, kind: 'set', sets: SETS, title: T('คอร์ดดีด', 'Plucked chords'), sub: T('2-3 ก้านพร้อมกัน และกรีด ~', '2-3 tines together, and strums ~'),
+      intro: T('คอร์ดดีดคือดีด 2-3 ก้านพร้อมกัน เลขที่มี ~ คือกรีด ไล่ดีดเร็วๆ ดีดครบทุกก้านถึงผ่านข้อ ตัวไหนก่อนก็ได้', 'A plucked chord is 2-3 tines at once. A number with ~ is a strum: play them quickly one after another. Play every tine to finish the question, in any order.') }
+  ];
+  const SEMI = ['1', '2', '3', '4', '5', '6', '7'];
+  const rnd = a => a[Math.floor(Math.random() * a.length)];
+  const shuffle = a => { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
+  // n questions, each pool member about equally often, never the same one twice in a row
+  const spread = (items, n) => {
+    let out = [];
+    while (out.length < n) { let batch = shuffle(items); if (out.length && items.length > 1 && JSON.stringify(batch[0]) === JSON.stringify(out[out.length - 1])) batch.push(batch.shift()); out = out.concat(batch); }
+    return out.slice(0, n);
+  };
+  const mk = (type, toks, lyr) => ({ type, toks, pitches: toks.map(P), lyr: lyr || '' });
+  function questions(lv) {
+    if (lv.kind === 'find') return spread(lv.pool, lv.n).map(tk => mk('find', [tk]));
+    if (lv.kind === 'seq') return spread(lv.phrases.map((p, i) => i), lv.n).map(i => mk('seq', lv.phrases[i], lv.lyrics[i]));
+    if (lv.kind === 'set') return spread(SETS.map((s, i) => i), lv.n).map(i => mk('set', SETS[i]));
+    const qs = [];   // mix: 5 grey runs of 3 numbers and 5 red chords, shuffled
+    for (let i = 0; i < 5; i++) { const s = rnd(SEMI.slice(0, 5)), toks = [s, rnd(SEMI.slice(0, 5)), rnd(SEMI.slice(0, 5))].map((x, k) => (k === 2 && Math.random() < 0.4 ? x + "'" : x)); qs.push(mk('seq', toks)); }
+    spread(SETS.map((s, i) => i), 5).forEach(i => qs.push(mk('set', SETS[i])));
+    return shuffle(qs);
+  }
+  const prog = () => ls.get('lessons', {});
+  const unlocked = i => i === 0 || (prog()[LV[i - 1].id] || 0) >= 1;
+  const need = lv => Math.ceil(lv.n * 0.8);
+  const starTxt = s => '★'.repeat(s) + '☆'.repeat(3 - s);
+  const lab = p => state.noteSystem === 'number' ? pitchToNumber(p) + ' (' + p + ')' : noteName(p) + ' · ' + pitchToNumber(p);
+
+  const Lesson = { mode: 'path', lv: null, qs: [], i: 0, pos: 0, got: new Set(), wrongQs: 0, curWrong: false, locked: false, timer: 0 };
+  const slot = () => $('[data-kslot="lesson"]');
+  function show(mode) {
+    Lesson.mode = mode;
+    byId('le-path').classList.toggle('hidden', mode !== 'path');
+    byId('le-run').classList.toggle('hidden', mode !== 'run');
+    byId('le-free-box').classList.toggle('hidden', mode !== 'free');
+    if (slot()) slot().classList.toggle('hidden', mode === 'path');
+    if (mode !== 'free') state.lesson.currentTarget = null;
+    glow([]);
+    micSync();
+  }
+  function glow(pitches) {
+    $$('#kalimba-tines-wrapper .guide-target').forEach(e => e.classList.remove('guide-target'));
+    pitches.forEach(p => { const e = $('#kalimba-tines-wrapper [data-pitch="' + p + '"]'); if (e) e.classList.add('guide-target'); });
+  }
+  const goBack = () => { clearTimeout(Lesson.timer); show('path'); renderPath(); };
+
+  function renderPath() {
+    byId('le-path-title').textContent = L(T('บทเรียนคาลิมบา', 'Kalimba lessons'));
+    byId('le-path-sub').textContent = L(T('เรียนทีละขั้น ผ่านแล้วปลดบทถัดไป', 'Learn step by step. Pass a level to unlock the next one.'));
+    const pr = prog();
+    byId('le-list').innerHTML = LV.map((lv, i) => {
+      const ok = unlocked(i), s = pr[lv.id] || 0;
+      return '<button data-lv="' + i + '" ' + (ok ? '' : 'disabled aria-disabled="true"') + ' class="w-full text-left rounded-2xl bg-slate-900 border ' + (s ? 'border-amber-500/50' : 'border-slate-800') +
+        ' p-3 flex items-center gap-3 ' + (ok ? '' : 'opacity-50') + '"><span class="w-9 h-9 shrink-0 rounded-full border border-slate-700 flex items-center justify-center font-semibold ' + (ok ? 'text-amber-300' : 'text-slate-500') + '">' + (ok ? i + 1 : '🔒') +
+        '</span><span class="min-w-0 flex-1"><span class="block font-semibold text-slate-100 truncate">' + esc(L(lv.title)) + '</span><span class="block text-[12px] text-slate-400 truncate">' + esc(L(lv.sub)) +
+        '</span></span><span class="text-amber-400 tracking-wider">' + (ok ? starTxt(s) : '') + '</span></button>';
+    }).join('');
+    byId('le-free').textContent = L(T('ฝึกสุ่มทุกโน้ต', 'Random practice, all notes'));
+  }
+  function open(i) {
+    const lv = LV[i];
+    Object.assign(Lesson, { lv, qs: questions(lv), i: 0, pos: 0, got: new Set(), wrongQs: 0, curWrong: false, locked: false });
+    show('run');
+    byId('le-title').textContent = (i + 1) + '. ' + L(lv.title);
+    byId('le-intro-text').textContent = L(lv.intro);
+    byId('le-start').textContent = L(T('เริ่มฝึก', 'Start'));
+    byId('le-intro').classList.remove('hidden'); byId('le-q').classList.add('hidden'); byId('le-res').classList.add('hidden');
+    byId('le-prog').style.width = '0%';
+    const pool = lv.kind === 'find' ? lv.pool : lv.kind === 'set' ? [].concat(...SETS) : lv.kind === 'seq' ? [].concat(...lv.phrases) : [];
+    glow(Array.from(new Set(pool.map(P))));   // the tines this level is about blink while it is explained
+    window.scrollTo(0, 0);
+  }
+  function start() {
+    byId('le-intro').classList.add('hidden'); byId('le-q').classList.remove('hidden');
+    glow([]); next(true);
+  }
+  function renderQ() {
+    const q = Lesson.qs[Lesson.i], lv = Lesson.lv;
+    byId('le-count').textContent = L(T('ข้อ ', 'Question ')) + (Lesson.i + 1) + '/' + lv.n;
+    byId('le-prog').style.width = (Lesson.i / lv.n * 100) + '%';
+    const lbl = byId('le-q-label'), sub = byId('le-q-sub');
+    if (q.type === 'find') {
+      lbl.className = 'text-4xl font-semibold text-amber-400'; lbl.textContent = lab(q.pitches[0]);
+      sub.textContent = L(T('หาแล้วดีดโน้ตนี้', 'Find and play this note'));
+    } else {
+      const set = q.type === 'set';
+      lbl.className = 'text-3xl font-semibold tracking-wide ' + (set ? 'text-red-500' : 'text-slate-200');
+      lbl.innerHTML = q.toks.map((tk, k) => {
+        const done = set ? Lesson.got.has(q.pitches[k]) : k < Lesson.pos, cur = !set && k === Lesson.pos;
+        return '<span class="' + (done ? 'text-emerald-500' : cur ? 'underline decoration-2 underline-offset-8' : '') + '">' + esc(pitchToNumber(q.pitches[k])) + '</span>';
+      }).join(' ');
+      sub.textContent = set ? L(T('คอร์ด: ดีดทุกก้านพร้อมกัน หรือไล่เร็วๆ ตัวไหนก่อนก็ได้', 'Chord: play every tine together, or quickly one after another, in any order'))
+        : (q.lyr ? q.lyr + ' · ' : '') + L(T('ดีดตามลำดับ', 'Play in order'));
+    }
+  }
+  function next(first) {
+    if (!first) Lesson.i++;
+    if (Lesson.i >= Lesson.lv.n) { finish(); return; }
+    Lesson.pos = 0; Lesson.got = new Set(); Lesson.curWrong = false; Lesson.locked = false;
+    glow([]); byId('le-fb').textContent = L(T('แตะก้าน หรือดีดคาลิมบาจริง (เปิดคาลิมบาจริงในเมนูเพลงหรือหน้าตั้งเสียง)', 'Tap a tine, or pluck your kalimba (turn on Real kalimba in Songs or Tuner)'));
+    byId('le-fb').className = 'text-[13px] text-slate-400 min-h-[20px]';
+    renderQ();
+  }
+  function wanted(q) {
+    return q.type === 'set' ? q.pitches.filter(p => !Lesson.got.has(p)) : [q.pitches[Lesson.pos]];
+  }
+  function onNote(pitch) {
+    if (Lesson.mode !== 'run' || Lesson.locked || byId('le-q').classList.contains('hidden')) return;
+    const q = Lesson.qs[Lesson.i];
+    if (!q) return;
+    const fb = byId('le-fb');
+    if (q.type === 'set') {
+      if (Lesson.got.has(pitch)) return;
+      if (q.pitches.includes(pitch)) Lesson.got.add(pitch); else return wrong(q);
+      if (Lesson.got.size < q.pitches.length) { renderQ(); fb.textContent = '✓'; fb.className = 'text-[13px] text-emerald-500 font-semibold min-h-[20px]'; return; }
+    } else {
+      if (pitch !== q.pitches[Lesson.pos]) return wrong(q);
+      Lesson.pos++;
+      if (Lesson.pos < q.pitches.length) { renderQ(); fb.textContent = '✓'; fb.className = 'text-[13px] text-emerald-500 font-semibold min-h-[20px]'; return; }
+    }
+    renderQ();
+    fb.textContent = '✓ ' + L(T('ถูกต้อง เก่งมาก', 'Correct, well done'));
+    fb.className = 'text-[13px] text-emerald-500 font-semibold min-h-[20px]';
+    Lesson.locked = true; glow([]);
+    Lesson.timer = setTimeout(() => next(false), 800);
+  }
+  function wrong(q) {
+    if (!Lesson.curWrong) { Lesson.curWrong = true; Lesson.wrongQs++; }
+    const fb = byId('le-fb');
+    fb.textContent = L(T('ยังไม่ใช่ ก้านที่กะพริบคือก้านที่ต้องดีด', 'Not quite. The blinking tine is the one to play.'));
+    fb.className = 'text-[13px] text-red-500 font-semibold min-h-[20px]';
+    glow(wanted(q));
+  }
+  function finish() {
+    const lv = Lesson.lv, w = Lesson.wrongQs, ok = lv.n - w >= need(lv), stars = !ok ? 0 : w === 0 ? 3 : w === 1 ? 2 : 1;
+    if (ok) { const pr = prog(); pr[lv.id] = Math.max(pr[lv.id] || 0, stars); ls.set('lessons', pr); }
+    glow([]);
+    byId('le-q').classList.add('hidden'); byId('le-res').classList.remove('hidden');
+    byId('le-prog').style.width = '100%';
+    byId('le-res-stars').textContent = starTxt(stars);
+    byId('le-res-text').textContent = ok
+      ? L(T('ผ่านแล้ว ถูก ' + (lv.n - w) + ' จาก ' + lv.n + ' ข้อ', 'Passed: ' + (lv.n - w) + ' of ' + lv.n + ' right'))
+      : L(T('ยังไม่ผ่าน ถูก ' + (lv.n - w) + ' จาก ' + lv.n + ' ข้อ ต้องถูกอย่างน้อย ' + need(lv) + ' ลองอีกครั้งนะ', (lv.n - w) + ' of ' + lv.n + ' right. You need at least ' + need(lv) + '. Try again.'));
+    const idx = LV.indexOf(lv), hasNext = ok && idx + 1 < LV.length;
+    byId('le-res-next').classList.toggle('hidden', !hasNext);
+    byId('le-res-next').textContent = L(T('บทต่อไป', 'Next level'));
+    byId('le-res-again').textContent = L(T('ทำอีกครั้ง', 'Try again'));
+    byId('le-res-list').textContent = L(T('กลับไปรายการ', 'Back to the list'));
+    renderPath();
+  }
+
+  byId('le-list').addEventListener('click', e => { const b = e.target.closest('[data-lv]'); if (b && !b.disabled) open(+b.dataset.lv); });
+  byId('le-start').onclick = start;
+  byId('le-back').onclick = goBack;
+  byId('le-res-again').onclick = () => open(LV.indexOf(Lesson.lv));
+  byId('le-res-next').onclick = () => open(LV.indexOf(Lesson.lv) + 1);
+  byId('le-res-list').onclick = goBack;
+  byId('le-free').onclick = () => { show('free'); startNextLessonQuestion(); };
+  byId('le-free-back').onclick = goBack;
+  window.KTLesson = {
+    get mode() { return Lesson.mode; },
+    enter() { clearTimeout(Lesson.timer); show('path'); renderPath(); },
+    onNote,
+    relabel() {
+      if (Lesson.mode === 'path') renderPath();
+      else if (Lesson.mode === 'run' && Lesson.lv) {
+        const i = LV.indexOf(Lesson.lv);
+        byId('le-title').textContent = (i + 1) + '. ' + L(Lesson.lv.title); byId('le-intro-text').textContent = L(Lesson.lv.intro);
+        byId('le-start').textContent = L(T('เริ่มฝึก', 'Start'));
+        if (!byId('le-q').classList.contains('hidden')) renderQ();
+      }
+    },
+    levels: LV, questions
+  };
+}
+
 initM2();
+initLessons();
 initGrowth();
 initMidi();
 initPlayer();

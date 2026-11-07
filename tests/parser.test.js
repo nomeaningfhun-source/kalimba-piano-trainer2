@@ -35,7 +35,7 @@ t('all 17 keys in range for both tunings (sample 1)', () => {
 });
 t('sample 1 structure', () => {
   const r = P.importText(P.SAMPLE1, {});
-  assert.strictEqual(r.song.title, 'ทวิงเคิล ทวิงเคิล');
+  assert.strictEqual(r.song.title, 'Twinkle, Twinkle, Little Star');
   assert.strictEqual(r.song.tempo, 100);
   assert.strictEqual(r.song.measures.length, 8);
   assert.strictEqual(r.msgs.length, 0, JSON.stringify(r.msgs));

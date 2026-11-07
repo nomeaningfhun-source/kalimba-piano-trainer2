@@ -81,7 +81,7 @@
       <div id="fs-intro" class="flex items-center justify-between gap-3">
         <div class="min-w-0">
           <div class="font-semibold text-amber-300 text-sm" data-i18n="fs.title">เล่นเพลงแรกใน 5 นาที</div>
-          <div class="text-[12px] text-slate-300 leading-snug" data-i18n="fs.sub">ดาวส่องแสง · แตะคีย์ที่เรืองแสงทีละโน้ต ไม่ต้องรีบ</div>
+          <div class="text-[12px] text-slate-300 leading-snug" data-i18n="fs.sub">Twinkle, Twinkle, Little Star · แตะคีย์ที่เรืองแสงทีละโน้ต ไม่ต้องรีบ</div>
         </div>
         <div class="flex gap-1 shrink-0">
           <button id="fs-start" class="h-10 px-4 rounded-full bg-amber-500 text-slate-950 font-semibold" data-i18n="fs.start">เริ่มเลย</button>
@@ -261,22 +261,63 @@
 
   <!-- Learn: find the note on the kalimba -->
   <div id="section-lesson" class="hidden flex-1 flex flex-col max-w-xl mx-auto w-full px-3 py-3 gap-3">
-    <div>
-      <h2 class="text-lg font-semibold" data-i18n="le.title">บทเรียนจำโน้ต</h2>
-      <p class="text-[12px] text-slate-400" data-i18n="le.sub">หาคีย์ให้ถูก โน้ตที่พลาดบ่อยจะถามซ้ำ</p>
+    <!-- the level list -->
+    <div id="le-path" class="space-y-3">
+      <div>
+        <h2 id="le-path-title" class="text-lg font-semibold">บทเรียนคาลิมบา</h2>
+        <p id="le-path-sub" class="text-[12px] text-slate-400">เรียนทีละขั้น ผ่านแล้วปลดบทถัดไป</p>
+      </div>
+      <div id="le-list" class="space-y-2"></div>
+      <button id="le-free" class="w-full h-11 rounded-full border border-slate-700 text-slate-200">ฝึกสุ่มทุกโน้ต</button>
     </div>
-    <div class="rounded-2xl bg-slate-900 border border-slate-800 p-4 text-center space-y-1">
-      <div class="text-[12px] text-slate-400" data-i18n="le.find">หาแล้วดีดโน้ตนี้</div>
-      <div id="lesson-prompt-note" class="text-4xl font-semibold text-amber-400">-</div>
-      <div id="lesson-feedback" class="text-[13px] text-slate-400 min-h-[20px]">-</div>
-      <div class="flex justify-between text-[12px] text-slate-400 pt-2">
-        <span><span data-i18n="le.correct">ตอบถูก</span> <strong id="lesson-correct-count" class="text-emerald-400">0</strong></span>
-        <span><span data-i18n="le.weak">พลาดบ่อย</span> <strong id="lesson-weak-note" class="text-amber-400">-</strong></span>
+    <!-- one level: explained, 10 questions, result -->
+    <div id="le-run" class="hidden space-y-3">
+      <div class="flex items-center gap-2">
+        <button id="le-back" class="w-10 h-10 shrink-0 rounded-full border border-slate-700 flex items-center justify-center text-slate-300" aria-label="back">←</button>
+        <h2 id="le-title" class="text-[15px] font-semibold truncate flex-1">-</h2>
+        <span id="le-count" class="text-[12px] text-slate-400 shrink-0"></span>
+      </div>
+      <div class="h-1.5 rounded-full bg-slate-800 overflow-hidden"><div id="le-prog" class="h-full bg-amber-500" style="width:0%"></div></div>
+      <div id="le-intro" class="rounded-2xl bg-slate-900 border border-slate-800 p-4 space-y-3">
+        <p id="le-intro-text" class="text-[14px] text-slate-200 leading-relaxed"></p>
+        <button id="le-start" class="h-11 px-6 rounded-full bg-amber-500 text-slate-950 font-semibold">เริ่มฝึก</button>
+      </div>
+      <div id="le-q" class="hidden rounded-2xl bg-slate-900 border border-slate-800 p-4 text-center space-y-1">
+        <div id="le-q-sub" class="text-[12px] text-slate-400"></div>
+        <div id="le-q-label" class="text-4xl font-semibold text-amber-400">-</div>
+        <div id="le-fb" class="text-[13px] text-slate-400 min-h-[20px]"></div>
+      </div>
+      <div id="le-res" class="hidden rounded-2xl bg-slate-900 border border-slate-800 p-4 text-center space-y-3">
+        <div id="le-res-stars" class="text-4xl text-amber-400 tracking-widest"></div>
+        <p id="le-res-text" class="text-[14px] text-slate-200"></p>
+        <div class="flex flex-wrap justify-center gap-2">
+          <button id="le-res-next" class="h-11 px-5 rounded-full bg-amber-500 text-slate-950 font-semibold"></button>
+          <button id="le-res-again" class="h-11 px-5 rounded-full border border-slate-700 text-slate-200"></button>
+          <button id="le-res-list" class="h-11 px-5 rounded-full border border-slate-700 text-slate-200"></button>
+        </div>
       </div>
     </div>
+    <!-- random practice: the first lesson page, kept -->
+    <div id="le-free-box" class="hidden space-y-3">
+      <div class="flex items-center gap-2">
+        <button id="le-free-back" class="w-10 h-10 shrink-0 rounded-full border border-slate-700 flex items-center justify-center text-slate-300" aria-label="back">←</button>
+        <div>
+          <h2 class="text-lg font-semibold" data-i18n="le.title">บทเรียนจำโน้ต</h2>
+          <p class="text-[12px] text-slate-400" data-i18n="le.sub">หาคีย์ให้ถูก โน้ตที่พลาดบ่อยจะถามซ้ำ</p>
+        </div>
+      </div>
+      <div class="rounded-2xl bg-slate-900 border border-slate-800 p-4 text-center space-y-1">
+        <div class="text-[12px] text-slate-400" data-i18n="le.find">หาแล้วดีดโน้ตนี้</div>
+        <div id="lesson-prompt-note" class="text-4xl font-semibold text-amber-400">-</div>
+        <div id="lesson-feedback" class="text-[13px] text-slate-400 min-h-[20px]">-</div>
+        <div class="flex justify-between text-[12px] text-slate-400 pt-2">
+          <span><span data-i18n="le.correct">ตอบถูก</span> <strong id="lesson-correct-count" class="text-emerald-400">0</strong></span>
+          <span><span data-i18n="le.weak">พลาดบ่อย</span> <strong id="lesson-weak-note" class="text-amber-400">-</strong></span>
+        </div>
+      </div>
+      <button id="btn-lesson-next" class="w-full h-11 rounded-full border border-slate-700 text-slate-200" data-i18n="le.next">ข้อต่อไป</button>
+    </div>
     <div data-kslot="lesson" class="kal-compact w-full"></div>
-    <button id="btn-lesson-next" class="h-11 rounded-full border border-slate-700 text-slate-200" data-i18n="le.next">ข้อต่อไป</button>
-    <p class="text-[11px] text-slate-500 text-center" data-i18n="le.soon">บทเรียนเป็นขั้น กำลังมา</p>
   </div>
 
   <!-- Tuner: a real kalimba through the microphone -->
@@ -388,7 +429,7 @@
       </div>
       <div class="text-[11px] text-slate-500 text-center">— หรือวางโน้ตตัวเลขเอง —</div>
       <label class="block text-xs text-slate-300 font-medium">ชื่อเพลง
-        <input id="imp-title" type="text" placeholder="เช่น ดาวส่องแสง" class="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2 text-slate-100">
+        <input id="imp-title" type="text" placeholder="เช่น Twinkle, Twinkle, Little Star" class="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2 text-slate-100">
       </label>
       <div class="grid grid-cols-3 gap-2 text-xs text-slate-300">
         <label>ความเร็ว (BPM)
@@ -409,7 +450,7 @@
       <div class="bg-amber-950/30 border border-amber-900/40 p-2.5 rounded-xl space-y-1.5 text-xs">
         <div class="text-amber-300 font-medium text-[11px]">⚡ โหลดตัวอย่างโน้ตทดสอบทันที:</div>
         <div class="flex gap-1.5 flex-wrap">
-          <button id="btn-preset-twinkle" class="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/40 text-[11px]">🌟 ดาวส่องแสง</button>
+          <button id="btn-preset-twinkle" class="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/40 text-[11px]">🌟 Twinkle, Twinkle, Little Star</button>
           <button id="btn-preset-over" class="px-2.5 py-1 rounded-lg bg-red-500/20 text-red-300 hover:bg-red-500/30 border border-red-500/40 text-[11px]">⚠️ ตัวอย่างโน้ตเกินช่วง</button>
         </div>
       </div>

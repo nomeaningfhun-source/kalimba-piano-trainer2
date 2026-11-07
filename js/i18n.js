@@ -17,7 +17,7 @@ const I18N = {
     'nav.tuner': 'ตั้งเสียง',
 
     'fs.title': 'เล่นเพลงแรกใน 5 นาที',
-    'fs.sub': 'ดาวส่องแสง · แตะคีย์ที่เรืองแสงทีละโน้ต ไม่ต้องรีบ',
+    'fs.sub': 'Twinkle, Twinkle, Little Star · แตะคีย์ที่เรืองแสงทีละโน้ต ไม่ต้องรีบ',
     'fs.start': 'เริ่มเลย',
     'fs.listen': 'ฟังก่อน',
     'fs.stop': 'หยุด',
@@ -178,7 +178,7 @@ const I18N = {
     'nav.tuner': 'Tuner',
 
     'fs.title': 'Play your first song in 5 minutes',
-    'fs.sub': 'Twinkle Twinkle · tap the glowing key, one note at a time',
+    'fs.sub': 'Twinkle, Twinkle, Little Star · tap the glowing key, one note at a time',
     'fs.start': 'Start',
     'fs.listen': 'Listen first',
     'fs.stop': 'Stop',

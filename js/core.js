@@ -658,7 +658,7 @@ function shiftMelodyStr(str, d) {
 }
 
 const SAMPLE1 = [
-  '@title ทวิงเคิล ทวิงเคิล',
+  '@title Twinkle, Twinkle, Little Star',
   '@tempo 100',
   '',
   'ทวิง เคิล ทวิง เคิล ลิต เติล สตาร์',
@@ -954,7 +954,7 @@ function refitSong(song, tuning) {
 
 // free song catalog: public-domain melodies written out by us (no third-party arrangement)
 const FREE_SONGS = [
-  { id: 'free-twinkle', title: 'ดาวส่องแสง (Twinkle Twinkle Little Star)', tags: 'twinkle star ดาว', origin: 'เพลงพื้นบ้านฝรั่งเศส ศตวรรษที่ 18', tempo: 90, beats: 4,
+  { id: 'free-twinkle', title: 'Twinkle, Twinkle, Little Star', tags: 'twinkle star ดาว', origin: 'เพลงพื้นบ้านฝรั่งเศส ศตวรรษที่ 18', tempo: 90, beats: 4,
     mel: ['1 1 5 5 | 6 6 5 - | 4 4 3 3 | 2 2 1 -', '5 5 4 4 | 3 3 2 - | 5 5 4 4 | 3 3 2 -', '1 1 5 5 | 6 6 5 - | 4 4 3 3 | 2 2 1 -'] },
   { id: 'free-hotcross', title: 'Hot Cross Buns', tags: 'hot cross buns ง่าย', origin: 'เพลงพื้นบ้านอังกฤษ', tempo: 90, beats: 4,
     mel: ['3 2 1 - | 3 2 1 - | 1_1 1_1 2_2 2_2 | 3 2 1 -'] },
