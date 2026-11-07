@@ -310,7 +310,7 @@ function judgePitch(pitch, at) {
   if (state.currentView === 'player' && window.KTFall) KTFall.onNote(pitch, at);
   if (state.currentView === 'sheet' && window.KTSheet) KTSheet.onNote(pitch, at);
 
-  if (state.currentView === 'lesson' && window.KTLesson && KTLesson.mode === 'run') { KTLesson.onNote(pitch); return; }
+  if (state.currentView === 'lesson' && window.KTLesson && KTLesson.mode === 'run') { KTLesson.onNote(pitch, at); return; }
   if (state.currentView === 'lesson' && state.lesson.currentTarget) {
     if (pitch === state.lesson.currentTarget) {
       $('lesson-feedback').innerHTML = '<span class="text-emerald-400 font-semibold">✓ ' + t('le.right') + '</span>';
@@ -446,6 +446,7 @@ function setLang(l) {
   let chosen = null;
   try { localStorage.setItem('kt.lang', JSON.stringify(l)); chosen = localStorage.getItem('kt.noteSystem'); } catch (e) { /* storage blocked */ }
   if (!chosen) { state.noteSystem = l === 'th' ? 'thai' : 'western'; $('select-note-system').value = state.noteSystem; }
+  Xlate.set(l);   // puts the Thai text back, or translates what the page shows right now
   applyI18n();
   renderKalimba();
   if (state.currentView === 'lesson' && state.lesson.currentTarget) { showLessonTarget(); $('lesson-feedback').textContent = t('le.hint'); }
@@ -465,6 +466,7 @@ $('btn-lang').onclick = () => setLang(LANG === 'th' ? 'en' : 'th');
 })();
 fillIcons();
 applyI18n();
+Xlate.set(LANG);
 renderKalimba();
 mountKalimba('play');
 document.querySelector('#nav-tab-play').setAttribute('aria-current', 'page');
@@ -703,7 +705,7 @@ function applyAddSub() {
 function go(sub) { S.addSub = sub; applyAddSub(); switchView('add'); window.scrollTo(0, 0); }
 function leaveReview() {
   if (S.review && S.review.dirty) {
-    if (!confirm('มีการแก้ไขที่ยังไม่ได้บันทึก ทิ้งการแก้ไขไหม?')) return false;
+    if (!confirmX('มีการแก้ไขที่ยังไม่ได้บันทึก ทิ้งการแก้ไขไหม?')) return false;
     S.review.dirty = false;
   }
   Player.stop(); hideKeypad();
@@ -711,7 +713,8 @@ function leaveReview() {
 }
 
 /* ---- library ---- */
-function fmtDate(ts) { try { return new Date(ts).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' }); } catch (e) { return ''; } }
+const confirmX = m => confirm(X(m));
+function fmtDate(ts) { try { return new Date(ts).toLocaleDateString(LANG === 'en' ? 'en-GB' : 'th-TH', { day: 'numeric', month: 'short', year: '2-digit' }); } catch (e) { return ''; } }
 
 function renderLibrary() {
   applyAddSub();
@@ -760,7 +763,7 @@ function setupLibrary() {
     if (act === 'play' || act === 'edit') openReview(JSON.parse(JSON.stringify(s)), { from: 'library', autoplay: act === 'play' });
     else if (act === 'copy') toast((await copyText(songToText(s))) ? 'คัดลอกโน้ตแล้ว ✓' : 'คัดลอกไม่ได้');
     else if (act === 'del') {
-      if (!confirm('ลบเพลง "' + (s.title || 'ไม่มีชื่อ') + '" ออกจากเครื่อง?')) return;
+      if (!confirmX('ลบเพลง "' + (s.title || 'ไม่มีชื่อ') + '" ออกจากเครื่อง?')) return;
       try { await DB.del(id); toast('ลบแล้ว'); } catch (err) { toast('ลบไม่ได้: ' + (err && err.message || err)); }
       loadSongs();
     }
@@ -1659,7 +1662,7 @@ function setupReview() {
     else if (act === 'ins') { ms.splice(i + 1, 0, { mel: '', lyr: '', chd: '', br: false }); markDirty(); renderCards(); }
     else if (act === 'del') {
       const m = ms[i];
-      if ((m.mel + m.lyr + m.chd).trim() && !confirm('ลบห้อง ' + (i + 1) + ' ?')) return;
+      if ((m.mel + m.lyr + m.chd).trim() && !confirmX('ลบห้อง ' + (i + 1) + ' ?')) return;
       if (m.br && ms[i + 1]) { if (!ms[i + 1].br) { if (m.gap == null) delete ms[i + 1].gap; else ms[i + 1].gap = m.gap; } ms[i + 1].br = true; }
       ms.splice(i, 1); markDirty(); renderCards();
     }
@@ -1696,8 +1699,8 @@ async function saveSong() {
   byId('rv-title').value = s.title;
   if (!s.measures.length) { toast('ยังไม่มีห้องโน้ต'); return; }
   const sm = summarize(reparse());
-  if (sm.range && !confirm('ยังมีโน้ตเกินช่วง/ไม่มีคีย์บนคาลิมบา 17 คีย์ ' + sm.range + ' โน้ต\nบันทึกไว้ก่อนแล้วแก้ทีหลัง?')) return;
-  if (!sm.range && sm.errors && !confirm('มีโทเค็นที่อ่านไม่ได้ ' + sm.errors + ' จุด (จะถูกข้ามตอนเล่น)\nบันทึกไว้ก่อน?')) return;
+  if (sm.range && !confirmX('ยังมีโน้ตเกินช่วง/ไม่มีคีย์บนคาลิมบา 17 คีย์ ' + sm.range + ' โน้ต\nบันทึกไว้ก่อนแล้วแก้ทีหลัง?')) return;
+  if (!sm.range && sm.errors && !confirmX('มีโทเค็นที่อ่านไม่ได้ ' + sm.errors + ' จุด (จะถูกข้ามตอนเล่น)\nบันทึกไว้ก่อน?')) return;
   const now = Date.now();
   const rec = {
     id: s.id || uid(), title: s.title, tempo: s.tempo, beats: s.beats, octaveShift: s.octaveShift || 0,
@@ -1848,7 +1851,7 @@ const First = {
 };
 
 async function shareApp() {
-  const data = { title: 'ครูฝึกคาลิมบา', text: 'ฝึกคาลิมบาฟรี เล่นเพลงแรกได้ใน 5 นาที 🎵', url: APP_URL };
+  const data = { title: X('ครูฝึกคาลิมบา'), text: X('ฝึกคาลิมบาฟรี เล่นเพลงแรกได้ใน 5 นาที 🎵'), url: APP_URL };
   if (navigator.share) {
     try { await navigator.share(data); return; } catch (e) { if (e && e.name === 'AbortError') return; }
   }
@@ -3132,7 +3135,9 @@ function initLessons() {
       lyrics: ['ทวิง เคิล ทวิง เคิล', 'ลิต เติล สตาร์', 'ฮาว ไอ วัน เดอร์', 'ว็อต ยู อาร์', 'อัพ อะ บัฟ เดอะ', 'เวิลด์ โซ ไฮ'],
       intro: T('เพลงแรกคือ Twinkle, Twinkle, Little Star ดีดทีละท่อน ดูเลขแล้วดีดตามลำดับ ตัวหนังสือเล็กๆ คือเนื้อร้องช่วยจำจังหวะ', 'The first song is Twinkle, Twinkle. Play one phrase at a time in order. The small words are the lyrics, to help you remember the rhythm.') },
     { id: 'l8', n: 10, kind: 'set', sets: SETS, title: T('คอร์ดดีด', 'Plucked chords'), sub: T('2-3 ก้านพร้อมกัน และกรีด ~', '2-3 tines together, and strums ~'),
-      intro: T('คอร์ดดีดคือดีด 2-3 ก้านพร้อมกัน เลขที่มี ~ คือกรีด ไล่ดีดเร็วๆ ดีดครบทุกก้านถึงผ่านข้อ ตัวไหนก่อนก็ได้', 'A plucked chord is 2-3 tines at once. A number with ~ is a strum: play them quickly one after another. Play every tine to finish the question, in any order.') }
+      intro: T('คอร์ดดีดคือดีด 2-3 ก้านพร้อมกัน เลขที่มี ~ คือกรีด ไล่ดีดเร็วๆ ดีดครบทุกก้านถึงผ่านข้อ ตัวไหนก่อนก็ได้', 'A plucked chord is 2-3 tines at once. A number with ~ is a strum: play them quickly one after another. Play every tine to finish the question, in any order.') },
+    { id: 'l9', n: 10, kind: 'beat', bpm: 80, title: T('จังหวะ', 'Keeping the beat'), sub: T('แตะตามเสียงคลิก', 'Tap along with the click'),
+      intro: T('ฟังเสียงคลิกแล้วแตะก้านไหนก็ได้ให้ตรงจังหวะ มีทั้งหมด 10 จังหวะ ตรงอย่างน้อย 8 จังหวะถึงผ่าน ถ้าเปิดไมค์จะไม่มีเสียงคลิก ให้ดูจุดกะพริบแทน', 'Listen to the click and tap any tine right on the beat. There are 10 beats; hit at least 8 to pass. With the microphone on there is no click, so watch the dots instead.') }
   ];
   const SEMI = ['1', '2', '3', '4', '5', '6', '7'];
   const rnd = a => a[Math.floor(Math.random() * a.length)];
@@ -3145,6 +3150,7 @@ function initLessons() {
   };
   const mk = (type, toks, lyr) => ({ type, toks, pitches: toks.map(P), lyr: lyr || '' });
   function questions(lv) {
+    if (lv.kind === 'beat') return [];
     if (lv.kind === 'find') return spread(lv.pool, lv.n).map(tk => mk('find', [tk]));
     if (lv.kind === 'seq') return spread(lv.phrases.map((p, i) => i), lv.n).map(i => mk('seq', lv.phrases[i], lv.lyrics[i]));
     if (lv.kind === 'set') return spread(SETS.map((s, i) => i), lv.n).map(i => mk('set', SETS[i]));
@@ -3175,7 +3181,8 @@ function initLessons() {
     $$('#kalimba-tines-wrapper .guide-target').forEach(e => e.classList.remove('guide-target'));
     pitches.forEach(p => { const e = $('#kalimba-tines-wrapper [data-pitch="' + p + '"]'); if (e) e.classList.add('guide-target'); });
   }
-  const goBack = () => { clearTimeout(Lesson.timer); show('path'); renderPath(); };
+  const stopBeat = () => { if (Lesson.beat) { clearInterval(Lesson.beat.timer); Lesson.beat = null; } };
+  const goBack = () => { clearTimeout(Lesson.timer); stopBeat(); show('path'); renderPath(); };
 
   function renderPath() {
     byId('le-path-title').textContent = L(T('บทเรียนคาลิมบา', 'Kalimba lessons'));
@@ -3192,6 +3199,7 @@ function initLessons() {
   }
   function open(i) {
     const lv = LV[i];
+    stopBeat();
     Object.assign(Lesson, { lv, qs: questions(lv), i: 0, pos: 0, got: new Set(), wrongQs: 0, curWrong: false, locked: false });
     show('run');
     byId('le-title').textContent = (i + 1) + '. ' + L(lv.title);
@@ -3205,7 +3213,55 @@ function initLessons() {
   }
   function start() {
     byId('le-intro').classList.add('hidden'); byId('le-q').classList.remove('hidden');
-    glow([]); next(true);
+    glow([]);
+    if (Lesson.lv.kind === 'beat') { startBeat(); return; }
+    next(true);
+  }
+  /* the beat level: a click every beat, four to count in, then lv.n beats to tap on (any tine). A tap counts when it is within W of the
+     beat; a microphone pluck is moved back by the time the listener needed to hear it. Beats nobody tapped are wrong. */
+  const BEAT_W = 0.22;
+  function startBeat() {
+    const lv = Lesson.lv;
+    unlockAudioUI();
+    const R = { t0: performance.now() + 700, spb: 60000 / lv.bpm, lead: 4, n: lv.n, hit: new Array(lv.n).fill(null), last: -1, sig: '', timer: 0 };
+    Lesson.beat = R; Lesson.wrongQs = 0;
+    byId('le-q-sub').textContent = L(T('นับ 4 แล้วแตะก้านไหนก็ได้ ให้ตรงจังหวะ', 'Count 4, then tap any tine right on the beat'));
+    byId('le-fb').textContent = ''; byId('le-fb').className = 'text-[13px] text-slate-400 min-h-[20px]';
+    byId('le-count').textContent = L(T('จังหวะ ', 'Beat ')) + '0/' + lv.n;
+    drawBeat(R, -R.lead);
+    R.timer = setInterval(() => tickBeat(R), 20);
+  }
+  function tickBeat(R) {
+    const now = performance.now(), g = Math.floor((now - R.t0) / R.spb);   // beats since the start; below 0 = not yet
+    for (let b = R.last + 1; b <= g; b++) { R.last = b; if (b >= 0 && b < R.lead + R.n) audio.playMetronome(b === R.lead); }
+    for (let k = 0; k < R.n; k++) {                       // a beat nobody tapped by the end of its window is missed
+      if (R.hit[k] === null && now > R.t0 + (R.lead + k) * R.spb + BEAT_W * 1000) { R.hit[k] = false; Lesson.wrongQs++; }
+    }
+    drawBeat(R, g - R.lead);
+    if (R.hit.every(h => h !== null)) { clearInterval(R.timer); Lesson.beat = null; setTimeout(finish, 350); }
+  }
+  function beatTap(pitch, ago) {
+    const R = Lesson.beat;
+    if (!R) return;
+    const tap = performance.now() - ago * 1000, g = Math.round((tap - R.t0) / R.spb), k = g - R.lead;
+    if (k < 0 || k >= R.n || R.hit[k] !== null) return;
+    const d = tap - (R.t0 + g * R.spb);
+    if (Math.abs(d) > BEAT_W * 1000) return;
+    R.hit[k] = true;
+    const fb = byId('le-fb');
+    fb.textContent = Math.abs(d) < 70 ? '✓ ' + L(T('ตรงเป๊ะ', 'Right on it')) : '✓ ' + (d < 0 ? L(T('เร็วไปนิด', 'A little early')) : L(T('ช้าไปนิด', 'A little late')));
+    fb.className = 'text-[13px] text-emerald-500 font-semibold min-h-[20px]';
+  }
+  function drawBeat(R, k) {
+    const sig = k + '|' + R.hit.join();
+    if (sig === R.sig) return;
+    R.sig = sig;
+    const lbl = byId('le-q-label');
+    byId('le-count').textContent = L(T('จังหวะ ', 'Beat ')) + Math.max(0, Math.min(R.n, k + 1)) + '/' + R.n;
+    byId('le-prog').style.width = (Math.max(0, Math.min(R.n, k)) / R.n * 100) + '%';
+    if (k < 0) { lbl.className = 'text-6xl font-semibold text-amber-400'; lbl.textContent = String(-k); return; }
+    lbl.className = 'text-3xl tracking-[0.3em]';
+    lbl.innerHTML = R.hit.map((h, i) => '<span class="' + (h === true ? 'text-emerald-500' : h === false ? 'text-red-500' : i === k ? 'text-amber-400' : 'text-slate-500') + '">' + (h === true ? '●' : h === false ? '✕' : i === k ? '◉' : '○') + '</span>').join('');
   }
   function renderQ() {
     const q = Lesson.qs[Lesson.i], lv = Lesson.lv;
@@ -3237,8 +3293,9 @@ function initLessons() {
   function wanted(q) {
     return q.type === 'set' ? q.pitches.filter(p => !Lesson.got.has(p)) : [q.pitches[Lesson.pos]];
   }
-  function onNote(pitch) {
+  function onNote(pitch, at) {
     if (Lesson.mode !== 'run' || Lesson.locked || byId('le-q').classList.contains('hidden')) return;
+    if (Lesson.beat) { beatTap(pitch, at != null && audio.ctx ? Math.max(0, audio.ctx.currentTime - at) : 0); return; }
     const q = Lesson.qs[Lesson.i];
     if (!q) return;
     const fb = byId('le-fb');
@@ -3292,7 +3349,7 @@ function initLessons() {
   byId('le-free-back').onclick = goBack;
   window.KTLesson = {
     get mode() { return Lesson.mode; },
-    enter() { clearTimeout(Lesson.timer); show('path'); renderPath(); },
+    enter() { clearTimeout(Lesson.timer); stopBeat(); show('path'); renderPath(); },
     onNote,
     relabel() {
       if (Lesson.mode === 'path') renderPath();
