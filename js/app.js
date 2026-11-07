@@ -49,10 +49,16 @@ const PROFILE_KALIMBA_17 = {
 // One kalimba voice for the keyboard page and the M2 previews, fitted to a reference
 // kalimba-app recording: low tines ring ~2 s with a metallic 6.5x partial at the pluck,
 // high tines decay fast (~45 dB/s at G5) with no audible overtone.
-function kalimbaVoice(ctx, dest, freq, t, vel) {
+function kalimbaVoice(ctx, destination, freq, t, vel) {
   kalimbaVoice.lastT = Math.max(kalimbaVoice.lastT || 0, t);   // the mic ignores the app's own notes
+  // the chosen kalimba (js/skins.js): its material sets the ring, the overtone and the brightness; its shape adds a body resonance
+  const S = Skin.sound;
+  let dest = destination;
+  const tone = ctx.createBiquadFilter(); tone.type = 'lowpass'; tone.frequency.value = S.tone; tone.Q.value = 0.5;
+  tone.connect(dest); dest = tone;
+  if (S.body) { const bd = ctx.createBiquadFilter(); bd.type = 'peaking'; bd.frequency.value = S.body.f; bd.Q.value = S.body.q; bd.gain.value = S.body.g; bd.connect(dest); dest = bd; }
   const midi = 69 + 12 * Math.log2(freq / 440);
-  const rate = 9.5 * Math.pow(2, (midi - 60) / 8.4);          // tail decay, dB per second
+  const rate = 9.5 * Math.pow(2, (midi - 60) / 8.4) / S.decay;   // tail decay, dB per second
   const l03 = -2.5 - Math.max(4.3, 0.22 * rate);              // level at 0.3 s, dB
   const t30 = 0.3 + (30 + l03) / rate;                        // time it reaches -30 dB
   const db = d => vel * Math.pow(10, d / 20);
@@ -67,16 +73,16 @@ function kalimbaVoice(ctx, dest, freq, t, vel) {
   g1.gain.exponentialRampToValueAtTime(db(-70), t + t30 + 1.2);
   o1.connect(g1); g1.connect(out);
   o1.start(t); o1.stop(t + t30 + 1.25);
-  const ov = freq <= 350 ? 1.1 : freq >= 420 ? 0.002 : 1.1 * Math.pow(0.002 / 1.1, (freq - 350) / 70);
+  const ov = (freq <= 350 ? 1.1 : freq >= 420 ? 0.002 : 1.1 * Math.pow(0.002 / 1.1, (freq - 350) / 70)) * S.partial;
   const o2 = ctx.createOscillator(), g2 = ctx.createGain();
-  o2.type = 'sine'; o2.frequency.setValueAtTime(freq * 6.52, t);
+  o2.type = 'sine'; o2.frequency.setValueAtTime(freq * S.ratio, t);
   g2.gain.setValueAtTime(0.0001, t);
   g2.gain.exponentialRampToValueAtTime(vel * ov, t + 0.004);
   g2.gain.exponentialRampToValueAtTime(vel * ov * 0.18, t + 0.15);
   g2.gain.exponentialRampToValueAtTime(vel * ov * 0.001, t + 0.55);
   o2.connect(g2); g2.connect(out);
   o2.start(t); o2.stop(t + 0.6);
-  o1.onended = () => { try { out.disconnect(); } catch (e) { /* already gone */ } };
+  o1.onended = () => { try { out.disconnect(); tone.disconnect(); } catch (e) { /* already gone */ } };
 }
 
 class AudioEngine {
@@ -195,6 +201,12 @@ function switchView(viewName) {
   document.body.classList.toggle('no-nav', viewName === 'review');
   document.body.classList.toggle('in-player', viewName === 'player');
   document.body.classList.toggle('on-play', viewName === 'play');
+  // on the Play page the keys hang from the very top edge: no coloured bar over them, so the phone's top bar shows the keys through it
+  const tc = document.querySelector('meta[name="theme-color"]');
+  if (tc) {
+    if (viewName === 'play') { if (tc.getAttribute('content')) tc.dataset.keep = tc.getAttribute('content'); tc.removeAttribute('content'); }
+    else if (!tc.getAttribute('content') && tc.dataset.keep) tc.setAttribute('content', tc.dataset.keep);
+  }
   const hdr = document.querySelector('header');   // the Play page hides the header; keep --hdr for the others
   if (hdr && hdr.offsetHeight) document.documentElement.style.setProperty('--hdr', (hdr.offsetHeight + 4) + 'px');
   if (KALIMBA_SLOT[viewName]) mountKalimba(KALIMBA_SLOT[viewName]);
@@ -227,7 +239,7 @@ function tineNum(pitch) {
 
 // tine colours: the left hand's tines are warm (sand to mocha), the right hand's cool (stone to charcoal),
 // darker towards the edges like the reference design; the middle tine is cream
-const TINE_COLORS = { L: ['#E9DCCB', '#8F6B4C'], R: ['#DDDAD4', '#3E3F40'], C: '#FBF8F2' };
+const TINE_COLORS = Skin.tine;   // js/skins.js: the chosen kalimba look sets these
 function mixHex(a, b, t) {
   const p = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
   const x = p(a), y = p(b);
@@ -240,8 +252,9 @@ function hexLum(h) {
 function tineColor(k, i, keys) {
   if (k.hand === 'C') return TINE_COLORS.C;
   const ci = keys.findIndex(x => x.hand === 'C'), d = Math.abs(i - ci);
-  const max = k.hand === 'L' ? ci : keys.length - 1 - ci, [near, far] = TINE_COLORS[k.hand];
-  return mixHex(near, far, max > 1 ? (d - 1) / (max - 1) : 0);
+  const max = k.hand === 'L' ? ci : keys.length - 1 - ci, stops = TINE_COLORS[k.hand], t = max > 1 ? (d - 1) / (max - 1) : 0;
+  const x = t * (stops.length - 1), s0 = Math.min(stops.length - 2, Math.floor(x));   // colours run through every stop, middle to edge
+  return mixHex(stops[s0], stops[s0 + 1], x - s0);
 }
 // "5" with octave dots above (higher) or below (lower), as kalimba tabs write it
 function numberParts(pitch) {
@@ -276,6 +289,7 @@ function renderKalimba() {
   });
   if (window.KTFall) KTFall.layout();
   if (window.KTTuner) KTTuner.render();
+  requestAnimationFrame(() => Skin.decorate());   // the necklace over the tines
 }
 
 // the sound hole on the Play page shows the note just played
@@ -426,6 +440,7 @@ $('set-retune').addEventListener('click', e => {
 });
 $('btn-open-settings').onclick = () => {
   renderRetune();
+  Skin.render();
   $('set-haptic').checked = Haptic.on;
   const l = document.querySelector('input[name="app-lang"][value="' + LANG + '"]');
   if (l) l.checked = true;
@@ -2155,6 +2170,7 @@ function initMidi() {
   const tryUnlock = async (code, quiet) => {
     if (!(await isMemberCode(code))) { if (!quiet) toast('รหัสไม่ถูกต้อง'); return false; }
     ls.set('member', true);
+    window.dispatchEvent(new Event('kt-member'));   // the kalimba looks unlock too
     Midi.refreshQuota(); showUnlock();
     toast('ปลดล็อกแล้ว ✓ นำเข้าไฟล์ MIDI ได้ไม่จำกัด', 3000);
     return true;
@@ -2327,7 +2343,7 @@ const Tuner = {
 };
 
 /* ---- song player: falling notes over the kalimba, judged from taps or a real kalimba ---- */
-const HAND_COLOR = { L: '#D9C9B8', R: '#BDB9B2', C: '#F1ECE2' };
+const HAND_COLOR = Skin.hand;
 const CHORD_COLOR = '#C4483C';   // chord tones fall red
 // the player runs on the page clock: iOS can suspend or interrupt the audio clock, which would freeze the notes
 const clock = () => performance.now() / 1000;
@@ -3364,6 +3380,7 @@ function initLessons() {
   };
 }
 
+Skin.wire();
 initM2();
 initLessons();
 initGrowth();

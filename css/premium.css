@@ -105,3 +105,52 @@ header.app-header { background: color-mix(in srgb, rgb(var(--slate-950)) 72%, tr
 :root[data-theme="dark"] .kp-del { background: rgba(224, 139, 121, .16); }
 .rv-strip { border-color: var(--c-line); box-shadow: 0 4px 10px -2px var(--nm-lo); }
 @media (prefers-reduced-transparency: reduce) { header.app-header, #bottom-nav { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgb(var(--slate-950)) !important; } }
+
+/* ---- kalimba looks (js/skins.js sets the kb, hole and wood-tex variables and data-mat / data-shape on the html element) ---- */
+:root { --kb-1: #7A5440; --kb-2: #684633; --kb-3: #573828; --kb-b: #3F2A1E; --kb-ink: rgba(245, 236, 224, .82); --hole-1: #2C1D14; --hole-2: #1E130D; --hole-ink: #F5ECE0; --backdrop: #2E2018; --wood-tex: none;
+  --shade: linear-gradient(90deg, rgba(0, 0, 0, .22), rgba(0, 0, 0, 0) 14%, rgba(0, 0, 0, 0) 86%, rgba(0, 0, 0, .22)), linear-gradient(180deg, rgba(255, 255, 255, .1), rgba(255, 255, 255, 0) 30%, rgba(0, 0, 0, .18)); }
+/* real wood: the grain over a graded colour, darker at the sides like a planed board */
+.kalimba-body { background: var(--shade), var(--wood-tex), linear-gradient(180deg, var(--kb-1) 0%, var(--kb-2) 55%, var(--kb-3) 100%); background-size: auto, 360px 720px, auto; border-color: var(--kb-b); }
+.kal-hint, .kal-hint * { color: var(--kb-ink) !important; }
+#kalimba-hole-label { color: var(--kb-ink) !important; opacity: .45; }
+.sound-hole { background: var(--hole-1); border-color: var(--kb-b); }
+#section-play { background: var(--shade), var(--wood-tex), radial-gradient(120% 70% at 50% 78%, var(--kb-1) 0%, var(--kb-3) 60%, var(--kb-b) 100%); background-size: auto, 360px 720px, auto; }
+.play-hole { background: radial-gradient(circle at 50% 40%, var(--hole-1) 0%, var(--hole-2) 72%); color: var(--hole-ink); }
+.deco-art { position: absolute; left: 0; right: 0; bottom: 0; height: 46%; pointer-events: none; }
+.deco-art svg { display: block; width: 100%; height: 100%; }
+/* clear acrylic: see-through plastic over the table, a bright edge, a sheen and four screws */
+html[data-glassy="1"] .kalimba-body { background: var(--kb-2); border: 1.5px solid rgba(255, 255, 255, .85); box-shadow: 0 10px 26px rgba(40, 60, 90, .28), inset 0 0 0 1px rgba(255, 255, 255, .5), inset 0 14px 30px rgba(255, 255, 255, .25); }
+html[data-glassy="1"] #section-play { background: linear-gradient(180deg, var(--kb-1), var(--kb-2) 55%, var(--kb-3)); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .6); }
+html[data-glassy="1"] #section-play::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+  background: linear-gradient(115deg, rgba(255, 255, 255, .38) 0%, rgba(255, 255, 255, 0) 26%, rgba(255, 255, 255, .14) 52%, rgba(255, 255, 255, 0) 68%),
+    radial-gradient(circle at 14px 14px, rgba(255, 255, 255, .9) 0 3px, rgba(60, 80, 110, .4) 3.5px 5px, transparent 5.5px), radial-gradient(circle at calc(100% - 14px) 14px, rgba(255, 255, 255, .9) 0 3px, rgba(60, 80, 110, .4) 3.5px 5px, transparent 5.5px); }
+/* shapes */
+html[data-shape="box"] #section-play { box-shadow: inset 0 0 0 5px rgba(0, 0, 0, .24), inset 0 0 0 7px rgba(255, 255, 255, .13), inset 0 -40px 60px rgba(0, 0, 0, .28); }
+html[data-shape="box"] .play-hole { box-shadow: inset 0 6px 16px rgba(0, 0, 0, .5), 0 0 0 9px rgba(0, 0, 0, .22), 0 0 0 11px rgba(255, 255, 255, .12); }
+html[data-shape="box"] .kalimba-body { box-shadow: inset 0 0 0 3px rgba(0, 0, 0, .22), inset 0 0 0 5px rgba(255, 255, 255, .12), 0 8px 20px rgba(0, 0, 0, .25); }
+html[data-shape="curve"] #section-play { border-radius: 0 0 50% 50% / 0 0 11% 11%; }
+html[data-shape="curve"] .kalimba-body { border-radius: 0 0 48% 48% / 0 0 40% 40%; }
+/* pickers in Settings */
+.skin-h { font-size: 12px; font-weight: 600; color: rgb(var(--slate-300)); margin: 8px 0 6px; }
+.skin-btn { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 4px 7px; border-radius: 14px; background: rgb(var(--slate-900)); border: 1px solid var(--nm-edge);
+  box-shadow: 4px 4px 9px var(--nm-lo), -3px -3px 7px var(--nm-hi); color: var(--c-ink); transition: box-shadow .12s, transform .06s; }
+.skin-btn:active { box-shadow: inset 3px 3px 7px var(--nm-lo), inset -2px -2px 5px var(--nm-hi); transform: translateY(1px); }
+.skin-btn.on { box-shadow: 0 0 0 2px var(--c-accent-solid), 0 0 14px rgba(190, 150, 105, .55); }
+.skin-btn.locked .skin-pv { filter: saturate(.6) brightness(.95); }
+.skin-pv { display: flex; align-items: center; justify-content: center; gap: 2px; width: 100%; height: 40px; border: 1px solid transparent; border-radius: 9px; }
+.skin-kk { align-items: flex-start; padding: 6px 4px 0; }
+.skin-kk i { display: block; flex: 1 1 0; max-width: 9px; border-radius: 0 0 5px 5px; }
+.skin-kk i:nth-child(1), .skin-kk i:nth-child(5) { height: 62%; } .skin-kk i:nth-child(2), .skin-kk i:nth-child(4) { height: 80%; } .skin-kk i:nth-child(3) { height: 100%; }
+.skin-shape { background: rgb(var(--slate-800)); border-color: var(--c-line); }
+.skin-shape i { display: block; width: 60%; height: 70%; background: var(--c-accent-solid); border-radius: 4px; }
+.skin-shape.sh-box i { background: radial-gradient(circle at 50% 62%, rgba(0, 0, 0, .55) 0 22%, transparent 24%), var(--c-accent-solid); }
+.skin-shape.sh-curve i { border-radius: 4px 4px 50% 50% / 4px 4px 60% 60%; }
+.skin-ch b { display: block; width: 7px; height: 7px; border-radius: 50%; }
+.skin-ch, .skin-ar { background: rgb(var(--slate-800)); border-color: var(--c-line); color: rgb(var(--slate-400)); }
+.skin-ar { font-size: 22px; }
+.skin-nm { font-size: 11px; font-weight: 600; line-height: 1.2; text-align: center; }
+
+/* Play page: whatever the phone's top bar samples is the kalimba itself, so the keys seem to start at the top edge */
+html:has(body.on-play) { background: var(--backdrop); }
+body.on-play { background-image: none; background-color: var(--backdrop); }
+body.on-play::after { display: none; }

@@ -659,7 +659,7 @@
 
   <!-- หน้าต่างตั้งค่า Modal -->
   <div id="modal-settings" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl max-h-[92dvh] overflow-y-auto">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
         <h3 class="text-base font-semibold text-slate-100" data-i18n="set.title">ตั้งค่า</h3>
         <button id="btn-close-settings" class="text-slate-400 hover:text-white text-lg">✕</button>
@@ -691,6 +691,17 @@
           <div id="set-retune-note" class="text-[11px] text-sky-300"></div>
         </div>
         <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700 space-y-2">
+          <div id="skin-title" class="font-medium text-slate-200">หน้าตาและเสียงคาลิมบา</div>
+          <div id="skin-box">
+            <div id="skin-mat-h" class="skin-h"></div><div id="skin-mats" class="grid grid-cols-3 gap-2"></div>
+            <div id="skin-shape-h" class="skin-h"></div><div id="skin-shapes" class="grid grid-cols-3 gap-2"></div>
+            <div id="skin-keys-h" class="skin-h"></div><div id="skin-keys" class="grid grid-cols-3 gap-2"></div>
+            <div id="skin-chain-h" class="skin-h"></div><div id="skin-chains" class="grid grid-cols-3 gap-2"></div>
+            <div id="skin-art-h" class="skin-h"></div><div id="skin-arts" class="grid grid-cols-3 gap-2"></div>
+          </div>
+          <div id="skin-note" class="text-[11px] text-slate-400"></div>
+        </div>
+        <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700 space-y-2">
           <label for="unlock-code" class="block font-medium text-slate-200">รหัสสมาชิก (นำเข้าไฟล์ MIDI ไม่จำกัด):</label>
           <div class="flex gap-2">
             <input id="unlock-code" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="ใส่รหัส"
@@ -708,6 +719,7 @@
   <script src="js/i18n-en.js"></script>
   <script src="js/icons.js"></script>
   <script src="js/core.js"></script>
+  <script src="js/skins.js"></script>
   <script src="js/sheetread.js"></script>
   <script src="js/app.js"></script>
 </body>
