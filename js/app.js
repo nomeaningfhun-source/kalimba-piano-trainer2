@@ -86,12 +86,16 @@ class AudioEngine {
     // never brings it back, so a new one is made — this runs inside a tap, where iOS allows that
     // (a context that is still not running a second after it was made was suspended by iOS - say after the first play - and resume() does
     // not always bring it back, which was the silent second play)
-    if (this.ctx && (this.ctx.state === 'interrupted' || this.ctx.state === 'closed' || this.stuck ||
-        (this.ctx.state !== 'running' && performance.now() - (this.madeAt || 0) > 1000))) {
-      try { this.ctx.close(); } catch (e) { /* already gone */ }
-      this.ctx = null; this.stuck = false;
-    }
-    if (!this.ctx) { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); this.madeAt = performance.now(); }
+    // A context that says 'running' but whose clock has not moved since the last tap is dead too (iOS after the app sat in
+    // the background or the screen was locked): drop it as well.
+    const c0 = this.ctx, wall = performance.now();
+    const frozen = c0 && c0.state === 'running' && this.chk && wall - this.chk.wall > 400 && c0.currentTime - this.chk.t < 0.05;
+    if (c0 && (c0.state === 'interrupted' || c0.state === 'closed' || this.stuck || frozen ||
+        (c0.state !== 'running' && wall - (this.madeAt || 0) > 1000))) this.drop();
+    if (!this.ctx) { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); this.madeAt = performance.now(); this.chk = null; }
+    if (this.ctx.state === 'running' && (!this.chk || this.ctx.currentTime - this.chk.t > 0.05)) this.chk = { t: this.ctx.currentTime, wall };
+    // iPhone: sound that follows the silent switch is the usual "no sound" report; ask for media-style playback (iOS 16.4+)
+    this.session(window.KTMicOn ? 'play-and-record' : 'playback');
     const c = this.ctx;
     if (c.state !== 'running') {
       // a resume that has not taken hold by the next tap means this context is stuck
@@ -100,8 +104,19 @@ class AudioEngine {
     }
     if (this.ctx.state !== 'running') this.ctx.resume().catch(() => {});   // iOS also uses 'interrupted'
     this.isUnlocked = true;
+    // older iPhones have no audioSession: a looping silent clip is what lets Web Audio ignore the silent switch there
     const silent = document.getElementById('ios-silent-audio');
-    if (silent) silent.play().catch(() => {});
+    if (silent && !navigator.audioSession) silent.play().catch(() => {});
+  }
+  session(type) {
+    try { if (navigator.audioSession && navigator.audioSession.type !== type) navigator.audioSession.type = type; } catch (e) { /* not supported */ }
+  }
+  // close the context so the next tap builds a fresh one (the app goes to the background or the screen locks)
+  drop() {
+    const c = this.ctx;
+    this.ctx = null; this.kBus = null; this.stuck = false; this.chk = null;
+    clearTimeout(this.stuckTimer);
+    if (c) { try { c.close(); } catch (e) { /* already gone */ } }
   }
   playKalimba(freq) {
     if (!this.ctx) return;
@@ -481,20 +496,21 @@ const ls = {
   set(k, v) { try { localStorage.setItem('kt.' + k, JSON.stringify(v)); } catch (e) { /* storage blocked */ } }
 };
 
-// a small tap on the phone when a key is pressed: Android vibrates; iPhone (Safari 17.4+) answers a toggled <input switch> with a haptic tick
+// a small tap on the phone when a key is pressed: Android vibrates; iPhone (Safari 17.4+) answers a toggled <input switch> with a haptic tick.
+// iOS only does it for a click made while the finger gesture is still being handled, on a switch made fresh each time and hidden with
+// display:none (the recipe the ios-haptics library uses) — an off-screen, transparent, long-lived switch gave no tick on Fun's iPhone.
 const Haptic = {
-  on: ls.get('haptic', true), lbl: null,
+  on: ls.get('haptic', true),
   tick() {
     if (!this.on) return;
     try { if (navigator.vibrate && navigator.vibrate(8)) return; } catch (e) { /* no vibration here */ }
     try {
-      if (!this.lbl) {
-        const l = document.createElement('label'), c = document.createElement('input');
-        l.setAttribute('aria-hidden', 'true');
-        l.style.cssText = 'position:fixed;left:-100px;top:-100px;width:1px;height:1px;opacity:0;pointer-events:none';
-        c.type = 'checkbox'; c.setAttribute('switch', ''); l.appendChild(c); document.body.appendChild(l); this.lbl = l;
-      }
-      this.lbl.click();
+      const l = document.createElement('label'), c = document.createElement('input');
+      l.setAttribute('aria-hidden', 'true'); l.style.display = 'none';
+      c.type = 'checkbox'; c.setAttribute('switch', ''); l.appendChild(c);
+      document.head.appendChild(l);
+      l.click();
+      l.remove();
     } catch (e) { /* no haptics here */ }
   }
 };
@@ -1422,6 +1438,31 @@ function togglePlay(from) {
 
 /* the app's own keypads: numbers for the melody field, chords for the chord field (the phone keyboard only when asked for with the keyboard key) */
 let kpTarget = null, kpSystem = null;
+
+/* a card field typed on the phone keyboard (lyrics, or a field the keyboard key was pressed on): iOS scrolls the page only a little, so
+   the field ended up under the keyboard (seen on Fun's screen recording). While such a field has focus the page gets room at the bottom
+   and is nudged, without animation, just enough to keep the field between the pinned top bar and the keyboard. */
+const FieldView = {
+  el: null, timer: 0,
+  on(el) {
+    this.el = el;
+    document.body.style.paddingBottom = Math.round(innerHeight * 0.6) + 'px';   // room to lift the last cards above the keyboard
+    clearInterval(this.timer);
+    let n = 0;
+    this.timer = setInterval(() => { this.fit(); if (++n > 12) clearInterval(this.timer); }, 100);   // while the keyboard slides up
+    this.fit();
+  },
+  off() { this.el = null; clearInterval(this.timer); },
+  fit() {
+    const el = this.el, vv = window.visualViewport;
+    if (!el || !el.isConnected || !vv) return;
+    if (innerHeight - vv.height - vv.offsetTop < 80) return;   // no keyboard yet
+    const bottom = vv.offsetTop + vv.height - 56;               // the keyboard's own tool bar sits above the keys
+    const top = byId('rv-bar').getBoundingClientRect().bottom + 8, r = el.getBoundingClientRect();
+    if (r.bottom > bottom) window.scrollBy({ top: r.bottom - bottom, behavior: 'auto' });
+    else if (r.top < top) window.scrollBy({ top: r.top - top, behavior: 'auto' });
+  }
+};
 function showKeypad(kind) {
   if (!S.keypad || state.currentView !== 'review') return;
   const chd = kind === 'chd', on = byId(chd ? 'keypad-chd' : 'keypad');
@@ -1435,7 +1476,7 @@ function showKeypad(kind) {
 }
 function hideKeypad() {
   byId('keypad').classList.add('hidden'); byId('keypad-chd').classList.add('hidden');
-  if (!Fix.at) document.body.style.paddingBottom = '';
+  if (!Fix.at && !FieldView.el) document.body.style.paddingBottom = '';
 }
 function applyKeypadMode() {
   $$('#rv-list input[data-f="mel"], #rv-list input[data-f="chd"]').forEach(i => { i.inputMode = S.keypad ? 'none' : 'text'; });
@@ -1577,17 +1618,19 @@ function setupReview() {
     const i = +inp.closest('.mcard').dataset.i;
     rs().measures[i][inp.dataset.f] = inp.value;
     markDirty('typing'); refreshAfterEdit(i);
+    FieldView.fit();   // the chips above the field may have wrapped onto another line
   });
   list.addEventListener('focusin', e => {
     const inp = e.target.closest('input[data-f="mel"], input[data-f="chd"]');
-    if (inp && inp === kpSystem) { hideKeypad(); return; }   // the phone keyboard was asked for on this field
-    if (inp) { kpTarget = inp; showKeypad(inp.dataset.f); }
-    else if (e.target.matches('input')) hideKeypad();
+    if (inp && inp === kpSystem) { FieldView.on(inp); hideKeypad(); return; }   // the phone keyboard was asked for on this field
+    if (inp) { kpTarget = inp; FieldView.off(); showKeypad(inp.dataset.f); }
+    else if (e.target.matches('input')) { FieldView.on(e.target); hideKeypad(); }
   });
   list.addEventListener('focusout', () => {
     setTimeout(() => {
       const ae = document.activeElement;
       if (kpSystem && ae !== kpSystem) { kpSystem.inputMode = S.keypad ? 'none' : 'text'; kpSystem = null; }
+      if (!ae || !ae.matches('#rv-list input')) FieldView.off();
       if (!ae || !ae.matches('input[data-f="mel"], input[data-f="chd"]')) hideKeypad();
     }, 160);
   });
@@ -1624,7 +1667,7 @@ function setupReview() {
   pop.addEventListener('mousedown', e => { if (!e.target.closest('input')) e.preventDefault(); });
   pop.addEventListener('click', e => { const b = e.target.closest('[data-fx]'); if (b && !b.disabled) { Haptic.tick(); Fix.apply(b.dataset.fx, b); } });
   pop.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'fix-chord') Fix.apply('ok'); if (e.key === 'Enter' && e.target.id === 'fix-lyr') Fix.apply('lyr'); });
-  if (window.visualViewport) window.visualViewport.addEventListener('resize', () => { if (Fix.at) Fix.place(Fix.chip(), true); });
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', () => { if (Fix.at) Fix.place(Fix.chip(), true); FieldView.fit(); });
   // typing a lyric: iOS scrolls the page by itself to reach the field, which threw the view to another bar.
   // The panel shrinks to just the field (so the chip stays visible) and the chip is brought back while the keyboard slides up.
   pop.addEventListener('focusin', e => {
@@ -2161,6 +2204,7 @@ const Mic = {
     this.L = makeKeyListener(c.sampleRate, { hop: 0.025, win: this.an.fftSize });
     this.timer = setInterval(() => this.tick(), 25);
     this.on = true; window.KTMicOn = true;
+    audio.session('play-and-record');
     micUI();
   },
   stop() {
@@ -2169,6 +2213,7 @@ const Mic = {
     [this.src].concat(this.nodes).forEach(n => { try { n.disconnect(); } catch (e) { /* already gone */ } });
     if (this.stream) this.stream.getTracks().forEach(tr => tr.stop());
     this.on = false; window.KTMicOn = false; this.stream = null;
+    audio.session('playback');
     Tuner.level(null);
     micUI();
   },
@@ -2277,11 +2322,12 @@ const Tuner = {
 
 /* ---- song player: falling notes over the kalimba, judged from taps or a real kalimba ---- */
 const HAND_COLOR = { L: '#E7B9B2', R: '#B7C6D6', C: '#EFE6D6' };
+const CHORD_COLOR = '#C4483C';   // chord tones fall red
 // the player runs on the page clock: iOS can suspend or interrupt the audio clock, which would freeze the notes
 const clock = () => performance.now() / 1000;
 const Fall = {
   src: null, events: [], skipped: 0, tempo: 80, beats: 4, totalBeats: 0, minGap: 1,
-  mode: ls.get('fall.mode', 'wait'), speed: ls.get('fall.speed', 1), loop: false,
+  mode: ls.get('fall.mode', 'wait'), speed: ls.get('fall.speed', 1), loop: false, chords: ls.get('fall.chords', true),
   pos: 0, startAt: 0, running: false, demo: false, done: false, raf: 0, last: 0, next: 0, clickBeat: null,
   stats: null, lanes: {}, cv: null, g: null, W: 0, H: 0, flashes: [], t0: 0, guided: null, lyricM: -1,
 
@@ -2298,6 +2344,16 @@ const Fall = {
       const p = parseSong(src.song, state.tuning);
       this.tempo = src.song.tempo || 80; this.beats = src.song.beats || 4; this.totalBeats = p.totalBeats;
       p.measures.forEach(pm => pm.notes.forEach(n => ev.push({ beat: pm.start + n.beat, midi: n.midi, lyric: n.lyric || '', m: pm.index })));
+      // chords fall as red notes in the same lanes: a written chord (135) as written, a letter chord as its first three tones,
+      // a bass note as itself; a tone the melody already plays on that beat is not doubled
+      const seen = new Set(ev.map(e => e.beat.toFixed(3) + '/' + e.midi));
+      p.measures.forEach(pm => (pm.chords || []).forEach(ch => {
+        const ms = ch.type === 'notes' ? ch.midis : ch.type === 'chord' ? ch.midis.slice(0, 3) : ch.type === 'bass' ? [ch.midi] : [];
+        ms.forEach(m => {
+          const beat = pm.start + ch.beat, k = beat.toFixed(3) + '/' + m;
+          if (!seen.has(k)) { seen.add(k); ev.push({ beat, midi: m, lyric: '', m: pm.index, chord: true }); }
+        });
+      }));
     } else {
       this.tempo = src.bpm || 80; this.beats = 4; this.totalBeats = src.notes.length;
       src.notes.forEach((p, i) => ev.push({ beat: i, midi: pitchToMidi(p), lyric: '', m: Math.floor(i / 4) }));
@@ -2316,8 +2372,8 @@ const Fall = {
   // which notes this kalimba can play; the rest are skipped
   pickPlayable() {
     const keys = new Set(profileKeys().map(k => k.pitch));
-    this.events = (this.all || []).filter(e => keys.has(e.pitch));
-    this.skipped = (this.all || []).length - this.events.length;
+    this.events = (this.all || []).filter(e => keys.has(e.pitch) && (this.chords || !e.chord));
+    this.skipped = (this.all || []).filter(e => !e.chord).length - this.events.filter(e => !e.chord).length;   // chord tones outside the kalimba are not counted
   },
   reset(at) {
     this.pickPlayable();
@@ -2337,6 +2393,7 @@ const Fall = {
   controls() {
     $$('[data-plmode]').forEach(b => { b.className = 'h-8 px-3 rounded-full ' + (b.dataset.plmode === this.mode ? 'seg-on' : 'seg-off') + (this.noRhythm && b.dataset.plmode === 'rhythm' ? ' hidden' : ''); });
     byId('pl-speed').textContent = Math.round(this.speed * 100) + '%';
+    byId('pl-chords').classList.toggle('tog-on', this.chords); byId('pl-chords').setAttribute('aria-pressed', String(this.chords));
     byId('pl-loop').classList.toggle('tog-on', this.loop); byId('pl-loop').setAttribute('aria-pressed', String(this.loop));
     byId('pl-listen').classList.toggle('tog-on', this.demo && this.running);
     const playing = this.running && !this.demo;
@@ -2431,7 +2488,7 @@ const Fall = {
         const e = this.events[this.next++];
         if (e.res) continue;
         e.res = 'demo';
-        if (Synth.ensure()) Synth.kalimba(Synth.master, e.midi, Synth.ctx.currentTime, 0.85);
+        if (Synth.ensure()) Synth.kalimba(Synth.master, e.midi, Synth.ctx.currentTime, e.chord ? 0.5 : 0.85);
         this.flash(e, '#E6B9A3', now);
         const ln = this.lanes[e.pitch];
         if (ln) { ln.el.classList.add('active'); setTimeout(() => ln.el.classList.remove('active'), 160); }
@@ -2566,11 +2623,11 @@ const Fall = {
       const ln = this.lanes[e.pitch];
       if (!ln) continue;
       const w = Math.max(10, Math.min(ln.w - 2, 44)), x = ln.x - w / 2;
-      g.fillStyle = e.res === 'miss' ? (isDark() ? '#4A4F44' : '#E5DFD3') : HAND_COLOR[ln.hand] || HAND_COLOR.C;
+      g.fillStyle = e.res === 'miss' ? (isDark() ? '#4A4F44' : '#E5DFD3') : e.chord ? CHORD_COLOR : HAND_COLOR[ln.hand] || HAND_COLOR.C;
       this.round(x, y - h, w, h, Math.min(7, h / 2));
       g.fill();
       if (i === this.next && !this.demo) { g.lineWidth = 2; g.strokeStyle = '#3A402F'; g.stroke(); }
-      if (w >= 14) { g.fillStyle = e.res === 'miss' ? '#8A8F80' : '#3A402F'; g.fillText(pitchToNumber(e.pitch), ln.x, y - h / 2 + 0.5); }
+      if (w >= 14) { g.fillStyle = e.res === 'miss' ? '#8A8F80' : e.chord ? '#FFF6F2' : '#3A402F'; g.fillText(pitchToNumber(e.pitch), ln.x, y - h / 2 + 0.5); }
     }
     // hit line and flashes
     g.fillStyle = '#C47A5C'; g.fillRect(0, hitY, W, 2);
@@ -2611,6 +2668,11 @@ const Fall = {
     byId('pl-pos').textContent = sec(Math.max(this.pos, 0)) + ' / ' + sec(tb);
   },
 
+  setChords(on) {
+    this.chords = !!on; ls.set('fall.chords', this.chords);
+    if (!this.src) { this.controls(); return; }
+    this.halt(); this.reset(Math.max(0, this.startAt));
+  },
   setMode(m) { this.mode = m; ls.set('fall.mode', m); if (!this.running) this.reset(this.startAt); else { this.controls(); this.score(); } },
   setSpeed(d) {
     this.speed = Math.round(clamp(this.speed + d, 0.3, 1.5) * 100) / 100;
@@ -2999,6 +3061,7 @@ function initPlayer() {
   byId('pl-slower').onclick = () => Fall.setSpeed(-0.05);
   byId('pl-faster').onclick = () => Fall.setSpeed(0.05);
   byId('pl-loop').onclick = () => { Fall.loop = !Fall.loop; Fall.controls(); };
+  byId('pl-chords').onclick = () => Fall.setChords(!Fall.chords);
   byId('pl-more').onclick = e => {
     e.stopPropagation();
     const open = byId('pl-ctrl').classList.toggle('hidden') === false;
@@ -3013,10 +3076,18 @@ function initPlayer() {
   byId('tu-tines').addEventListener('click', e => { const b = e.target.closest('[data-tu]'); if (b) audio.playPitch(b.dataset.tu); });
   window.addEventListener('resize', () => { Fall.layout(); Fall.message(); });
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) { Fall.pause(); Mic.stop(); return; }
-    if (audio.ctx && audio.ctx.state !== 'running') audio.ctx.resume().catch(() => {});   // back from the photo picker
+    if (document.hidden) { goQuiet(); return; }
     micSync();
   });
+  // app switch / screen lock: stop everything and drop the audio context. iOS leaves it dead (silent, or 'running' with a frozen
+  // clock); the next tap makes a fresh one. The photo picker only needs the old resume (a picker does not close the page).
+  function goQuiet() {
+    Fall.pause(); Mic.stop();
+    try { Player.stop(); } catch (e) { /* nothing playing */ }
+    audio.drop();
+  }
+  window.addEventListener('pagehide', goQuiet);
+  window.addEventListener('pageshow', e => { if (e.persisted) micSync(); });
   window.KTFall = Fall; window.KTMic = Mic; window.KTTuner = Tuner; window.KTMicSync = micSync;
   Fall.controls(); Fall.message(); Tuner.render(); micUI();
 }
