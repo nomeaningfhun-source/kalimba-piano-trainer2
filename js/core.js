@@ -1013,6 +1013,7 @@ function makeLowpass(sampleRate, fc) {
   return x => { const y = b0 * x + b1 * x1 + b0 * x2 - a1 * y1 - a2 * y2; x2 = x1; x1 = x; y2 = y1; y1 = y; return y; };
 }
 const MIC_LOWPASS_HZ = 1600;
+const DRIFT_LO = Math.pow(2, -20 / 1200), DRIFT_HI = Math.pow(2, 20 / 1200);   // the extra measuring points around each semitone
 const MIC_WINDOW = 4096;   // ≈85 ms at 48 kHz: long enough to tell C4 from C#4
 
 const hannCache = {};
@@ -1063,7 +1064,14 @@ function makeKeyListener(sampleRate, opt) {
     feed(frame, t) {
       const e = new Float32Array(hi - lo + 1);
       let top = 0;
-      for (let m = lo; m <= hi; m++) { e[m - lo] = toneAmp(frame, sampleRate, midiHz(m)); if (e[m - lo] > top) top = e[m - lo]; }
+      // each semitone is measured at three frequencies (-20, 0, +20 cents) and keeps the strongest: a tine that has drifted
+      // flat or sharp (they do while a kalimba is played) would otherwise fall outside the narrow Hann window of the
+      // exact semitone and a high key more than ~35 cents off was not heard at all
+      for (let m = lo; m <= hi; m++) {
+        const f = midiHz(m);
+        const a = Math.max(toneAmp(frame, sampleRate, f), toneAmp(frame, sampleRate, f * DRIFT_LO), toneAmp(frame, sampleRate, f * DRIFT_HI));
+        e[m - lo] = a; if (a > top) top = a;
+      }
       hist.push({ e, top, n: frameNo++ });
       if (hist.length > settle + 4) hist.shift();
       now = top > minAmp ? { e, top } : null;

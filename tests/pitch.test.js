@@ -107,3 +107,21 @@ console.log(n + ' passed');
   assert.strictEqual(P.centsAround(new Float32Array(n), sr, 62), null);
   console.log('ok target mode (centsAround)');
 }
+
+// regression (10 Nov): a tine that drifted 30–45 cents off was not heard at all, high keys first, because each semitone was
+// measured only at its exact frequency; every key must still be heard when drifted by up to 40 cents either way
+t('keys that have drifted flat or sharp (up to 40 cents) are still heard as that key', () => {
+  for (const c of [-40, -30, 30, 40]) {
+    for (let m = 60; m <= 88; m++) {
+      const ev = listen(render([{ m, at: 0.1, cents: c }], 0.6));
+      assert.strictEqual(ev.length, 1, m + ' @' + c + ': ' + JSON.stringify(ev));
+      assert.strictEqual(ev[0].midi, m, m + ' @' + c);
+      assert(Math.abs(ev[0].cents - c) <= 6, m + ' @' + c + ' cents ' + ev[0].cents);
+    }
+  }
+});
+
+t('a melody on tines 30 cents flat is still the same notes', () => {
+  const tune = [60, 60, 67, 67, 69, 69, 67, 65, 65, 64, 64, 62, 62, 60];
+  assert.deepStrictEqual(listen(render(tune.map((m, i) => ({ m, at: 0.2 + i * 0.36, cents: -30 })), 6)).map(e => e.midi), tune);
+});

@@ -16,6 +16,12 @@ function pitchToNumber(p) {
   const base = map[m[1]] || m[1], oct = parseInt(m[2], 10);
   return oct === 4 ? base : (oct === 5 ? base + "'" : (oct === 6 ? base + "''" : "." + base));
 }
+// A B C D E F G with the octave marks the numbers use: C4 = C, C5 = C', C6 = C'' (lower than C4: a dot in front); sharps and flats keep ♯ ♭
+function pitchToWestern(p) {
+  const m = p.match(/^([A-G])([b#]?)(-?\d+)$/); if (!m) return p;
+  const oct = parseInt(m[3], 10), acc = m[2] === '#' ? '♯' : m[2] === 'b' ? '♭' : '';
+  return (oct < 4 ? '.' : '') + m[1] + acc + (oct === 5 ? "'" : oct >= 6 ? "''" : '');
+}
 function pitchToThai(p) {
   const m = p.match(/^([A-G][b#]?)(-?\d+)$/); if (!m) return p;
   const thai = NOTE_THAI[m[1]] || m[1], oct = parseInt(m[2], 10);
@@ -193,7 +199,7 @@ document.addEventListener('touchstart', unlockAudioUI, { once: true });
 
 // the note name in the chosen system: ด / C / 1
 function noteName(pitch) {
-  return state.noteSystem === 'thai' ? pitchToThai(pitch) : state.noteSystem === 'number' ? pitchToNumber(pitch) : pitch;
+  return state.noteSystem === 'thai' ? pitchToThai(pitch) : state.noteSystem === 'number' ? pitchToNumber(pitch) : pitchToWestern(pitch);
 }
 
 const VIEW_SECTIONS = { play: 'section-play', player: 'section-player', sheet: 'section-sheet', lesson: 'section-lesson', tuner: 'section-tuner', add: 'section-add', review: 'section-review' };
@@ -2308,7 +2314,7 @@ const Mic = {
     if (tine) { tine.classList.add('active'); setTimeout(() => tine.classList.remove('active'), 160); }
     showPlayed(pitch);
     if (!Tuner.target) Tuner.pluck(ev);
-    $$('.mic-meter-note').forEach(n => { n.textContent = noteName(pitch); });
+    $$('.mic-meter-note').forEach(n => { n.textContent = noteName(pitch) + (Math.abs(ev.cents) >= 12 ? ' ' + (ev.cents > 0 ? '+' : '−') + Math.abs(ev.cents) + '¢' : ''); });   // how far off the tine is, so a miss can be told from a drifted tine
     judgePitch(pitch, ev.t - MIC_LAG);
   }
 };
@@ -2745,7 +2751,11 @@ const Fall = {
       this.round(x, y - h, w, h, Math.min(7, h / 2));
       g.fill();
       if (i === this.next && !this.demo) { g.lineWidth = 2; g.strokeStyle = '#3A402F'; g.stroke(); }
-      if (w >= 14) { g.fillStyle = e.res === 'miss' ? '#8A8F80' : e.chord ? '#FFF6F2' : '#3A402F'; g.fillText(pitchToNumber(e.pitch), ln.x, y - h / 2 + 0.5); }
+      if (w >= 14 && state.labelMode !== 'none') {
+        const byName = state.labelMode !== 'number' && state.noteSystem !== 'number';   // letters (or Thai names) with their octave marks, else the number
+        g.fillStyle = e.res === 'miss' ? '#8A8F80' : e.chord ? '#FFF6F2' : '#3A402F';
+        g.fillText(byName ? noteName(e.pitch) : pitchToNumber(e.pitch), ln.x, y - h / 2 + 0.5);
+      }
     }
     // hit line and flashes
     g.fillStyle = '#A68668'; g.fillRect(0, hitY, W, 2);
