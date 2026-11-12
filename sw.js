@@ -1,11 +1,12 @@
 // Offline cache: app shell is precached, CDN assets (Tailwind, Google Fonts) are cached on first online visit.
-const CACHE = 'kalimba-trainer-v3-67';
+const CACHE = 'kalimba-trainer-v3-68';
 // the photo reader (Tesseract, ~8 MB) is fetched on first use and kept across app updates
 const OCR_CACHE = 'kalimba-ocr-v1';
 const SHELL = [
   './',
   './css/app.css',
   './css/premium.css',
+  './js/account.js',
   './js/skins.js',
   './js/i18n.js',
   './js/i18n-en.js',
@@ -37,6 +38,7 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET' || !/^https?:$/.test(new URL(req.url).protocol)) return;
+  if (new URL(req.url).pathname.startsWith('/api/')) return;   // membership API: always live, never cached
   if (new URL(req.url).pathname.includes('/vendor/tesseract/')) {
     // cache-first: these files never change for a given OCR_CACHE name
     e.respondWith(caches.open(OCR_CACHE).then(async cache => {

@@ -489,6 +489,7 @@ function setLang(l) {
   if (window.KTFirst && KTFirst.running) KTFirst.render();
   if (window.KTFall) KTFall.relabel();
   if (window.KTTuner) KTTuner.render();
+  if (window.Account) Account.render();
 }
 $('btn-lang').onclick = () => setLang(LANG === 'th' ? 'en' : 'th');
 
@@ -2073,7 +2074,7 @@ function openGuide() {
 const Midi = {
   pending: null, bus: null,
   used() { return ls.get('midi.count', 0); },
-  isMember() { return !!ls.get('member', false); },   // turned on by the membership system once it exists
+  isMember() { return !!(window.Account && Account.isMember()) || !!ls.get('member', false); },   // signed-in member (server) or the older device member code
   refreshQuota() {
     byId('midi-quota').textContent = this.isMember() ? 'สมาชิก · นำเข้าได้ไม่จำกัด'
       : 'ฟรีเหลือ ' + Math.max(0, MIDI_FREE_LIMIT - this.used()) + '/' + MIDI_FREE_LIMIT + ' เพลง';
@@ -2148,7 +2149,8 @@ const Midi = {
   },
   showLimit() {
     this.open('⭐ นำเข้าฟรีครบ ' + MIDI_FREE_LIMIT + ' เพลงแล้ว',
-      '<p class="text-xs text-slate-300">สมาชิกนำเข้าไฟล์ MIDI ได้ไม่จำกัด รุ่นสมาชิกกำลังจะเปิด ลงชื่อไว้ก่อน เราจะแจ้งเมื่อเปิด</p>' +
+      '<p class="text-xs text-slate-300">สมาชิกนำเข้าไฟล์ MIDI ได้ไม่จำกัด ถ้าเป็นสมาชิกแล้วให้เข้าสู่ระบบด้วย Google ในตั้งค่า ถ้ายัง ลงชื่อรอรุ่นสมาชิกไว้ก่อน เราจะแจ้งเมื่อเปิด</p>' +
+      '<button data-act="acct" class="w-full py-2.5 rounded-xl bg-amber-500 text-slate-950 font-bold">🔑 เข้าสู่ระบบสมาชิก</button>' +
       (WAITLIST_URL ? '<button data-act="waitlist" class="w-full py-2.5 rounded-xl bg-emerald-500 text-slate-950 font-bold">⭐ ลงชื่อรอรุ่นสมาชิก</button>' : '') +
       '<p class="text-[11px] text-slate-400">ระหว่างนี้ยังฝึกเพลงในคลังเพลงฟรี และวางโน้ตตัวเลขเองได้ไม่จำกัด</p>');
   },
@@ -2182,6 +2184,7 @@ function initMidi() {
     else if (act === 'play') Midi.preview(v);
     else if (act === 'waitlist') window.open(WAITLIST_URL, '_blank', 'noopener');
     else if (act === 'guide') openGuide();
+    else if (act === 'acct') { Midi.close(); byId('btn-open-settings').click(); setTimeout(() => byId('acct-card').scrollIntoView({ block: 'center' }), 150); }
   });
   byId('lib-free').addEventListener('click', e => {
     const b = e.target.closest('[data-lib="fplay"]');
@@ -2204,6 +2207,7 @@ function initMidi() {
   };
   byId('btn-unlock').onclick = () => tryUnlock(byId('unlock-code').value.trim()).then(ok => { if (ok) byId('unlock-code').value = ''; });
   showUnlock();
+  window.addEventListener('kt-member', () => { Midi.refreshQuota(); showUnlock(); });   // signing in or out changes the quota text
   // a link with ?unlock=CODE unlocks the device it is opened on, then drops the code from the address bar
   const q = new URLSearchParams(location.search), code = q.get('unlock');
   if (code) {
@@ -3501,6 +3505,7 @@ initM2();
 initLessons();
 initGrowth();
 initMidi();
+Account.init({ waitlist: () => { if (WAITLIST_URL) window.open(WAITLIST_URL, '_blank', 'noopener'); } });
 initPlayer();
 initMoved();
 

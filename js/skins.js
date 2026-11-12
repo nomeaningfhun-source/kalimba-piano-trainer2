@@ -81,7 +81,7 @@ const Skin = {
   tine: { L: [], R: [], C: '' },    // read live by tineColor() in app.js
   hand: { L: '', R: '', C: '' },    // read live by the falling-notes canvas
   sound: { decay: 1, partial: 1, ratio: 6.52, tone: 6500, body: null },   // read live by kalimbaVoice() in app.js
-  member() { try { return JSON.parse(localStorage.getItem('kt.member')) === true; } catch (e) { return false; } },
+  member() { if (window.Account && Account.isMember()) return true; try { return JSON.parse(localStorage.getItem('kt.member')) === true; } catch (e) { return false; } },   // signed-in member, or the older device member code
   usable(o) { return !o.premium || this.member(); },
   pick(list, id) { return list.find(x => x.id === id) || list[0]; },
   lists() { return { mat: MATERIALS, shape: SHAPES, keys: KEYSETS, chain: CHAINS, art: ARTS }; },
@@ -239,7 +239,7 @@ const Skin = {
     grid('skin-chains', CHAINS.map(c => btn('chain', c, c.id === this.chain, '<span class="skin-pv skin-ch">' + (c.id === 'none' ? '—' : ('<b style="background:radial-gradient(circle at 35% 30%,' + c.bead[0] + ',' + c.bead[1] + ' 55%,' + c.bead[2] + ')"></b>').repeat(6)) + '</span>')).join(''));
     grid('skin-arts', ARTS.map(a => btn('art', a, a.id === this.art, '<span class="skin-pv skin-ar">' + (a.icon || '—') + '</span>')).join(''));
     set('skin-note', member ? (th ? 'ปลดล็อกครบแล้ว' : 'Everything is unlocked')
-      : (th ? 'ตัวเลือกที่มี 🔒 สำหรับสมาชิก ใส่รหัสสมาชิกด้านล่างเพื่อปลดล็อก' : 'Options with 🔒 are for members. Enter your member code below to unlock them.'));
+      : (th ? 'ตัวเลือกที่มี 🔒 สำหรับสมาชิก เข้าสู่ระบบสมาชิกด้านล่างเพื่อปลดล็อก' : 'Options with 🔒 are for members. Sign in below to unlock them.'));
   },
   wire() {
     const box = document.getElementById('skin-box');
@@ -249,8 +249,8 @@ const Skin = {
       if (!b) return;
       const o = this.pick(this.lists()[b.dataset.kind], b.dataset.id);
       if (this.usable(o)) { this.choose(b.dataset.kind, o.id); return; }
-      document.getElementById('skin-note').textContent = LANG === 'th' ? '🔒 ตัวเลือกนี้สำหรับสมาชิก ใส่รหัสสมาชิกด้านล่างเพื่อปลดล็อก' : '🔒 This option is for members. Enter your member code below to unlock it.';
-      const f = document.getElementById('unlock-code'); if (f) f.focus();
+      document.getElementById('skin-note').textContent = LANG === 'th' ? '🔒 ตัวเลือกนี้สำหรับสมาชิก เข้าสู่ระบบสมาชิกด้านล่างเพื่อปลดล็อก' : '🔒 This option is for members. Sign in below to unlock it.';
+      const f = document.getElementById('acct-card'); if (f) f.scrollIntoView({ block: 'center' });
     });
     window.addEventListener('kt-member', () => this.render());
     const w = document.getElementById('kalimba-tines-wrapper');
