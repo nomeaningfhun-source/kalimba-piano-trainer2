@@ -2139,7 +2139,10 @@ const Midi = {
     if (!this.isMember()) ls.set('midi.count', this.used() + 1);
     this.refreshQuota();
     const notes = [{ level: 'info', msg: 'แปลงจากไฟล์ MIDI: ทำนอง "' + rp.voice + '" · ' + rp.notes + ' โน้ต · ความยาก ' + '★'.repeat(rp.level) }];
-    if (rp.shift) notes.push({ level: 'info', msg: 'ย้ายคีย์ ' + (rp.shift > 0 ? '+' : '') + rp.shift + ' ครึ่งเสียง ให้ลงคาลิมบา 17 คีย์' });
+    if (rp.shift) { const d = ((rp.shift + 6) % 12 + 12) % 12 - 6;   // the key change (an octave move is not a change of key)
+      notes.push({ level: 'info', msg: d ? 'ย้ายคีย์ ' + (d > 0 ? '+' : '') + d + ' ครึ่งเสียง ให้ลงคาลิมบา 17 คีย์' : 'ย้ายออกเทฟ ให้ลงคาลิมบา 17 คีย์' }); }
+    if (((rp.shift % 12) + 12) % 12) notes.push({ level: 'info', msg: 'คาลิมบามีแต่โน้ตขาว (คีย์ C) จึงย้ายเพลงไปคีย์ที่เล่นง่ายที่สุด เสียงจึงต่างจากต้นฉบับ ถ้าจะเล่นคีย์เดิมต้องจูนก้านเป็น ♯/♭ ในตั้งค่า แล้วเปลี่ยนคีย์ในหน้านี้' });
+    if (rp.bass) notes.push({ level: 'info', msg: 'ใส่เบสจากแทร็ก "' + rp.bassVoice + '" (' + rp.bass + ' โน้ตเบส) · ในโหมดเล่นเลือก "ฝึกส่วน → เบส" เพื่อซ้อมแยกมือ' });
     if (rp.dropped) notes.push({ level: 'info', msg: 'ตัดโน้ตซ้อนและโน้ตประดับที่เร็วเกินไป ' + rp.dropped + ' ตัว ให้เล่นง่ายขึ้น' });
     if (rp.folded) notes.push({ level: 'warn', msg: rp.folded + ' โน้ตถูกย้ายขึ้นหรือลง 1 ออกเทฟ ให้อยู่บนแป้น' });
     if (rp.snapped) notes.push({ level: 'warn', msg: rp.snapped + ' โน้ตไม่มีบนแป้น จึงปรับไปโน้ตที่ใกล้สุด เสียงอาจต่างจากต้นฉบับเล็กน้อย' });
@@ -2320,6 +2323,13 @@ const Mic = {
     if (!Tuner.target) Tuner.pluck(ev);
     $$('.mic-meter-note').forEach(n => { n.textContent = noteName(pitch) + (Math.abs(ev.cents) >= 12 ? ' ' + (ev.cents > 0 ? '+' : '−') + Math.abs(ev.cents) + '¢' : ''); });   // how far off the tine is, so a miss can be told from a drifted tine
     judgePitch(pitch, ev.t - MIC_LAG);
+    // keys plucked at the same moment (the bass with the melody): each one is judged like its own pluck
+    // (only in the player: lessons and the tuner expect one note at a time, so an extra there would only be noise)
+    (state.currentView === 'player' ? (ev.more || []) : []).forEach(x => {
+      const p2 = midiToPitch(x.midi), t2 = document.querySelector('#kalimba-tines-wrapper [data-pitch="' + p2 + '"]');
+      if (t2) { t2.classList.add('active'); setTimeout(() => t2.classList.remove('active'), 160); }
+      judgePitch(p2, ev.t - MIC_LAG);
+    });
   }
 };
 
@@ -2451,11 +2461,12 @@ const Tuner = {
 /* ---- song player: falling notes over the kalimba, judged from taps or a real kalimba ---- */
 const HAND_COLOR = Skin.hand;
 const CHORD_COLOR = '#C4483C';   // chord tones fall red
+const BASS_COLOR = '#2F5D8A';    // the bass line falls deep blue, so the left hand's part reads apart from the melody and the chords
 // the player runs on the page clock: iOS can suspend or interrupt the audio clock, which would freeze the notes
 const clock = () => performance.now() / 1000;
 const Fall = {
   src: null, events: [], skipped: 0, tempo: 80, beats: 4, totalBeats: 0, minGap: 1,
-  mode: ls.get('fall.mode', 'wait'), speed: ls.get('fall.speed', 1), loop: false, chords: ls.get('fall.chords', true),
+  mode: ls.get('fall.mode', 'wait'), speed: ls.get('fall.speed', 1), loop: false, chords: ls.get('fall.chords', true), hands: ls.get('fall.hands', 'both'),
   pos: 0, startAt: 0, running: false, demo: false, done: false, raf: 0, last: 0, next: 0, clickBeat: null,
   stats: null, lanes: {}, cv: null, g: null, W: 0, H: 0, flashes: [], t0: 0, guided: null, lyricM: -1,
 
@@ -2472,22 +2483,32 @@ const Fall = {
       const p = parseSong(src.song, state.tuning);
       this.tempo = src.song.tempo || 80; this.beats = src.song.beats || 4; this.totalBeats = p.totalBeats;
       p.measures.forEach(pm => pm.notes.forEach(n => ev.push({ beat: pm.start + n.beat, midi: n.midi, lyric: n.lyric || '', m: pm.index })));
-      // chords fall as red notes in the same lanes: a written chord (135) as written, a letter chord as its first three tones,
-      // a bass note as itself; a tone the melody already plays on that beat is not doubled
-      const seen = new Set(ev.map(e => e.beat.toFixed(3) + '/' + e.midi));
+      // chords fall as red notes in the same lanes: a written chord (135) as written, a letter chord as its upper tones. The bass falls blue:
+      // a written bass note (kalimba has nothing under C4, so a lower one moves up whole octaves), or the root (or slash bass) of a letter chord,
+      // kept in the lowest octave C4-B4. A tone the melody already plays on that beat is not doubled.
+      const melKeys = new Set(ev.map(e => e.beat.toFixed(3) + '/' + e.midi)), seen = new Set();
+      // a bass note the melody also plays on that beat is kept for "bass only" practice but hidden while both parts show
+      const add = (beat, m, pm, extra) => {
+        const k = beat.toFixed(3) + '/' + m;
+        if (seen.has(k)) return;
+        if (melKeys.has(k)) { if (extra.role === 'bass') { seen.add(k); ev.push(Object.assign({ beat, midi: m, lyric: '', m: pm.index, shadow: true }, extra)); } return; }
+        seen.add(k); ev.push(Object.assign({ beat, midi: m, lyric: '', m: pm.index }, extra));
+      };
+      const up = m => { while (m < 60) m += 12; return m; };
       p.measures.forEach(pm => (pm.chords || []).forEach(ch => {
-        const ms = ch.type === 'notes' ? ch.midis : ch.type === 'chord' ? ch.midis.slice(0, 3) : ch.type === 'bass' ? [ch.midi] : [];
-        ms.forEach(m => {
-          const beat = pm.start + ch.beat, k = beat.toFixed(3) + '/' + m;
-          if (!seen.has(k)) { seen.add(k); ev.push({ beat, midi: m, lyric: '', m: pm.index, chord: true }); }
-        });
+        const beat = pm.start + ch.beat;
+        if (ch.type === 'bass') add(beat, up(ch.midi), pm, { role: 'bass' });
+        else if (ch.type === 'chord') {
+          add(beat, 60 + (ch.bassPc == null ? ch.rootPc : ch.bassPc), pm, { role: 'bass', auto: true });
+          ch.midis.slice(0, 3).forEach(m => add(beat, m, pm, { role: 'chord' }));
+        } else if (ch.type === 'notes') ch.midis.forEach(m => add(beat, m, pm, { role: 'chord' }));
       }));
     } else {
       this.tempo = src.bpm || 80; this.beats = 4; this.totalBeats = src.notes.length;
       src.notes.forEach((p, i) => ev.push({ beat: i, midi: pitchToMidi(p), lyric: '', m: Math.floor(i / 4) }));
     }
     ev.sort((a, b) => a.beat - b.beat);
-    ev.forEach(e => { e.pitch = midiToPitch(e.midi); e.res = null; });
+    ev.forEach(e => { if (!e.role) e.role = 'mel'; e.chord = e.role === 'chord'; e.bass = e.role === 'bass'; e.pitch = midiToPitch(e.midi); e.res = null; });
     this.all = ev;
     let gap = 4;
     for (let i = 1; i < ev.length; i++) { const d = ev[i].beat - ev[i - 1].beat; if (d > 0.01 && d < gap) gap = d; }
@@ -2500,8 +2521,10 @@ const Fall = {
   // which notes this kalimba can play; the rest are skipped
   pickPlayable() {
     const keys = new Set(profileKeys().map(k => k.pitch));
-    this.events = (this.all || []).filter(e => keys.has(e.pitch) && (this.chords || !e.chord));
-    this.skipped = (this.all || []).filter(e => !e.chord).length - this.events.filter(e => !e.chord).length;   // chord tones outside the kalimba are not counted
+    const h = this.hasBass() ? this.hands : 'both';   // melody only / bass only / both (the left hand and the right hand practised apart)
+    const shown = e => e.role === 'mel' ? h !== 'bass' : e.role === 'bass' ? (h === 'bass' || (h === 'both' && !e.shadow && (!e.auto || this.chords))) : h === 'both' && this.chords;
+    this.events = (this.all || []).filter(e => keys.has(e.pitch) && shown(e));
+    this.skipped = (this.all || []).filter(e => shown(e) && e.role !== 'chord').length - this.events.filter(e => e.role !== 'chord').length;   // chord tones outside the kalimba are not counted
   },
   reset(at) {
     this.pickPlayable();
@@ -2512,6 +2535,7 @@ const Fall = {
     byId('pl-result').classList.add('hidden');
     this.meta(); this.controls(); this.message(); this.lyric(true); this.progress(); this.draw(); this.guide();
   },
+  hasBass() { return !!(this.all && this.all.some(e => e.role === 'bass')); },
   firstOpen() { let i = 0; while (i < this.events.length && this.events[i].res) i++; return i; },
   meta() {
     const bpm = Math.round(this.tempo * this.speed);
@@ -2522,6 +2546,8 @@ const Fall = {
     $$('[data-plmode]').forEach(b => { b.className = 'h-8 px-3 rounded-full ' + (b.dataset.plmode === this.mode ? 'seg-on' : 'seg-off') + (this.noRhythm && b.dataset.plmode === 'rhythm' ? ' hidden' : ''); });
     byId('pl-speed').textContent = Math.round(this.speed * 100) + '%';
     byId('pl-chords').classList.toggle('tog-on', this.chords); byId('pl-chords').setAttribute('aria-pressed', String(this.chords));
+    byId('pl-hands-row').classList.toggle('hidden', !this.hasBass());
+    $$('[data-plhands]').forEach(b => { b.className = 'h-9 px-3 rounded-full ' + (b.dataset.plhands === this.hands ? 'seg-on' : 'seg-off'); });
     byId('pl-loop').classList.toggle('tog-on', this.loop); byId('pl-loop').setAttribute('aria-pressed', String(this.loop));
     byId('pl-listen').classList.toggle('tog-on', this.demo && this.running);
     const playing = this.running && !this.demo;
@@ -2616,7 +2642,7 @@ const Fall = {
         const e = this.events[this.next++];
         if (e.res) continue;
         e.res = 'demo';
-        if (Synth.ensure()) Synth.kalimba(Synth.master, e.midi, Synth.ctx.currentTime, e.chord ? 0.5 : 0.85);
+        if (Synth.ensure()) Synth.kalimba(Synth.master, e.midi, Synth.ctx.currentTime, e.chord ? 0.5 : e.bass ? 0.75 : 0.85);
         this.flash(e, '#D9C0A0', now);
         const ln = this.lanes[e.pitch];
         if (ln) { ln.el.classList.add('active'); setTimeout(() => ln.el.classList.remove('active'), 160); }
@@ -2751,13 +2777,13 @@ const Fall = {
       const ln = this.lanes[e.pitch];
       if (!ln) continue;
       const w = Math.max(10, Math.min(ln.w - 2, 44)), x = ln.x - w / 2;
-      g.fillStyle = e.res === 'miss' ? (isDark() ? '#4A4F44' : '#E5DFD3') : e.chord ? CHORD_COLOR : HAND_COLOR[ln.hand] || HAND_COLOR.C;
+      g.fillStyle = e.res === 'miss' ? (isDark() ? '#4A4F44' : '#E5DFD3') : e.chord ? CHORD_COLOR : e.bass ? BASS_COLOR : HAND_COLOR[ln.hand] || HAND_COLOR.C;
       this.round(x, y - h, w, h, Math.min(7, h / 2));
       g.fill();
       if (i === this.next && !this.demo) { g.lineWidth = 2; g.strokeStyle = '#3A402F'; g.stroke(); }
       if (w >= 14 && state.labelMode !== 'none') {
         const byName = state.labelMode !== 'number' && state.noteSystem !== 'number';   // letters (or Thai names) with their octave marks, else the number
-        g.fillStyle = e.res === 'miss' ? '#8A8F80' : e.chord ? '#FFF6F2' : '#3A402F';
+        g.fillStyle = e.res === 'miss' ? '#8A8F80' : (e.chord || e.bass) ? '#FFF6F2' : '#3A402F';
         g.fillText(byName ? noteName(e.pitch) : pitchToNumber(e.pitch), ln.x, y - h / 2 + 0.5);
       }
     }
@@ -2802,6 +2828,11 @@ const Fall = {
 
   setChords(on) {
     this.chords = !!on; ls.set('fall.chords', this.chords);
+    if (!this.src) { this.controls(); return; }
+    this.halt(); this.reset(Math.max(0, this.startAt));
+  },
+  setHands(h) {
+    this.hands = h; ls.set('fall.hands', h);
     if (!this.src) { this.controls(); return; }
     this.halt(); this.reset(Math.max(0, this.startAt));
   },
@@ -3194,6 +3225,7 @@ function initPlayer() {
   byId('pl-faster').onclick = () => Fall.setSpeed(0.05);
   byId('pl-loop').onclick = () => { Fall.loop = !Fall.loop; Fall.controls(); };
   byId('pl-chords').onclick = () => Fall.setChords(!Fall.chords);
+  $$('[data-plhands]').forEach(b => { b.onclick = () => Fall.setHands(b.dataset.plhands); });
   byId('pl-more').onclick = e => {
     e.stopPropagation();
     const open = byId('pl-ctrl').classList.toggle('hidden') === false;

@@ -76,7 +76,7 @@ t('karaoke lyrics in Thai TIS-620 land on their notes', () => {
 t('chords in the melody keep the top note; off-key notes are snapped', () => {
   const chordy = twinkleNotes().flatMap(([m, s, l]) => [[m, s, l], [m - 12, s, l]]);
   chordy.push([66, 30, 1]);                     // F# — no key on a 13-key kalimba
-  const r = P.midiToSong(smf([track(noteEvents(chordy))]), { tuning: 'B4', shift: 0 });
+  const r = P.midiToSong(smf([track(noteEvents(chordy))]), { tuning: 'B4', shift: 0, bass: false });
   assert.strictEqual(r.song.measures[0].mel, '1 1 5 5');
   assert(r.report.dropped >= 14);
   assert.strictEqual(r.report.snapped, 1);
@@ -140,6 +140,44 @@ t('very fast songs keep an 8th-note grid', () => {
   const r = P.midiToSong(f, { tuning: 'Bb4' });
   assert.strictEqual(r.song.measures[0].mel.split(' ').length, 4);
   assert.ok(!/_.*_/.test(r.song.measures[0].mel), r.song.measures[0].mel);
+});
+
+// Canon in D: melody (violin) F#5 E5 D5 C#5 B4 A4 B4 C#5 over the bass D A B F# G D G A, two beats each
+const CANON_MEL = [78, 76, 74, 73, 71, 69, 71, 73], CANON_BASS = [50, 45, 47, 42, 43, 38, 43, 45];
+const canonNotes = (arr, per) => { const o = []; for (let r = 0; r < 2; r++) arr.forEach((m, i) => o.push([m, (r * 8 + i) * per, per])); return o; };
+
+t('a separate bass track becomes the bass line (chord line), moved onto C4-B4 with the melody\'s transposition', () => {
+  const mel = track([[0, meta(0x03, ascii('Violin'))], ...noteEvents(canonNotes(CANON_MEL, 2), 0)]);
+  const bass = track([[0, meta(0x03, ascii('Cello'))], ...noteEvents(canonNotes(CANON_BASS, 2), 1)]);
+  const r = P.midiToSong(smf([track([[0, meta(0x51, be(500000, 3))]]), mel, bass]), { tuning: 'B4' });
+  assert.strictEqual(((r.report.shift % 12) + 12) % 12, 10);   // D major -> C major (whatever octave fits best)
+  assert.strictEqual(r.report.bassVoice, 'Cello');
+  assert.strictEqual(r.song.measures[0].mel.replace(/'/g, ''), '3 - 2 -');
+  assert.strictEqual(r.song.measures[0].chd, '1 - 5 -');        // D A -> C G
+  assert.strictEqual(r.song.measures[1].chd, '6 - 3 -');        // B F# -> A E
+  assert.deepStrictEqual(issues(r.song), []);
+  const p = P.parseSong(r.song, 'B4');
+  assert.strictEqual(p.measures[0].chords.filter(c => c.type === 'bass').length, 2);
+});
+
+t('a piano with both hands on one track: low left-hand notes become the bass, the melody stays on top', () => {
+  const f = smf([track([[0, meta(0x51, be(500000, 3))], [0, meta(0x03, ascii('Piano'))], ...noteEvents(canonNotes(CANON_MEL, 2).concat(canonNotes(CANON_BASS, 2)), 0)])]);
+  const r = P.midiToSong(f, { tuning: 'B4' });
+  assert.strictEqual(r.song.measures[0].mel.replace(/'/g, ''), '3 - 2 -');
+  assert.strictEqual(r.song.measures[0].chd, '1 - 5 -');
+  assert.ok(r.report.bass >= 12);
+});
+
+t('a song with no low part gets no bass line', () => {
+  const r = P.midiToSong(smf([track(noteEvents(twinkleNotes()))]), { tuning: 'Bb4' });
+  assert.strictEqual(r.report.bass, 0);
+  assert.ok(r.song.measures.every(m => m.chd === ''));
+});
+
+t('a melody that lies low is not mistaken for a bass', () => {
+  const r = P.midiToSong(smf([track(noteEvents(twinkleNotes(-24)))]), { tuning: 'B4' });
+  assert.strictEqual(r.report.bass, 0);
+  assert.strictEqual(r.song.measures[0].mel, '1 1 5 5');
 });
 
 console.log(n + ' passed');

@@ -125,3 +125,29 @@ t('a melody on tines 30 cents flat is still the same notes', () => {
   const tune = [60, 60, 67, 67, 69, 69, 67, 65, 65, 64, 64, 62, 62, 60];
   assert.deepStrictEqual(listen(render(tune.map((m, i) => ({ m, at: 0.2 + i * 0.36, cents: -30 })), 6)).map(e => e.midi), tune);
 });
+
+t('a single pluck is never reported with extra notes (every key)', () => {
+  for (let m = 60; m <= 88; m++) {
+    const ev = listen(render([{ m, at: 0.1 }], 0.6));
+    assert.strictEqual(ev.length, 1, m + ': ' + JSON.stringify(ev));
+    assert.strictEqual((ev[0].more || []).length, 0, m + ' extra ' + JSON.stringify(ev[0].more));
+  }
+});
+
+t('two keys plucked together (bass + melody) are both heard', () => {
+  const pairs = [[60, 76], [67, 84], [65, 69], [60, 72], [62, 64], [71, 83], [64, 79], [69, 88]];
+  pairs.forEach(([a, b]) => {
+    [0, 0.03].forEach(gap => {
+      const ev = listen(render([{ m: a, at: 0.1 }, { m: b, at: 0.1 + gap }], 0.7));
+      assert.strictEqual(ev.length, 1, a + '+' + b + ' gap ' + gap + ': ' + JSON.stringify(ev));
+      const got = [ev[0].midi].concat((ev[0].more || []).map(x => x.midi)).sort((x, y) => x - y);
+      assert.deepStrictEqual(got, [a, b], a + '+' + b + ' gap ' + gap + ' heard ' + got);
+    });
+  });
+});
+
+t('a bass note with a two-note melody chord: all three are heard', () => {
+  const ev = listen(render([{ m: 60, at: 0.1 }, { m: 72, at: 0.1 }, { m: 76, at: 0.1 }], 0.7));
+  assert.strictEqual(ev.length, 1);
+  assert.deepStrictEqual([ev[0].midi].concat(ev[0].more.map(x => x.midi)).sort((x, y) => x - y), [60, 72, 76]);
+});

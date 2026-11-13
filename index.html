@@ -181,6 +181,14 @@
           <button data-plmode="rhythm" class="h-9 px-4 rounded-full" data-i18n="pl.rhythm">ตามจังหวะ</button>
         </div>
       </div>
+      <div id="pl-hands-row" class="hidden flex items-center justify-between gap-2">
+        <span class="text-slate-400" data-i18n="pl.hands">ฝึกส่วน</span>
+        <div class="flex p-0.5 rounded-full bg-slate-950 border border-slate-800" role="group">
+          <button data-plhands="both" class="h-9 px-3 rounded-full" data-i18n="pl.hands.both">ทั้งคู่</button>
+          <button data-plhands="mel" class="h-9 px-3 rounded-full" data-i18n="pl.hands.mel">ทำนอง</button>
+          <button data-plhands="bass" class="h-9 px-3 rounded-full" data-i18n="pl.hands.bass">เบส</button>
+        </div>
+      </div>
       <div class="flex items-center justify-between gap-2">
         <span class="text-slate-400" data-i18n="pl.speed">ความเร็ว</span>
         <div class="flex items-center rounded-full bg-slate-950 border border-slate-800">
@@ -720,8 +728,18 @@
         </div>
         <div id="acct-card" class="bg-slate-800/60 p-3 rounded-xl border border-slate-700 space-y-2"></div>
         <p class="text-xs text-slate-400 text-center"><a href="terms.html" target="_blank" rel="noopener" class="underline">ข้อกำหนด / Terms</a> · <a href="privacy.html" target="_blank" rel="noopener" class="underline">ความเป็นส่วนตัว / Privacy</a></p>
+        <details id="member-info" class="bg-slate-800/60 p-3 rounded-xl border border-slate-700">
+          <summary class="font-medium text-slate-200 cursor-pointer">⭐ สมาชิกได้อะไรบ้าง · ราคา (แตะเพื่ออ่าน)</summary>
+          <div class="mt-2 space-y-2 text-[12px] leading-relaxed text-slate-300">
+            <div><b class="text-slate-100">ใช้ฟรีตลอด</b><br>เพลงในคลังฟรี · ฝึกโน้ตตก · บทเรียน · เครื่องตั้งเสียง · นำเข้าไฟล์ MIDI ฟรี 3 เพลง · หน้าตาคาลิมบาแบบพื้นฐาน</div>
+            <div><b class="text-amber-200">สมาชิก</b><br>นำเข้าไฟล์ MIDI ได้ไม่จำกัด · หน้าตาและเสียงคาลิมบาพรีเมียมทุกแบบ · ใช้สิทธิ์ได้ทุกเครื่องที่เข้าสู่ระบบด้วย Google เดียวกัน</div>
+            <div><b class="text-slate-100">ราคา</b><br>฿99 ต่อเดือน หรือ ฿790 ต่อปี · ทดลองฟรี 7 วัน · ยกเลิกได้ทุกเมื่อ (เปิดให้สมัครเร็วๆ นี้)</div>
+            <div><b class="text-slate-100">วิธีเป็นสมาชิก</b><br>เข้าสู่ระบบด้วย Google ที่กล่อง "Member account" ด้านบน แล้วสมัครจากกล่องนั้น</div>
+          </div>
+        </details>
         <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700 space-y-2">
-          <label for="unlock-code" class="block font-medium text-slate-200">รหัสสมาชิก (นำเข้าไฟล์ MIDI ไม่จำกัด):</label>
+          <label for="unlock-code" class="block font-medium text-slate-200">มีรหัสสมาชิกจากเรา? ใส่รหัสเพื่อปลดล็อกเครื่องนี้</label>
+          <div class="text-[11px] text-slate-400">สำหรับผู้ที่ได้รับรหัสจากเรา (เช่น ทดลองใช้ก่อนใคร) ปลดล็อกเฉพาะเครื่องนี้ ถ้าเข้าสู่ระบบด้วย Google จะไม่ต้องใช้รหัส</div>
           <div class="flex gap-2">
             <input id="unlock-code" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="ใส่รหัส"
               class="flex-1 min-w-0 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-slate-100">

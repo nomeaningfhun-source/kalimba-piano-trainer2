@@ -693,6 +693,7 @@ const SAMPLE2 = [
 
 /* @@MIDI-START  MIDI / karaoke (.mid .midi .kar) → beginner kalimba song. Pure: no DOM, testable in node. */
 const MELODY_NAME_RE = /melody|melodi|vocal|voice|lead|sing|solo|tune|ร้อง|ทำนอง|เมโลดี้|นักร้อง/i;
+const BASS_NAME_RE = /bass|cello|contra|tuba|trombone|เบส|เชลโล/i;
 
 function decodeText(bytes) {
   try { return new TextDecoder('utf-8', { fatal: true }).decode(bytes); } catch (e) { /* not UTF-8 */ }
@@ -824,6 +825,7 @@ function bestShift(notes, tuning) {
     let sc = 0;
     notes.forEach(n => {
       const m = n.midi + s, w = n.len || 1;
+      if (n.pcOnly) { if (pcs.has(((m % 12) + 12) % 12)) sc += w; return; }   // the bass is moved to the lowest octave anyway: only its note name matters
       if (keys.has(m)) sc += 2 * w - (m === 70 || m === 71 ? 0.01 : 0);   // tie-break: avoid the tunable B/Bb key
       else if (pcs.has(((m % 12) + 12) % 12)) sc += w;
     });
@@ -882,7 +884,9 @@ function notesToSong(raw, opt) {
   if (!q.length) return { song: { title: opt.title || '', tempo: opt.tempo || 90, beats, octaveShift: 0, measures: [] }, report: { notes: 0 } };
   q.forEach(n => { n.len = n.e - n.s; });
 
-  const shift = opt.shift != null ? opt.shift : bestShift(q, tuning);
+  // the bass counts a little when choosing the transposition, so the bass line also lands on keys the kalimba has
+  const bassW = (opt.bass || []).map(n => ({ midi: n.midi, len: Math.max(0.5, ((n.end - n.start) / unit) * 0.4), pcOnly: true }));
+  const shift = opt.shift != null ? opt.shift : bestShift(q.concat(bassW), tuning);
   let folded = 0, snapped = 0;
   q.forEach(n => {
     const f = fitNote(n.midi + shift, tuning);
@@ -899,6 +903,23 @@ function notesToSong(raw, opt) {
     for (let k = s + 1; k < n.e - off; k++) grid[k] = '-';
     lyrAt.set(s, n.lyric);
   });
+  // the bass: one token per beat in the chord line (the note that starts in that beat, else '-' = keep ringing). It is moved onto the
+  // lowest octave of the kalimba (C4-B4) with the same transposition as the melody; a pitch the kalimba lacks goes to the nearest key.
+  let bassCount = 0;
+  const bq = (opt.bass || []).slice().sort((a, b) => a.start - b.start || a.midi - b.midi);
+  const bassAt = new Map();   // grid cell -> token
+  bq.forEach(n => {
+    const cell = Math.round(n.start / unit) - off, beatCell = Math.floor(cell / sub) * sub;
+    if (cell < 0 || cell >= total || bassAt.has(beatCell)) return;
+    const pc = (((n.midi + shift) % 12) + 12) % 12, f = fitNote(60 + pc, tuning);
+    if (!f || Math.abs(f.midi - (60 + pc)) > 2) return;
+    bassAt.set(beatCell, midiTok(f.midi)); bassCount++;
+  });
+  const bassLine = bassCount >= 4 ? bar => {
+    const toks = [];
+    for (let bt = 0; bt < beats; bt++) toks.push(bassAt.get(bar * perBar + bt * sub) || '-');
+    return toks.every(x => x === '-') ? '' : toks.join(' ');
+  } : null;
   const measures = [];
   let anyLyric = false;
   for (let bar = 0; bar * perBar < total; bar++) {
@@ -908,7 +929,7 @@ function notesToSong(raw, opt) {
       slots.push(beatTok(cells));
       cells.forEach((_, k) => { if (lyrAt.has(i + k)) { const t = lyrAt.get(i + k); lyr.push(t || '~'); if (t) anyLyric = true; } });
     }
-    measures.push({ mel: slots.join(' '), lyr: lyr.some(t => t !== '~') ? lyr.join(' ') : '', chd: '', br: bar % 4 === 0 });
+    measures.push({ mel: slots.join(' '), lyr: lyr.some(t => t !== '~') ? lyr.join(' ') : '', chd: bassLine ? bassLine(bar) : '', br: bar % 4 === 0 });
   }
   const tempo = Math.max(40, Math.min(200, Math.round(opt.tempo || 90)));
   const secs = (total / sub) * 60 / tempo, nps = q.length / Math.max(1, secs);
@@ -916,8 +937,20 @@ function notesToSong(raw, opt) {
   if (snapped / q.length > 0.08 && level < 3) level++;
   return {
     song: { title: opt.title || '', tempo, beats, octaveShift: 0, measures },
-    report: { notes: q.length, shift, folded, snapped, dropped, level, lyrics: anyLyric }
+    report: { notes: q.length, shift, folded, snapped, dropped, level, lyrics: anyLyric, bass: bassLine ? bassCount : 0 }
   };
+}
+
+// the bass part: a lower track that is named bass/cello or sits low and plays one note at a time; else, when the melody's own track also
+// holds low notes (a piano with both hands), the lowest note at each onset among those below E3 (the left hand)
+function midiBass(voices, mel, mid) {
+  const lows = voices.filter(x => x.id !== mel.id && x.mean < mel.mean - 6 && (BASS_NAME_RE.test(x.name) || (x.mean < 56 && x.mono >= 0.6)));
+  lows.sort((a, b) => (BASS_NAME_RE.test(b.name) ? 1 : 0) - (BASS_NAME_RE.test(a.name) ? 1 : 0) || b.mono - a.mono || a.mean - b.mean);
+  if (lows.length) return { name: lows[0].name, notes: lows[0].notes.map(n => ({ midi: n.midi, start: n.start, end: n.end })) };
+  const low = mel.notes.filter(n => n.midi < 52), by = new Map();
+  low.forEach(n => { const k = Math.round(n.start / (mid.ppq / 8)); if (!by.has(k) || n.midi < by.get(k).midi) by.set(k, n); });
+  if (by.size < 4 || mel.mean < 58 || low.length > mel.notes.length * 0.6) return null;   // a melody that itself lies low is left alone
+  return { name: mel.name, same: true, notes: Array.from(by.values()).map(n => ({ midi: n.midi, start: n.start, end: n.end })) };
 }
 
 function midiToSong(input, opt) {
@@ -936,8 +969,10 @@ function midiToSong(input, opt) {
   }
   const ts = mid.timeSig, beats = Math.max(1, Math.round(ts[0] * 4 / ts[1]));
   const title = (opt.title || kar.title || (mid.tracks[0] && mid.tracks[0].name) || '').trim();
-  const r = notesToSong(notes, { ppq: mid.ppq, beats, tempo: 60000000 / mid.tempo, tuning: opt.tuning, title });
+  const bs = opt.bass === false ? null : midiBass(voices, v, mid);
+  const r = notesToSong(bs && bs.same ? notes.filter(n => n.midi >= 52) : notes, { ppq: mid.ppq, beats, tempo: 60000000 / mid.tempo, tuning: opt.tuning, title, bass: bs ? bs.notes : null });
   r.report.voice = v.name;
+  if (r.report.bass) r.report.bassVoice = bs.name;
   r.karTitle = kar.title;
   r.voices = voices.slice(0, 6).map(x => ({ id: x.id, name: x.name, count: x.count, lyricHit: x.lyricHit, score: x.score }));
   return r;
@@ -1088,7 +1123,18 @@ function makeKeyListener(sampleRate, opt) {
           if (inc[i] > bestInc && inc[i] >= (i ? inc[i - 1] : 0) && inc[i] >= (i + 1 < e.length ? inc[i + 1] : 0)) { bestInc = inc[i]; best = i; }
         }
         if (best < 0 || bestInc < Math.max(minAmp, 0.2 * top)) return null;
-        return { midi: lo + best, cents: centsNear(frame, sampleRate, lo + best), t };
+        // plucks at the same moment (a bass note with a melody note, two thumbs): other keys that grew nearly as much as the strongest
+        // are heard too (at most two more, never next to one already taken: a neighbour only carries leakage)
+        const more = [], taken = [best];
+        const cand = [];
+        for (let i = 0; i < e.length; i++) {
+          if (i === best || inc[i] < Math.max(minAmp, 0.4 * bestInc)) continue;
+          if (inc[i] >= (i ? inc[i - 1] : 0) && inc[i] >= (i + 1 < e.length ? inc[i + 1] : 0)) cand.push(i);
+        }
+        cand.sort((a, b) => inc[b] - inc[a]).forEach(i => {
+          if (more.length < 2 && taken.every(k => Math.abs(k - i) > 1)) { taken.push(i); more.push({ midi: lo + i, cents: centsNear(frame, sampleRate, lo + i) }); }
+        });
+        return { midi: lo + best, cents: centsNear(frame, sampleRate, lo + best), t, more };
       }
       const bk = back(Math.min(settle - 1, 4));   // a window from before the pluck, ≈0.1 s back
       if (!bk || bk.n < decided) return null;     // compare only with windows after the last pluck
