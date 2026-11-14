@@ -158,10 +158,18 @@ const Account = (() => {
       lines.push('<div class="text-[12px] text-slate-200 break-all">' + esc(st.user && st.user.email) + '</div>');
       if (mem) {
         lines.push('<div class="text-[12px] text-emerald-300">⭐ ' + T('สมาชิก', 'Member') + ' · ' + (m.until == null ? T('ตลอดชีพ', 'lifetime') : T('ถึง ', 'until ') + fmtDate(m.until)) + '</div>');
+        if (m.cancelAtPeriodEnd) lines.push('<div class="text-[11px] text-amber-200">' + T('ยกเลิกต่ออายุแล้ว ใช้สิทธิ์ได้จนสิ้นรอบที่ชำระ', 'Renewal cancelled. You keep access until the end of the period you paid for.') + '</div>');
+        if (m.managed && cfg && cfg.billing) lines.push('<div>' + btn('portal', '💳 ' + T('จัดการการชำระเงิน / ยกเลิก', 'Manage billing / cancel'), 'px-3 py-1.5 rounded-lg bg-slate-700 text-slate-100') + '</div>');
       } else {
         lines.push('<div class="text-[12px] text-slate-300">' + (m.active ? T('ต้องเชื่อมต่ออินเทอร์เน็ตเพื่อยืนยันสมาชิกอีกครั้ง', 'Connect to the internet to confirm your membership again')
           : (m.plan || m.until ? T('สมาชิกหมดอายุแล้ว', 'Your membership has ended') : T('ยังไม่ได้เป็นสมาชิก', 'Not a member yet'))) + '</div>');
-        if (!m.active && waitlist) lines.push('<div>' + btn('waitlist', '⭐ ' + T('ลงชื่อรอรุ่นสมาชิก', 'Join the member waitlist'), 'px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-semibold') + '</div>');
+        if (!mem && cfg && cfg.billing) {
+          lines.push('<div class="grid grid-cols-2 gap-2">' +
+            '<button type="button" data-a="checkout" data-plan="monthly" class="rounded-xl bg-amber-500 text-slate-950 font-bold py-2 leading-tight"' + (busy ? ' disabled' : '') + '>' + T('สมัครรายเดือน', 'Monthly') + '<br><span class="text-[13px]">฿49 / ' + T('เดือน', 'month') + '</span></button>' +
+            '<button type="button" data-a="checkout" data-plan="yearly" class="rounded-xl bg-emerald-500 text-slate-950 font-bold py-2 leading-tight"' + (busy ? ' disabled' : '') + '>' + T('สมัครรายปี', 'Yearly') + '<br><span class="text-[13px]">฿539 / ' + T('ปี · ฟรี 1 เดือน', 'year · 1 month free') + '</span></button></div>');
+          lines.push('<div class="text-[11px] text-slate-400">' + (busy === 'pay' ? T('กำลังเปิดหน้าชำระเงิน…', 'Opening the payment page…') : T('ชำระผ่าน Stripe (บัตร) · ต่ออายุอัตโนมัติ ยกเลิกได้ทุกเมื่อ', 'Paid through Stripe (card) · renews automatically, cancel any time')) + '</div>');
+          if (m.managed) lines.push('<div>' + btn('portal', '💳 ' + T('จัดการการชำระเงิน', 'Manage billing')) + '</div>');
+        } else if (!m.active && waitlist) lines.push('<div>' + btn('waitlist', '⭐ ' + T('ลงชื่อรอรุ่นสมาชิก', 'Join the member waitlist'), 'px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-semibold') + '</div>');
       }
       lines.push('<div class="flex gap-2">' + btn('refresh', T('รีเฟรชสถานะ', 'Refresh')) + btn('logout', T('ออกจากระบบ', 'Sign out')) + '</div>');
       if (st.admin) lines.push(adminHtml());
@@ -185,6 +193,37 @@ const Account = (() => {
       '<div class="space-y-1">' + (rows || '<div class="text-[11px] text-slate-400">' + T('ยังไม่มีสมาชิก', 'No members yet') + '</div>') + '</div></div></details>';
   }
 
+  // Stripe pages: the server makes a Checkout / billing-portal session and we go there; membership itself comes back through the webhook
+  async function pay(path, body) {
+    if (busy) return;
+    busy = 'pay'; render();
+    try {
+      const r = await api(path, { method: 'POST', body });
+      if (r.status === 200 && r.data && r.data.url) { location.href = r.data.url; return; }
+      const msg = r.status === 409 ? T('คุณสมัครสมาชิกอยู่แล้ว ใช้ปุ่ม "จัดการการชำระเงิน" เพื่อเปลี่ยนหรือยกเลิก', 'You already have a subscription. Use "Manage billing" to change or cancel it.')
+        : r.status === 401 ? T('เข้าสู่ระบบก่อน', 'Please sign in first')
+        : T('เปิดหน้าชำระเงินไม่ได้ ลองใหม่อีกครั้ง', 'Could not open the payment page. Please try again.');
+      if (window.toast) toast(msg, 4000);
+      if (r.status === 409) refresh();
+    } catch (e) {
+      if (window.toast) toast(T('เปิดหน้าชำระเงินไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองใหม่', 'Could not open the payment page. Check your connection.'), 4000);
+    }
+    busy = ''; render();
+  }
+  // back from Stripe (?billing=success): the webhook may need a few seconds, so ask the server a few times
+  function afterCheckout() {
+    const q = new URLSearchParams(location.search), v = q.get('billing');
+    if (!v) return;
+    q.delete('billing');
+    history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : '') + location.hash);
+    if (v === 'success') {
+      if (window.toast) toast(T('ชำระเงินเรียบร้อย กำลังเปิดสิทธิ์สมาชิก…', 'Payment received. Turning on your membership…'), 4000);
+      let n = 0;
+      const tick = async () => { await refresh(); if (!isMember() && ++n < 10) setTimeout(tick, 2500); else if (isMember() && window.toast) toast(T('เป็นสมาชิกแล้ว ⭐ ขอบคุณที่สนับสนุน', 'You are a member now ⭐ Thank you!'), 4000); };
+      tick();
+    } else if (v === 'return') refresh();
+  }
+
   function wire() {
     const box = document.getElementById('acct-card');
     if (!box) return;
@@ -195,6 +234,8 @@ const Account = (() => {
       if (a === 'logout') signOut();
       else if (a === 'refresh') refresh().then(() => { if (window.toast) toast(T('อัปเดตแล้ว', 'Updated'), 1500); });
       else if (a === 'waitlist' && waitlist) waitlist();
+      else if (a === 'checkout') pay('/api/billing/checkout', { plan: b.dataset.plan });
+      else if (a === 'portal') pay('/api/billing/portal', {});
       else if (a === 'fill') { const f = document.getElementById('acct-email'); if (f) f.value = b.dataset.email; }
       else if (a === 'grant') grant(email(), b.dataset.d === 'life' ? { lifetime: true, plan: 'lifetime' } : { days: +b.dataset.d, plan: 'manual' });
       else if (a === 'revoke') { if (email() && confirm(T('ถอนสิทธิ์สมาชิกของ ', 'Remove membership of ') + email() + '?')) grant(email(), { revoke: true }); }
@@ -210,6 +251,7 @@ const Account = (() => {
     wire(); render();
     config().then(render);
     refresh();
+    afterCheckout();
     document.addEventListener('visibilitychange', () => { if (!document.hidden && st.token) refresh(); });
     window.addEventListener('online', () => { if (st.token) refresh(); });
   }

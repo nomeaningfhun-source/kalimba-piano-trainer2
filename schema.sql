@@ -26,3 +26,15 @@ CREATE TABLE IF NOT EXISTS sessions (
   expires_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS sessions_exp ON sessions(expires_at);
+
+-- Stripe subscription state per member email (written by the webhook; also created on demand by the code)
+CREATE TABLE IF NOT EXISTS billing (
+  email TEXT PRIMARY KEY,
+  customer TEXT,                   -- Stripe customer id (cus_…), used to open the billing portal
+  sub TEXT,                        -- Stripe subscription id (sub_…)
+  status TEXT,                     -- active / trialing / past_due / canceled / …
+  plan TEXT,                       -- monthly / yearly
+  cancel_at_period_end INTEGER NOT NULL DEFAULT 0,
+  period_end INTEGER,              -- epoch ms
+  updated_at INTEGER NOT NULL
+);

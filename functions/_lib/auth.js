@@ -1,4 +1,5 @@
 // Shared helpers for the membership API (Cloudflare Pages Functions, D1 binding `DB`).
+import { ensureBilling } from './stripe.js';
 export const SESSION_DAYS = 60;
 const DAY = 86400000;
 const GOOGLE_JWKS = 'https://www.googleapis.com/oauth2/v3/certs';
@@ -72,10 +73,20 @@ export async function getSession(env, request, now = Date.now()) {
 }
 
 export async function memberInfo(env, email, now = Date.now()) {
-  const r = await env.DB.prepare('SELECT until, plan FROM members WHERE email = ?').bind(String(email).toLowerCase()).first();
-  if (!r) return { active: false, until: null, plan: null };
+  email = String(email).toLowerCase();
+  const r = await env.DB.prepare('SELECT until, plan, source FROM members WHERE email = ?').bind(email).first();
+  // when Stripe is set up: does this person have a subscription they can manage, and is it set to end?
+  let managed = false, cancelAtPeriodEnd = false;
+  if (env.STRIPE_SECRET_KEY) {
+    try {
+      await ensureBilling(env);
+      const b = await env.DB.prepare('SELECT customer, status, cancel_at_period_end FROM billing WHERE email = ?').bind(email).first();
+      if (b && b.customer) { managed = true; cancelAtPeriodEnd = !!b.cancel_at_period_end && ['active', 'trialing', 'past_due'].includes(b.status); }
+    } catch (e) { /* billing info is optional */ }
+  }
+  if (!r) return { active: false, until: null, plan: null, managed };
   const active = r.until === null || r.until > now;
-  return { active, until: r.until, plan: r.plan };
+  return { active, until: r.until, plan: r.plan, source: r.source, managed, cancelAtPeriodEnd };
 }
 
 export function isAdmin(env, email) {
