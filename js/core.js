@@ -991,7 +991,12 @@ function refitSong(song, tuning) {
   parsed.measures.forEach(pm => pm.notes.forEach(n => notes.push({
     midi: n.midi, start: Math.round((pm.start + n.beat) * ppq), end: Math.round((pm.start + n.beat + n.dur) * ppq), lyric: n.lyric
   })));
-  return notesToSong(notes, { ppq, beats: song.beats, tempo: song.tempo, tuning, title: song.title });
+  // a written bass line (single numbers in the chord line) is kept; letter chords and written chords are not carried over
+  const bass = [];
+  parsed.measures.forEach(pm => (pm.chords || []).forEach(c => {
+    if (c.type === 'bass') bass.push({ midi: c.midi, start: Math.round((pm.start + c.beat) * ppq), end: Math.round((pm.start + c.beat + 1) * ppq) });
+  }));
+  return notesToSong(notes, { ppq, beats: song.beats, tempo: song.tempo, tuning, title: song.title, bass: bass.length ? bass : null });
 }
 
 // free song catalog: public-domain melodies written out by us (no third-party arrangement)
@@ -1026,12 +1031,16 @@ const FREE_SONGS = [
     mel: ['0 0 5, | 1 1_2 1_7, | 6, 6, 6, | 2 2_3 2_1', '7, 5, 5, | 3 3_4 3_2 | 1 6, 5,_5, | 6, 2 7, | 1 - -'] },
   { id: 'free-macdonald', title: 'Old MacDonald Had a Farm', tags: 'old macdonald farm ฟาร์ม', origin: 'เพลงพื้นบ้านอเมริกัน', tempo: 110, beats: 4,
     mel: ['1 1 1 5, | 6, 6, 5, - | 3 3 2 2 | 1 - - 5,', '1 1 1 5, | 6, 6, 5, - | 3 3 2 2 | 1 - - -'] },
+  // Pachelbel's Canon (c. 1680-1706, public domain): the three well-known phrases of the violin line over the eight-note ground bass, written in C
+  { id: 'free-canon', title: 'Canon in D (Pachelbel) · ธีมหลัก + เบส', tags: 'canon in d pachelbel แคนอน ปาเชลเบล เบส bass', origin: 'Johann Pachelbel (เสียชีวิต ค.ศ. 1706) · ย้ายเป็นคีย์ C ให้เล่นบนคาลิมบา', tempo: 72, beats: 4,
+    mel: ["3' - 2' - | 1' - 7 - | 6 - 5 - | 6 - 7 -", "1' - 7 - | 6 - 5 - | 4 - 3 - | 4 - 2 -", "1' 3' 5' 4' | 3' 1' 3' 2' | 1' 6 1' 5' | 4' 6' 5' 4'"],
+    chd: ['1 - 5 - | 6 - 3 - | 4 - 1 - | 4 - 5 -', '1 - 5 - | 6 - 3 - | 4 - 1 - | 4 - 5 -', '1 - 5 - | 6 - 3 - | 4 - 1 - | 4 - 5 -'] },
   { id: 'free-yankee', title: 'Yankee Doodle', tags: 'yankee doodle', origin: 'เพลงพื้นบ้านอเมริกัน ศตวรรษที่ 18', tempo: 110, beats: 4,
     mel: ['1 1 2 3 | 1 3 2 5, | 1 1 2 3 | 1 - 7, -', '1 1 2 3 | 4 3 2 1 | 7, 5, 6, 7, | 1 - 1 -'] }
 ];
 
 function freeSongText(f) {
-  return ['@title ' + f.title, '@tempo ' + f.tempo, '@beats ' + f.beats].concat(...f.mel.map(l => ['', l])).join('\n');
+  return ['@title ' + f.title, '@tempo ' + f.tempo, '@beats ' + f.beats].concat(...f.mel.map((l, i) => ['', l].concat(f.chd && f.chd[i] ? [f.chd[i]] : []))).join('\n');
 }
 function freeSong(f, tuning) {
   const r = refitSong(importText(freeSongText(f), {}).song, tuning);

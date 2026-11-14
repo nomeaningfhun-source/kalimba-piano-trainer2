@@ -191,4 +191,14 @@ t('same-named tracks: a broken-chord accompaniment is not picked over the stepwi
   assert.ok(vs[0].step > vs[1].step);
 });
 
+t('the free Canon keeps its written bass line when it is refitted to the tuning', () => {
+  const f = P.FREE_SONGS.find(x => x.id === 'free-canon');
+  const r = P.freeSong(f, 'B4');
+  assert.strictEqual(r.report.bass, 24);
+  assert.strictEqual(r.song.measures[0].mel, "3' - 2' -");
+  assert.strictEqual(r.song.measures[0].chd, '1 - 5 -');
+  assert.deepStrictEqual(P.parseSong(r.song, 'B4').issues.filter(i => i.level === 'error'), []);
+  P.FREE_SONGS.forEach(x => assert.deepStrictEqual(issues(P.freeSong(x, 'Bb4').song), [], x.id));
+});
+
 console.log(n + ' passed');

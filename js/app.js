@@ -723,8 +723,10 @@ const DB = {
 
 /* ---- songs for the player: saved songs, the free catalog and the built-in samples ---- */
 const BUILTIN = state.library.slice();
+// an imported song (MIDI / photo) is locked while the person is neither a member nor inside the free trial; it stays on the device
+const lockedSong = s => !!(s && s.imp) && !((window.Account && Account.hasAccess()) || ls.get('member', false));
 function syncPracticeLibrary() {
-  state.library = S.songs.map(s => ({ id: s.id, title: s.title, song: s }))
+  state.library = S.songs.filter(s => !lockedSong(s)).map(s => ({ id: s.id, title: s.title, song: s }))
     .concat(freeList().map(x => ({ id: x.song.id, title: x.meta.title, song: x.song })), BUILTIN);
 }
 function practiceWith(id) {
@@ -767,8 +769,9 @@ function renderLibrary() {
     const badge = sm.range ? '<span class="px-1.5 py-0.5 rounded bg-red-500/20 text-red-300 text-[10px] whitespace-nowrap">⚠ นอกช่วง ' + sm.range + '</span>'
       : sm.errors ? '<span class="px-1.5 py-0.5 rounded bg-red-500/20 text-red-300 text-[10px] whitespace-nowrap">⚠ ' + sm.errors + ' จุด</span>'
       : '<span class="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] whitespace-nowrap">✓ อยู่ในช่วง</span>';
-    return '<div class="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-2" data-id="' + esc(s.id) + '">' +
-      '<div class="flex items-start gap-2"><div class="flex-1 min-w-0"><div class="font-bold text-slate-100 text-sm truncate">' + esc(s.title || 'เพลงไม่มีชื่อ') + '</div>' +
+    const lk = lockedSong(s);
+    return '<div class="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-2' + (lk ? ' opacity-70' : '') + '" data-id="' + esc(s.id) + '">' +
+      '<div class="flex items-start gap-2"><div class="flex-1 min-w-0"><div class="font-bold text-slate-100 text-sm truncate">' + (lk ? '🔒 ' : '') + esc(s.title || 'เพลงไม่มีชื่อ') + '</div>' +
       '<div class="text-[10px] text-slate-400">' + s.measures.length + ' ห้อง • ' + s.tempo + ' BPM • ' + s.beats + ' จังหวะ • ' + esc(fmtDate(s.updated)) + '</div></div>' + badge + '</div>' +
       '<div class="flex flex-wrap gap-1.5 text-xs">' +
       '<button data-lib="prac" class="h-9 px-4 rounded-full bg-amber-500 text-slate-950 font-semibold">' + esc(t('lib.practice')) + '</button>' +
@@ -799,6 +802,7 @@ function setupLibrary() {
     const b = e.target.closest('[data-lib]');
     if (!b) return;
     const id = b.closest('[data-id]').dataset.id, act = b.dataset.lib;
+    if (act !== 'del' && lockedSong(S.songs.find(x => x.id === id))) { Midi.showLocked(); return; }
     if (act === 'prac') { practiceWith(id); return; }
     if (act === 'sheet') { const x = state.library.find(y => y.id === id); if (x) Sheet.open(x); return; }
     const s = S.songs.find(x => x.id === id);
@@ -923,6 +927,7 @@ function loadPage(file) {
 }
 
 async function importPhotos(list) {
+  if (!Midi.isMember()) { Midi.showLimit(); return; }
   const files = Array.from(list || []).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
   if (!files.length) return;
   const btn = byId('btn-photo'), bar = byId('photo-bar'), st = byId('photo-status');
@@ -975,7 +980,7 @@ function convertImport(extra) {
   });
   byId('imp-msg').innerHTML = r.msgs.map(m => '<div class="' + (m.level === 'error' ? 'text-red-300' : 'text-amber-300') + '">' + (m.level === 'error' ? '✖ ' : '⚠ ') + esc(m.msg) + '</div>').join('');
   if (!r.song.measures.length) return;
-  if (S.photoDraft) { r.song.source = 'photo'; r.song.photos = S.photoDraft.photos; }
+  if (S.photoDraft) { r.song.source = 'photo'; r.song.photos = S.photoDraft.photos; r.song.imp = 'photo'; }
   openReview(r.song, { from: 'import', isNew: true, notes: (extra || []).concat(r.msgs) });
 }
 
@@ -986,7 +991,7 @@ function setupImport() {
   byId('btn-preset-twinkle').addEventListener('click', () => fill(SAMPLE1, 100));
   byId('btn-preset-over').addEventListener('click', () => fill(SAMPLE2, 90));
   byId('btn-clear').addEventListener('click', () => { ta.value = ''; byId('imp-title').value = ''; byId('imp-msg').innerHTML = ''; S.photoDraft = null; });
-  byId('btn-photo').addEventListener('click', () => byId('file-photo').click());
+  byId('btn-photo').addEventListener('click', () => { if (!Midi.isMember()) { Midi.showLimit(); return; } byId('file-photo').click(); });
   byId('file-photo').addEventListener('change', e => { const f = Array.from(e.target.files || []); e.target.value = ''; importPhotos(f); });
   byId('btn-paste').addEventListener('click', async () => {
     try { ta.value = await navigator.clipboard.readText(); } catch (e) { toast('อ่านคลิปบอร์ดไม่ได้ — กดค้างที่ช่องแล้ววางเอง'); }
@@ -1751,6 +1756,7 @@ async function saveSong() {
     measures: s.measures.map(m => Object.assign({ mel: m.mel || '', lyr: m.lyr || '', chd: m.chd || '', br: !!m.br }, m.src ? { src: m.src } : {}, m.gap != null && (m.br || m.gap > 0) ? { gap: m.gap } : {}))
   };
   if (s.source) rec.source = s.source;
+  if (s.imp) rec.imp = s.imp;
   if (s.photos && s.photos.length) rec.photos = s.photos;
   try {
     await DB.put(rec);
@@ -2000,7 +2006,6 @@ function initGrowth() {
 }
 
 /* ---- free catalog, library search, MIDI / karaoke import ---- */
-const MIDI_FREE_LIMIT = 3;
 const MEMBER_CODE_SHA256 = ['eb74418202dbfcb44ceaec6018f8602d2865959293cdce1e657fb2190a283572'];   // SHA-256 of codes that unlock unlimited imports on a device
 const REQUEST_ENTRY = 'entry.593957736';   // "เพลงที่อยากเล่นบนคาลิมบา" on the waitlist form
 let freeCache = null;
@@ -2073,14 +2078,17 @@ function openGuide() {
 
 const Midi = {
   pending: null, bus: null,
-  used() { return ls.get('midi.count', 0); },
-  isMember() { return !!(window.Account && Account.isMember()) || !!ls.get('member', false); },   // signed-in member (server) or the older device member code
+  // importing songs (MIDI file or photo) is for members; everyone gets a 7-day free trial from the first time this device opens the app
+  isPaid() { return !!(window.Account && Account.isPaid()) || !!ls.get('member', false); },   // signed-in member (server) or the older device member code
+  isMember() { return this.isPaid() || !!(window.Account && Account.trialActive()); },       // may import: a member, or still inside the free trial
   refreshQuota() {
-    byId('midi-quota').textContent = this.isMember() ? 'สมาชิก · นำเข้าได้ไม่จำกัด'
-      : 'ฟรีเหลือ ' + Math.max(0, MIDI_FREE_LIMIT - this.used()) + '/' + MIDI_FREE_LIMIT + ' เพลง';
+    const trial = !this.isPaid() && this.isMember();
+    byId('midi-quota').textContent = this.isPaid() ? 'สมาชิก · นำเข้าได้ไม่จำกัด'
+      : trial ? 'ทดลองฟรี เหลือ ' + Account.trialDays() + ' วัน · นำเข้าได้ไม่จำกัด'
+      : '🔒 นำเข้าเพลงสำหรับสมาชิก';
   },
   pick() {
-    if (!this.isMember() && this.used() >= MIDI_FREE_LIMIT) { this.showLimit(); return; }
+    if (!this.isMember()) { this.showLimit(); return; }
     byId('modal-guide').classList.add('hidden');
     const f = byId('file-midi'); f.value = ''; f.click();
   },
@@ -2136,8 +2144,6 @@ const Midi = {
   use(voice) {
     const r = this.convert(voice), rp = r.report;
     this.close();
-    if (!this.isMember()) ls.set('midi.count', this.used() + 1);
-    this.refreshQuota();
     const notes = [{ level: 'info', msg: 'แปลงจากไฟล์ MIDI: ทำนอง "' + rp.voice + '" · ' + rp.notes + ' โน้ต · ความยาก ' + '★'.repeat(rp.level) }];
     if (rp.shift) { const d = ((rp.shift + 6) % 12 + 12) % 12 - 6;   // the key change (an octave move is not a change of key)
       notes.push({ level: 'info', msg: d ? 'ย้ายคีย์ ' + (d > 0 ? '+' : '') + d + ' ครึ่งเสียง ให้ลงคาลิมบา 17 คีย์' : 'ย้ายออกเทฟ ให้ลงคาลิมบา 17 คีย์' }); }
@@ -2148,14 +2154,21 @@ const Midi = {
     if (rp.snapped) notes.push({ level: 'warn', msg: rp.snapped + ' โน้ตไม่มีบนแป้น จึงปรับไปโน้ตที่ใกล้สุด เสียงอาจต่างจากต้นฉบับเล็กน้อย' });
     if (rp.lyrics) notes.push({ level: 'info', msg: 'ใส่เนื้อร้องจากไฟล์คาราโอเกะให้แล้ว' });
     notes.push({ level: 'info', msg: 'กด ▶ ฟัง แล้ว 💾 บันทึก เพื่อเก็บไว้ฝึกแบบออฟไลน์' });
+    r.song.imp = 'midi';   // an imported song: it is locked again when the free trial is over and the person is not a member
     openReview(r.song, { from: 'import', isNew: true, notes });
   },
   showLimit() {
-    this.open('⭐ นำเข้าฟรีครบ ' + MIDI_FREE_LIMIT + ' เพลงแล้ว',
-      '<p class="text-xs text-slate-300">สมาชิกนำเข้าไฟล์ MIDI ได้ไม่จำกัด ถ้าเป็นสมาชิกแล้วให้เข้าสู่ระบบด้วย Google ในตั้งค่า ถ้ายัง ลงชื่อรอรุ่นสมาชิกไว้ก่อน เราจะแจ้งเมื่อเปิด</p>' +
+    this.open('🔒 นำเข้าเพลงสำหรับสมาชิก',
+      '<p class="text-xs text-slate-300">ช่วงทดลองฟรี 7 วันของเครื่องนี้สิ้นสุดแล้ว ผู้ใช้ฟรีนำเข้าเพลงเพิ่มไม่ได้ สมาชิกนำเข้าไฟล์ MIDI และรูปโน้ตได้ไม่จำกัด ถ้าเป็นสมาชิกแล้วให้เข้าสู่ระบบด้วย Google ในตั้งค่า ถ้ายัง ลงชื่อรอรุ่นสมาชิกไว้ก่อน เราจะแจ้งเมื่อเปิด</p>' +
       '<button data-act="acct" class="w-full py-2.5 rounded-xl bg-amber-500 text-slate-950 font-bold">🔑 เข้าสู่ระบบสมาชิก</button>' +
       (WAITLIST_URL ? '<button data-act="waitlist" class="w-full py-2.5 rounded-xl bg-emerald-500 text-slate-950 font-bold">⭐ ลงชื่อรอรุ่นสมาชิก</button>' : '') +
       '<p class="text-[11px] text-slate-400">ระหว่างนี้ยังฝึกเพลงในคลังเพลงฟรี และวางโน้ตตัวเลขเองได้ไม่จำกัด</p>');
+  },
+  showLocked() {
+    this.open('🔒 เพลงนี้ล็อกอยู่',
+      '<p class="text-xs text-slate-300">เพลงนี้นำเข้าไว้ตอนทดลองฟรี 7 วัน ซึ่งสิ้นสุดแล้ว เพลงยังอยู่ในเครื่องคุณครบ จะเปิดเล่นได้อีกเมื่อเป็นสมาชิก (ลบหรือสำรองเพลงได้ตามปกติ)</p>' +
+      '<button data-act="acct" class="w-full py-2.5 rounded-xl bg-amber-500 text-slate-950 font-bold">🔑 เข้าสู่ระบบสมาชิก</button>' +
+      (WAITLIST_URL ? '<button data-act="waitlist" class="w-full py-2.5 rounded-xl bg-emerald-500 text-slate-950 font-bold">⭐ ลงชื่อรอรุ่นสมาชิก</button>' : ''));
   },
   showError(msg) {
     this.open('😕 แปลงไฟล์นี้ไม่ได้',
@@ -2198,7 +2211,7 @@ function initMidi() {
   });
   Midi.refreshQuota();
   const showUnlock = () => {
-    byId('unlock-status').textContent = Midi.isMember() ? '✅ เครื่องนี้ปลดล็อกแล้ว นำเข้าไฟล์ได้ไม่จำกัด' : 'ยังไม่ได้ปลดล็อก (ฟรี ' + MIDI_FREE_LIMIT + ' เพลง)';
+    byId('unlock-status').textContent = Midi.isPaid() ? '✅ เครื่องนี้ปลดล็อกแล้ว นำเข้าไฟล์ได้ไม่จำกัด' : 'ยังไม่ได้ปลดล็อก';
   };
   const tryUnlock = async (code, quiet) => {
     if (!(await isMemberCode(code))) { if (!quiet) toast('รหัสไม่ถูกต้อง'); return false; }
@@ -2210,7 +2223,7 @@ function initMidi() {
   };
   byId('btn-unlock').onclick = () => tryUnlock(byId('unlock-code').value.trim()).then(ok => { if (ok) byId('unlock-code').value = ''; });
   showUnlock();
-  window.addEventListener('kt-member', () => { Midi.refreshQuota(); showUnlock(); });   // signing in or out changes the quota text
+  window.addEventListener('kt-member', () => { Midi.refreshQuota(); showUnlock(); syncPracticeLibrary(); if (state.currentView === 'add') renderLibrary(); });   // signing in or out changes the quota text
   // a link with ?unlock=CODE unlocks the device it is opened on, then drops the code from the address bar
   const q = new URLSearchParams(location.search), code = q.get('unlock');
   if (code) {

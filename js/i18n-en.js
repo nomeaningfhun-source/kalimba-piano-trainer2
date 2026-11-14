@@ -632,10 +632,6 @@ const EN_PAIRS = [
 "\"Add to Home screen\""
 ],
 [
-"ยังไม่ได้ปลดล็อก (ฟรี",
-"Not unlocked (free"
-],
-[
 "🪄 เลื่อนทั้งเพลงเป็น",
 "🪄 Shift the whole song by"
 ],
@@ -902,10 +898,6 @@ const EN_PAIRS = [
 [
 "โน้ต · ความยาก",
 "notes · difficulty"
-],
-[
-"⭐ นำเข้าฟรีครบ",
-"⭐ All free imports used:"
 ],
 [
 "📖 ดูวิธีหาไฟล์",
@@ -1248,10 +1240,6 @@ const EN_PAIRS = [
 "Ready to practise"
 ],
 [
-"ฟรีเหลือ",
-"Free left:"
-],
-[
 "ย้ายคีย์",
 "Transposed"
 ],
@@ -1577,9 +1565,11 @@ const EN_PAIRS = [
 ,["ความไวไมค์ (คาลิมบาจริง)", "Microphone sensitivity (real kalimba)"], ["ถ้าแอปไม่ได้ยินคาลิมบา ให้ลองเพิ่มความไว ถ้าจับโน้ตเกินมา ให้ลดลง", "If the app does not hear your kalimba, raise the sensitivity. If it hears notes you did not play, lower it."], ["ปกติ", "Normal"], ["สูง", "High"]
 ,["⭐ สมาชิกได้อะไรบ้าง · ราคา (แตะเพื่ออ่าน)", "⭐ What members get · price (tap to read)"]
 ,["ใช้ฟรีตลอด", "Free forever"]
-,["เพลงในคลังฟรี · ฝึกโน้ตตก · บทเรียน · เครื่องตั้งเสียง · นำเข้าไฟล์ MIDI ฟรี 3 เพลง · หน้าตาคาลิมบาแบบพื้นฐาน", "Free song library · falling-note practice · lessons · tuner · 3 free MIDI imports · the basic kalimba look"]
+,["เพลงในคลังฟรี · ฝึกโน้ตตก · บทเรียน · เครื่องตั้งเสียง · วางโน้ตตัวเลขเอง · หน้าตาคาลิมบาแบบพื้นฐาน (นำเข้าไฟล์ MIDI หรือรูปโน้ตไม่ได้)", "Free song library · falling-note practice · lessons · tuner · typing your own number notes · the basic kalimba look (no MIDI or sheet-photo imports)"]
+,["🎁 ทดลองฟรี 7 วัน", "🎁 Free 7-day trial"]
+,["ทุกคนใช้ฟีเจอร์สมาชิกได้ฟรี 7 วัน นับจากเปิดแอปครั้งแรกบนเครื่องนี้ ครบแล้วทุกอย่างกลับเป็นแบบฟรี: นำเข้าเพลงไม่ได้ หน้าตาคาลิมบากลับเป็นแบบพื้นฐาน เพลงที่นำเข้าไว้จะถูกล็อก (ยังอยู่ในเครื่อง) จนกว่าจะเป็นสมาชิก", "Everyone can use the member features free for 7 days from the first time this device opens the app. After that everything goes back to free: no song imports, the basic kalimba look, and songs you imported are locked (still on your device) until you become a member."]
 ,["สมาชิก", "Member"]
-,["นำเข้าไฟล์ MIDI ได้ไม่จำกัด · หน้าตาและเสียงคาลิมบาพรีเมียมทุกแบบ · ใช้สิทธิ์ได้ทุกเครื่องที่เข้าสู่ระบบด้วย Google เดียวกัน", "Unlimited MIDI imports · every premium kalimba look and sound · works on every device signed in with the same Google account"]
+,["นำเข้าไฟล์ MIDI และรูปโน้ตได้ไม่จำกัด · หน้าตาและเสียงคาลิมบาพรีเมียมทุกแบบ · ใช้สิทธิ์ได้ทุกเครื่องที่เข้าสู่ระบบด้วย Google เดียวกัน", "Unlimited MIDI and sheet-photo imports · every premium kalimba look and sound · works on every device signed in with the same Google account"]
 ,["ราคา", "Price"]
 ,["฿49 ต่อเดือน หรือ ฿539 ต่อปี (จ่าย 11 เดือน ฟรี 1 เดือน) · ยกเลิกได้ทุกเมื่อ (เปิดให้สมัครเร็วๆ นี้)", "฿49 per month or ฿539 per year (pay 11 months, 1 month free) · cancel any time (sign-up opens soon)"]
 ,["วิธีเป็นสมาชิก", "How to become a member"]
@@ -1590,6 +1580,13 @@ const EN_PAIRS = [
 ,["ใส่เบสจากแทร็ก", "Added the bass from track"]
 ,["โน้ตเบส) · ในโหมดเล่นเลือก", "bass notes) · in the player choose"]
 ,["ฝึกส่วน → เบส", "Practise → Bass"]
+,["ทดลองฟรี เหลือ", "Free trial:"]
+,[" วัน · นำเข้าได้ไม่จำกัด", " days left · unlimited imports"]
+,["🔒 นำเข้าเพลงสำหรับสมาชิก", "🔒 Importing songs is for members"]
+,["ช่วงทดลองฟรี 7 วันของเครื่องนี้สิ้นสุดแล้ว ผู้ใช้ฟรีนำเข้าเพลงเพิ่มไม่ได้ สมาชิกนำเข้าไฟล์ MIDI และรูปโน้ตได้ไม่จำกัด ถ้าเป็นสมาชิกแล้วให้เข้าสู่ระบบด้วย Google ในตั้งค่า ถ้ายัง ลงชื่อรอรุ่นสมาชิกไว้ก่อน เราจะแจ้งเมื่อเปิด", "This device's 7-day free trial is over. Free users cannot import more songs; members can import MIDI files and sheet photos without limit. If you are already a member, sign in with Google in Settings. If not, join the member waitlist and we will tell you when it opens."]
+,["🔒 เพลงนี้ล็อกอยู่", "🔒 This song is locked"]
+,["เพลงนี้นำเข้าไว้ตอนทดลองฟรี 7 วัน ซึ่งสิ้นสุดแล้ว เพลงยังอยู่ในเครื่องคุณครบ จะเปิดเล่นได้อีกเมื่อเป็นสมาชิก (ลบหรือสำรองเพลงได้ตามปกติ)", "This song was imported during the 7-day free trial, which has ended. It is still on your device and opens again when you become a member (you can still delete or back it up)."]
+,["ยังไม่ได้ปลดล็อก", "Not unlocked yet"]
 ,["โน้ต · ช่วงเสียง", "notes · range"]
 ,["· เริ่มห้อง", "· starts at bar"]
 ,["· 🎹 คล้ายคอร์ดเกลี่ย", "· 🎹 looks like an accompaniment"]

@@ -81,7 +81,7 @@ const Skin = {
   tine: { L: [], R: [], C: '' },    // read live by tineColor() in app.js
   hand: { L: '', R: '', C: '' },    // read live by the falling-notes canvas
   sound: { decay: 1, partial: 1, ratio: 6.52, tone: 6500, body: null },   // read live by kalimbaVoice() in app.js
-  member() { if (window.Account && Account.isMember()) return true; try { return JSON.parse(localStorage.getItem('kt.member')) === true; } catch (e) { return false; } },   // signed-in member, or the older device member code
+  member() { if (window.Account && Account.hasAccess()) return true; try { return JSON.parse(localStorage.getItem('kt.member')) === true; } catch (e) { return false; } },   // signed-in member, the older device code, or the 7-day free trial (after it a premium choice falls back to the basic look)
   usable(o) { return !o.premium || this.member(); },
   pick(list, id) { return list.find(x => x.id === id) || list[0]; },
   lists() { return { mat: MATERIALS, shape: SHAPES, keys: KEYSETS, chain: CHAINS, art: ARTS }; },
@@ -238,7 +238,9 @@ const Skin = {
       '<span class="skin-pv skin-kk">' + [k.tine.L[k.tine.L.length - 1], k.tine.L[0], k.tine.C, k.tine.R[0], k.tine.R[k.tine.R.length - 1]].map(c => '<i style="background:' + c + '"></i>').join('') + '</span>')).join(''));
     grid('skin-chains', CHAINS.map(c => btn('chain', c, c.id === this.chain, '<span class="skin-pv skin-ch">' + (c.id === 'none' ? '—' : ('<b style="background:radial-gradient(circle at 35% 30%,' + c.bead[0] + ',' + c.bead[1] + ' 55%,' + c.bead[2] + ')"></b>').repeat(6)) + '</span>')).join(''));
     grid('skin-arts', ARTS.map(a => btn('art', a, a.id === this.art, '<span class="skin-pv skin-ar">' + (a.icon || '—') + '</span>')).join(''));
-    set('skin-note', member ? (th ? 'ปลดล็อกครบแล้ว' : 'Everything is unlocked')
+    const trial = window.Account && Account.trialActive() && !Account.isPaid();
+    set('skin-note', trial ? (th ? 'ช่วงทดลองฟรี เหลืออีก ' + Account.trialDays() + ' วัน แล้วหน้าตาจะกลับเป็นแบบพื้นฐาน' : 'Free trial: ' + Account.trialDays() + ' days left, then the look returns to the basic one')
+      : member ? (th ? 'ปลดล็อกครบแล้ว' : 'Everything is unlocked')
       : (th ? 'ตัวเลือกที่มี 🔒 สำหรับสมาชิก เข้าสู่ระบบสมาชิกด้านล่างเพื่อปลดล็อก' : 'Options with 🔒 are for members. Sign in below to unlock them.'));
   },
   wire() {

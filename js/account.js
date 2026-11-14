@@ -5,7 +5,7 @@
    - Everything the app unlocks (MIDI import, kalimba looks) asks Account.isMember(); the old device member code still works next to it.
    - The Google sign-in script is loaded only when the account card is opened, so the app starts and works offline without it. */
 const Account = (() => {
-  const KEY = 'kt.acct', GRACE = 7 * 86400000, DAY = 86400000;
+  const KEY = 'kt.acct', GRACE = 7 * 86400000, DAY = 86400000, TRIAL_KEY = 'kt.trial', TRIAL_DAYS = 7;
   const T = (th, en) => (typeof LANG !== 'undefined' && LANG === 'en' ? en : th);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   let st = read(), cfg = null, gis = null, wasMember = null, busy = '', adminList = null, adminMsg = '', waitlist = null;
@@ -19,6 +19,23 @@ const Account = (() => {
     if (m.until != null && m.until <= Date.now()) return false;
     return Date.now() - (st.checkedAt || 0) < GRACE;
   }
+  // Everyone gets TRIAL_DAYS of the member features from the first time this device opens the app (kept on the device, no sign-in needed).
+  // After that the free limits apply again: no song imports, the basic kalimba look. Imported songs stay on the device, locked.
+  function trialStart() {
+    try {
+      let t = Number(localStorage.getItem(TRIAL_KEY));
+      if (!t || t > Date.now() + DAY) { t = Date.now(); localStorage.setItem(TRIAL_KEY, String(t)); }   // first run (or a date from the future): start now
+      return t;
+    } catch (e) { return Date.now(); }   // storage blocked: treat as just started so a private window is not locked out
+  }
+  const trialMs = () => trialStart() + TRIAL_DAYS * DAY - Date.now();
+  const trialActive = () => trialMs() > 0;
+  const trialDays = () => Math.max(0, Math.ceil(trialMs() / DAY));
+  function deviceCode() { try { return JSON.parse(localStorage.getItem('kt.member')) === true; } catch (e) { return false; } }
+  // paid or granted membership (server), or the older device code, or the free trial: what the app unlocks asks this
+  const hasAccess = () => isMember() || deviceCode() || trialActive();
+  const isPaid = () => isMember() || deviceCode();
+  trialStart();
   function changed() {
     const now = isMember();
     if (wasMember !== null && now !== wasMember) window.dispatchEvent(new Event('kt-member'));
@@ -137,6 +154,7 @@ const Account = (() => {
       lines.push('<div id="acct-gbtn" class="min-h-[44px] flex items-center">' + (busy === 'login' ? T('กำลังเข้าสู่ระบบ…', 'Signing in…') : '') + '</div>');
     } else {
       const m = st.member || {}, mem = isMember();
+      if (!mem && trialActive()) lines.push('<div class="text-[12px] text-amber-200">🎁 ' + T('ทดลองใช้ฟรี เหลือ ' + trialDays() + ' วัน', 'Free trial: ' + trialDays() + ' days left') + '</div>');
       lines.push('<div class="text-[12px] text-slate-200 break-all">' + esc(st.user && st.user.email) + '</div>');
       if (mem) {
         lines.push('<div class="text-[12px] text-emerald-300">⭐ ' + T('สมาชิก', 'Member') + ' · ' + (m.until == null ? T('ตลอดชีพ', 'lifetime') : T('ถึง ', 'until ') + fmtDate(m.until)) + '</div>');
@@ -196,6 +214,6 @@ const Account = (() => {
     window.addEventListener('online', () => { if (st.token) refresh(); });
   }
 
-  return { init, isMember, refresh, render, signOut, get user() { return st.user || null; }, get state() { return st; } };
+  return { init, isMember, isPaid, hasAccess, trialActive, trialDays, refresh, render, signOut, get user() { return st.user || null; }, get state() { return st; } };
 })();
 window.Account = Account;
