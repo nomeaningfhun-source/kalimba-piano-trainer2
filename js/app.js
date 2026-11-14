@@ -3305,7 +3305,20 @@ function initLessons() {
     { id: 'l8', n: 10, kind: 'set', sets: SETS, title: T('คอร์ดดีด', 'Plucked chords'), sub: T('2-3 ก้านพร้อมกัน และกรีด ~', '2-3 tines together, and strums ~'),
       intro: T('คอร์ดดีดคือดีด 2-3 ก้านพร้อมกัน เลขที่มี ~ คือกรีด ไล่ดีดเร็วๆ ดีดครบทุกก้านถึงผ่านข้อ ตัวไหนก่อนก็ได้', 'A plucked chord is 2-3 tines at once. A number with ~ is a strum: play them quickly one after another. Play every tine to finish the question, in any order.') },
     { id: 'l9', n: 10, kind: 'beat', bpm: 80, title: T('จังหวะ', 'Keeping the beat'), sub: T('แตะตามเสียงคลิก', 'Tap along with the click'),
-      intro: T('ฟังเสียงคลิกแล้วแตะก้านไหนก็ได้ให้ตรงจังหวะ มีทั้งหมด 10 จังหวะ ตรงอย่างน้อย 8 จังหวะถึงผ่าน ถ้าเปิดไมค์จะไม่มีเสียงคลิก ให้ดูจุดกะพริบแทน', 'Listen to the click and tap any tine right on the beat. There are 10 beats; hit at least 8 to pass. With the microphone on there is no click, so watch the dots instead.') }
+      intro: T('ฟังเสียงคลิกแล้วแตะก้านไหนก็ได้ให้ตรงจังหวะ มีทั้งหมด 10 จังหวะ ตรงอย่างน้อย 8 จังหวะถึงผ่าน ถ้าเปิดไมค์จะไม่มีเสียงคลิก ให้ดูจุดกะพริบแทน', 'Listen to the click and tap any tine right on the beat. There are 10 beats; hit at least 8 to pass. With the microphone on there is no click, so watch the dots instead.') },
+    // bass: the low part under the tune. On a sheet a single red number is a bass note (a red 135 is a chord); on the kalimba the bass is
+    // played on the tines nearest the middle, usually with the left thumb, while the right thumb plays the tune above
+    { id: 'l10', n: 10, kind: 'seq', title: T('เบสสลับราก-ห้า', 'Bass: root and fifth'), sub: T('ซ้าย-ขวา สลับกัน', 'Alternating left and right'),
+      phrases: [['1', '5', '1', '5'], ['4', '1', '4', '1'], ['5', '2', '5', '2'], ['6', '3', '6', '3']],
+      lyrics: [T('ราก ห้า ราก ห้า', 'root fifth root fifth'), T('ราก ห้า ราก ห้า', 'root fifth root fifth'), T('ราก ห้า ราก ห้า', 'root fifth root fifth'), T('ราก ห้า ราก ห้า', 'root fifth root fifth')],
+      intro: T('เบสคือเสียงต่ำที่รองทำนอง ในแผ่นโน้ต เลขแดงตัวเดียวคือโน้ตเบส (ส่วนเลขแดงติดกันอย่าง 135 คือคอร์ด) เบสที่นิยมที่สุดคือสลับระหว่าง "ราก" ของคอร์ดกับตัวที่ห้านับขึ้นไป เช่น 1 กับ 5 ก้านที่กะพริบจะบอกตำแหน่ง ลองใช้นิ้วโป้งซ้ายดีดก้านฝั่งซ้าย โป้งขวาดีดฝั่งขวา ให้ลื่นและเสียงเท่ากันทุกตัว', 'The bass is the low sound under the tune. On a sheet a single red number is a bass note (red numbers joined like 135 are a chord). The most common bass alternates the chord\'s root with the note a fifth up, such as 1 and 5. The blinking tines show where. Try the left thumb on the left-side tines and the right thumb on the right, smooth and even.') },
+    { id: 'l11', n: 10, kind: 'seq', title: T('เบสเพลง Canon', 'Bass: the Canon line'), sub: T('เบสวนซ้ำ 8 ตัว', 'The 8-note loop'),
+      phrases: [['1', '5', '6', '3'], ['4', '1', '4', '5']],
+      lyrics: [T('ครึ่งแรกของเบส Canon', 'first half of the Canon bass'), T('ครึ่งหลังของเบส Canon', 'second half of the Canon bass')],
+      intro: T('เบสของเพลง Canon (Pachelbel) วนซ้ำตลอดเพลง 8 ตัว คือ 1 5 6 3 4 1 4 5 (คอร์ด C G Am Em F C F G) ฝึกสองท่อนนี้ให้คล่อง แล้วไปซ้อมแยกมือในโหมดเล่นของเพลงที่นำเข้า', 'The bass of Pachelbel\'s Canon loops all song through eight notes: 1 5 6 3 4 1 4 5 (chords C G Am Em F C F G). Practise the two halves until they flow, then do the hands-apart practice in the player on an imported song.') },
+    { id: 'l12', n: 10, kind: 'set', sets: [['1', "3'"], ['4', "1'"], ['5', "2'"], ['6', "1'"], ['3', "5'"], ['4', "6'"]], setSub: T('เบสกับทำนอง: ดีดสองก้านพร้อมกัน ตัวไหนก่อนก็ได้', 'Bass and tune: play both tines together, any order'),
+      title: T('เบสกับทำนองพร้อมกัน', 'Bass and tune together'), sub: T('สองมือ ดีดพร้อมกัน', 'Both hands at once'),
+      intro: T('ขั้นสุดท้าย เบสต่ำกับทำนองสูงดีดพร้อมกัน โป้งซ้ายดีดเบส โป้งขวาดีดทำนอง ดีดทั้งสองก้านถึงผ่านข้อ', 'The last step: a low bass note and a higher tune note together. Left thumb on the bass, right thumb on the tune. Play both tines to finish the question.') }
   ];
   const SEMI = ['1', '2', '3', '4', '5', '6', '7'];
   const rnd = a => a[Math.floor(Math.random() * a.length)];
@@ -3316,12 +3329,12 @@ function initLessons() {
     while (out.length < n) { let batch = shuffle(items); if (out.length && items.length > 1 && JSON.stringify(batch[0]) === JSON.stringify(out[out.length - 1])) batch.push(batch.shift()); out = out.concat(batch); }
     return out.slice(0, n);
   };
-  const mk = (type, toks, lyr) => ({ type, toks, pitches: toks.map(P), lyr: lyr || '' });
+  const mk = (type, toks, lyr, sub) => ({ type, toks, pitches: toks.map(P), lyr: lyr || '', sub: sub || null });
   function questions(lv) {
     if (lv.kind === 'beat') return [];
     if (lv.kind === 'find') return spread(lv.pool, lv.n).map(tk => mk('find', [tk]));
     if (lv.kind === 'seq') return spread(lv.phrases.map((p, i) => i), lv.n).map(i => mk('seq', lv.phrases[i], lv.lyrics[i]));
-    if (lv.kind === 'set') return spread(SETS.map((s, i) => i), lv.n).map(i => mk('set', SETS[i]));
+    if (lv.kind === 'set') { const ss = lv.sets || SETS; return spread(ss.map((s, i) => i), lv.n).map(i => mk('set', ss[i], '', lv.setSub)); }
     const qs = [];   // mix: 5 grey runs of 3 numbers and 5 red chords, shuffled
     for (let i = 0; i < 5; i++) { const s = rnd(SEMI.slice(0, 5)), toks = [s, rnd(SEMI.slice(0, 5)), rnd(SEMI.slice(0, 5))].map((x, k) => (k === 2 && Math.random() < 0.4 ? x + "'" : x)); qs.push(mk('seq', toks)); }
     spread(SETS.map((s, i) => i), 5).forEach(i => qs.push(mk('set', SETS[i])));
@@ -3375,7 +3388,7 @@ function initLessons() {
     byId('le-start').textContent = L(T('เริ่มฝึก', 'Start'));
     byId('le-intro').classList.remove('hidden'); byId('le-q').classList.add('hidden'); byId('le-res').classList.add('hidden');
     byId('le-prog').style.width = '0%';
-    const pool = lv.kind === 'find' ? lv.pool : lv.kind === 'set' ? [].concat(...SETS) : lv.kind === 'seq' ? [].concat(...lv.phrases) : [];
+    const pool = lv.kind === 'find' ? lv.pool : lv.kind === 'set' ? [].concat(...(lv.sets || SETS)) : lv.kind === 'seq' ? [].concat(...lv.phrases) : [];
     glow(Array.from(new Set(pool.map(P))));   // the tines this level is about blink while it is explained
     window.scrollTo(0, 0);
   }
@@ -3446,8 +3459,8 @@ function initLessons() {
         const done = set ? Lesson.got.has(q.pitches[k]) : k < Lesson.pos, cur = !set && k === Lesson.pos;
         return '<span class="' + (done ? 'text-emerald-500' : cur ? 'underline decoration-2 underline-offset-8' : '') + '">' + esc(pitchToNumber(q.pitches[k])) + '</span>';
       }).join(' ');
-      sub.textContent = set ? L(T('คอร์ด: ดีดทุกก้านพร้อมกัน หรือไล่เร็วๆ ตัวไหนก่อนก็ได้', 'Chord: play every tine together, or quickly one after another, in any order'))
-        : (q.lyr ? q.lyr + ' · ' : '') + L(T('ดีดตามลำดับ', 'Play in order'));
+      sub.textContent = set ? L(q.sub || T('คอร์ด: ดีดทุกก้านพร้อมกัน หรือไล่เร็วๆ ตัวไหนก่อนก็ได้', 'Chord: play every tine together, or quickly one after another, in any order'))
+        : (q.lyr ? L(q.lyr) + ' · ' : '') + L(T('ดีดตามลำดับ', 'Play in order'));
     }
   }
   function next(first) {
