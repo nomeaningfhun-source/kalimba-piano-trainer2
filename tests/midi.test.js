@@ -180,4 +180,15 @@ t('a melody that lies low is not mistaken for a bass', () => {
   assert.strictEqual(r.song.measures[0].mel, '1 1 5 5');
 });
 
+t('same-named tracks: a broken-chord accompaniment is not picked over the stepwise tune', () => {
+  // both tracks share one name and are monophonic; the busy one leaps (a C-major arpeggio), the quiet one walks by step
+  const arp = [], tune = [];
+  for (let i = 0; i < 48; i++) arp.push([[60, 64, 67, 72, 67, 64][i % 6] + 12, i * 2, 2]);
+  for (let i = 0; i < 24; i++) tune.push([[72, 74, 76, 74, 72, 71][i % 6] , i * 4, 4]);
+  const f = smf([track([[0, meta(0x03, ascii('Strings'))], ...noteEvents(arp, 0)]), track([[0, meta(0x03, ascii('Strings'))], ...noteEvents(tune, 1)])]);
+  const vs = P.midiVoices(P.parseMidi(f), []);
+  assert.strictEqual(vs[0].notes[0].midi, 72, 'the stepwise track ranks first');
+  assert.ok(vs[0].step > vs[1].step);
+});
+
 console.log(n + ' passed');

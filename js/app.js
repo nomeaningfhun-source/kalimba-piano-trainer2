@@ -2112,7 +2112,7 @@ const Midi = {
       '<button data-act="use" data-mv="' + vs[0].id + '" class="w-full py-2.5 rounded-xl bg-emerald-500 text-slate-950 font-bold">✅ ใช้ทำนองที่แนะนำ</button>' +
       vs.map((v, i) => '<div class="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-xl p-2 text-xs">' +
         '<div class="flex-1 min-w-0"><div class="font-semibold text-slate-100 truncate">' + (i === 0 ? '⭐ ' : '') + esc(v.name) + '</div>' +
-        '<div class="text-[10px] text-slate-400">' + v.count + ' โน้ต' + (v.lyricHit > 0.3 ? ' · 🎤 ตรงกับเนื้อร้อง' : '') + '</div></div>' +
+        '<div class="text-[10px] text-slate-400">' + v.count + ' โน้ต · ช่วงเสียง ' + pitchToWestern(midiToPitch(v.lo)) + '–' + pitchToWestern(midiToPitch(v.hi)) + ' · เริ่มห้อง ' + (Math.floor(v.first / 4) + 1) + (v.step < 0.45 ? ' · 🎹 คล้ายคอร์ดเกลี่ย' : '') + (v.lyricHit > 0.3 ? ' · 🎤 ตรงกับเนื้อร้อง' : '') + '</div></div>' +
         '<button data-act="play" data-mv="' + v.id + '" class="px-2.5 py-1.5 rounded-lg bg-slate-700 text-slate-100">▶ ฟัง</button>' +
         '<button data-act="use" data-mv="' + v.id + '" class="px-2.5 py-1.5 rounded-lg bg-slate-700 text-emerald-300">ใช้</button></div>').join(''));
   },

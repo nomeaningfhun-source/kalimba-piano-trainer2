@@ -798,12 +798,19 @@ function midiVoices(mid, lyrics) {
         while (j < notes.length && notes[j].start < lt - tol) j++;
         if (j < notes.length && Math.abs(notes[j].start - lt) <= tol) hit++;
       });
+      // a tune moves mostly by step; an accompaniment (broken chords, arpeggios) jumps by thirds, fourths and octaves
+      // (judged over the whole part and over its worst quarter: a stretch of arpeggios marks an accompaniment even if the rest is stepwise)
+      const stepIn = (a, b) => { let k = 0; for (let i = a + 1; i < b; i++) if (Math.abs(notes[i].midi - notes[i - 1].midi) <= 2) k++; return k / Math.max(1, b - a - 1); };
+      const step = stepIn(0, notes.length);
+      let worst = step;
+      if (notes.length >= 24) for (let q = 0; q < 4; q++) worst = Math.min(worst, stepIn(Math.floor(q * notes.length / 4), Math.floor((q + 1) * notes.length / 4)));
       const mean = sum / notes.length, mono = 1 - poly / notes.length;
       const named = MELODY_NAME_RE.test(t.name);
-      const score = (named ? 3 : 0) + (lyrTicks.length ? 4 * hit / lyrTicks.length : 0) + 2 * mono +
+      const score = (named ? 3 : 0) + (lyrTicks.length ? 4 * hit / lyrTicks.length : 0) + 2 * mono + 3 * step + 2 * worst +
         (mean >= 55 && mean <= 84 ? 1 : 0) + Math.min(notes.length, 300) / 300;
       voices.push({ id: t.index * 16 + ch, track: t.index, ch, name: t.name || ('แทร็ก ' + (t.index + 1)) + ' · ช่อง ' + (ch + 1),
-        notes, count: notes.length, mean, mono, lyricHit: lyrTicks.length ? hit / lyrTicks.length : 0, score });
+        notes, count: notes.length, mean, mono, step, lo: Math.min(...notes.map(n => n.midi)), hi: Math.max(...notes.map(n => n.midi)),
+        first: notes[0].start / mid.ppq, lyricHit: lyrTicks.length ? hit / lyrTicks.length : 0, score });
     });
   });
   voices.sort((a, b) => b.score - a.score);

@@ -1590,6 +1590,9 @@ const EN_PAIRS = [
 ,["ใส่เบสจากแทร็ก", "Added the bass from track"]
 ,["โน้ตเบส) · ในโหมดเล่นเลือก", "bass notes) · in the player choose"]
 ,["ฝึกส่วน → เบส", "Practise → Bass"]
+,["โน้ต · ช่วงเสียง", "notes · range"]
+,["· เริ่มห้อง", "· starts at bar"]
+,["· 🎹 คล้ายคอร์ดเกลี่ย", "· 🎹 looks like an accompaniment"]
 ,["เพื่อซ้อมแยกมือ", "to practise the hands apart"]
 ,["ย้ายออกเทฟ ให้ลงคาลิมบา 17 คีย์", "Moved by whole octaves to fit the 17 keys"]
 ];
