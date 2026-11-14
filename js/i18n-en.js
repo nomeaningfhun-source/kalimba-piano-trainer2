@@ -1581,7 +1581,7 @@ const EN_PAIRS = [
 ,["สมาชิก", "Member"]
 ,["นำเข้าไฟล์ MIDI ได้ไม่จำกัด · หน้าตาและเสียงคาลิมบาพรีเมียมทุกแบบ · ใช้สิทธิ์ได้ทุกเครื่องที่เข้าสู่ระบบด้วย Google เดียวกัน", "Unlimited MIDI imports · every premium kalimba look and sound · works on every device signed in with the same Google account"]
 ,["ราคา", "Price"]
-,["฿99 ต่อเดือน หรือ ฿790 ต่อปี · ทดลองฟรี 7 วัน · ยกเลิกได้ทุกเมื่อ (เปิดให้สมัครเร็วๆ นี้)", "฿99 per month or ฿790 per year · 7-day free trial · cancel any time (sign-up opens soon)"]
+,["฿49 ต่อเดือน หรือ ฿539 ต่อปี (จ่าย 11 เดือน ฟรี 1 เดือน) · ยกเลิกได้ทุกเมื่อ (เปิดให้สมัครเร็วๆ นี้)", "฿49 per month or ฿539 per year (pay 11 months, 1 month free) · cancel any time (sign-up opens soon)"]
 ,["วิธีเป็นสมาชิก", "How to become a member"]
 ,["เข้าสู่ระบบด้วย Google ที่กล่อง \"Member account\" ด้านบน แล้วสมัครจากกล่องนั้น", "Sign in with Google in the \"Member account\" box above, then subscribe from that box"]
 ,["มีรหัสสมาชิกจากเรา? ใส่รหัสเพื่อปลดล็อกเครื่องนี้", "Got a member code from us? Enter it to unlock this device"]
