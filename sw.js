@@ -1,5 +1,5 @@
 // Offline cache: app shell is precached, CDN assets (Tailwind, Google Fonts) are cached on first online visit.
-const CACHE = 'kalimba-trainer-v3-76';
+const CACHE = 'kalimba-trainer-v3-77';
 // the photo reader (Tesseract, ~8 MB) is fetched on first use and kept across app updates
 const OCR_CACHE = 'kalimba-ocr-v1';
 const SHELL = [
@@ -9,6 +9,7 @@ const SHELL = [
   './js/account.js',
   './terms.html',
   './privacy.html',
+  './js/wood.js',
   './js/skins.js',
   './js/i18n.js',
   './js/i18n-en.js',

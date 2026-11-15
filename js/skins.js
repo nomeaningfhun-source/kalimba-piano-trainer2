@@ -88,6 +88,8 @@ const Skin = {
 
   // a fine wood grain drawn by the browser: streaks along the board plus a slow wave, in the species' dark and light tones
   woodURI(m) {
+    const real = window.Wood && Wood.url(m.id, 384, 768);   // drawn grain: rings, fibres, pores (js/wood.js)
+    if (real) return real;
     const g = m.grain;
     const svg = "<svg xmlns='http://www.w3.org/2000/svg' width='360' height='720'>" +
       "<filter id='w' x='0' y='0' width='100%' height='100%'>" +
