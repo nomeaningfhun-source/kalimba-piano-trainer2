@@ -19,7 +19,7 @@
   /* neumorphism: a light edge top-left, a warm shadow bottom-right */
   --nm-hi: rgba(255, 255, 255, .95); --nm-lo: rgba(150, 120, 90, .26); --nm-edge: rgba(255, 255, 255, .7);
   --tex-op: .07; --tex-blend: multiply;
-  --serif: ui-serif, 'New York', 'Iowan Old Style', Georgia, 'Times New Roman', 'IBM Plex Sans Thai', serif; }
+  --serif: 'IBM Plex Sans Thai', -apple-system, system-ui, sans-serif; }   /* one typeface for the whole app: IBM Plex Sans Thai (the name is kept so older rules still resolve) */
 :root[data-theme="dark"] {
   --slate-50:247 243 236; --slate-100:238 233 225; --slate-200:220 214 204; --slate-300:200 193 182; --slate-400:170 162 151; --slate-500:150 142 131;
   --slate-600:78 78 76; --slate-700:62 62 60; --slate-800:50 51 51; --slate-900:41 42 42; --slate-950:31 32 32;
@@ -41,8 +41,8 @@ body { background-image: radial-gradient(70% 40% at 10% 0%, rgba(255, 255, 255, 
 body::after { content: ''; position: fixed; inset: 0; z-index: 60; pointer-events: none; opacity: var(--tex-op); mix-blend-mode: var(--tex-blend);
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .35  0 0 0 0 .28  0 0 0 0 .2  0 0 0 .9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
 
-/* serif for headings and the big numbers, Thai keeps the app font */
-h1, h2, h3, .font-heading, .text-4xl, .text-5xl, .text-6xl, .text-7xl, #le-q-label, #lesson-prompt-note, #le-res-stars { font-family: var(--serif); letter-spacing: .005em; }
+/* headings and the big numbers use the same typeface as everything else (no serif; no letter-spacing on Thai) */
+h1, h2, h3, .font-heading, .text-4xl, .text-5xl, .text-6xl, .text-7xl, #le-q-label, #lesson-prompt-note, #le-res-stars { font-family: var(--serif); }
 h1 { font-weight: 600; }
 
 /* 02 · neumorphism + 03 · drop shadow: cards and quiet buttons are soft raised pieces of the page */
@@ -116,7 +116,7 @@ header.app-header { background: color-mix(in srgb, rgb(var(--slate-950)) 72%, tr
 .sound-hole { background: var(--hole-1); border-color: var(--kb-b); }
 #section-play { background: var(--shade), var(--wood-tex), radial-gradient(120% 70% at 50% 78%, var(--kb-1) 0%, var(--kb-3) 60%, var(--kb-b) 100%); background-size: auto, 360px 720px, auto; }
 .play-hole { background: radial-gradient(circle at 50% 40%, var(--hole-1) 0%, var(--hole-2) 72%); color: var(--hole-ink); }
-.deco-art { position: absolute; left: 0; right: 0; bottom: 0; height: 46%; pointer-events: none; }
+.deco-art { position: absolute; inset: 0; pointer-events: none; }
 .deco-art svg { display: block; width: 100%; height: 100%; }
 /* clear acrylic: see-through plastic over the table, a bright edge, a sheen and four screws */
 html[data-glassy="1"] .kalimba-body { background: var(--kb-2); border: 1.5px solid rgba(255, 255, 255, .85); box-shadow: 0 10px 26px rgba(40, 60, 90, .28), inset 0 0 0 1px rgba(255, 255, 255, .5), inset 0 14px 30px rgba(255, 255, 255, .25); }
@@ -147,7 +147,7 @@ html[data-shape="curve"] .kalimba-body { border-radius: 0 0 48% 48% / 0 0 40% 40
 .skin-shape.sh-curve i { border-radius: 4px 4px 50% 50% / 4px 4px 60% 60%; }
 .skin-ch b { display: block; width: 7px; height: 7px; border-radius: 50%; }
 .skin-ch, .skin-ar { background: rgb(var(--slate-800)); border-color: var(--c-line); color: rgb(var(--slate-400)); }
-.skin-ar { font-size: 22px; }
+.skin-ar { padding: 0; overflow: hidden; } .skin-ar svg { display: block; width: 100%; height: 100%; }
 .skin-nm { font-size: 11px; font-weight: 600; line-height: 1.2; text-align: center; }
 
 /* Play page: whatever the phone's top bar samples is the kalimba itself, so the keys seem to start at the top edge */

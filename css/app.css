@@ -121,7 +121,7 @@ body.on-play header.app-header { display: none; }
 .sh-n.wrong .sh-d { color: var(--c-bad); }
 .sh-n.miss .sh-d { color: var(--c-bad); text-decoration: line-through; }
 .ms-t { flex: 1 1 0; max-width: 24px; min-height: 30px; border-radius: 0 0 8px 8px; background: var(--c-line); display: flex; align-items: flex-end; justify-content: center; padding-bottom: 3px; transition: background .12s; }
-.ms-t span { font: 600 9px ui-monospace, Menlo, monospace; color: var(--c-ink2); }
+.ms-t span { font: 600 9px 'IBM Plex Sans Thai', -apple-system, system-ui, sans-serif; color: var(--c-ink2); }
 .ms-t.target { background: #C47A5C; } .ms-t.target span { color: #FFF9F0; }
 .ms-t.hint { background: #E6B49D; }
 .ms-t.hit { background: var(--c-ok); }
@@ -138,6 +138,8 @@ body.on-play header.app-header { display: none; }
 /* M2: inputs must stay editable under the body's user-select:none (iOS), 16px avoids focus-zoom */
 input, textarea, select { -webkit-user-select: text; user-select: text; font-size: 16px; }
 select#select-label-mode, select#select-note-system { font-size: 13px; }
+/* one typeface everywhere: inline code, keys and sample text use the app font too. The only exception is the box where song notes are typed in three aligned lines (.mono): there the columns must line up, which needs equal-width characters. */
+html body code, html body kbd, html body samp, html body pre { font-family: inherit; }   /* beats the framework's own monospace rule */
 .mono { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; }
 header.app-header { padding-top: max(0.5rem, env(safe-area-inset-top)); }
 .strip-key { background: var(--c-line); transition: background .08s, transform .08s; }

@@ -24,7 +24,7 @@ Sign in with an admin email → Settings → "Member account" → Admin: grant m
 - The session token is random, only its SHA-256 is stored; sessions last 60 days.
 - Offline: the app keeps membership benefits for 7 days after the last successful check.
 - Local features (MIDI import limit, kalimba looks) are enforced in the browser, so a determined user can patch the JS; the server decides who is a member, not what the device does with it.
-- The old device member code still works next to this; remove `MEMBER_CODE_SHA256` before public launch if wanted.
+- Membership belongs to the Google account (Gmail) only: the old device member code (`MEMBER_CODE_SHA256`, `?unlock=`) was removed on 15 Nov.
 - Stripe writes the same `members` rows (`source = 'stripe'`); see below. An admin grant that runs longer is never shortened by Stripe.
 
 ## Stripe (฿49 per month / ฿539 per year, card, auto-renew)

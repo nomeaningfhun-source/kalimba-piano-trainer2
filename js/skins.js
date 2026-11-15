@@ -4,8 +4,7 @@
      keys      - the colour set of the tines (and of the falling notes)
      chain     - a necklace draped across the tines (pearl, gold crystal, silver pearls)
      art       - a pattern on the body (sakura, engraved deer, moon and stars)
-   Free: golden teak + flat board + the Aurora and Mocha key colours. The rest is for members (the member code that unlocks MIDI import unlocks
-   it too, until a real membership system exists). A choice the device is not unlocked for falls back to the free one. Kept in kt.mat,
+   Free: golden teak + flat board + the Aurora and Mocha key colours. The rest is for members (the signed-in Google account's membership). A choice the device is not unlocked for falls back to the free one. Kept in kt.mat,
    kt.shape, kt.keys, kt.chain, kt.art. */
 
 const MATERIALS = [
@@ -70,21 +69,34 @@ const CHAINS = [
   { id: 'silver', premium: true, name: { th: 'เงินไข่มุกคู่', en: 'Silver duo' }, r: 0.0088, bead: ['#FFFFFF', '#DDE2E8', '#9AA3AE'], string: '#8E97A3', strands: 2 }
 ];
 const ARTS = [
-  { id: 'none', premium: false, name: { th: 'ไม่มี', en: 'None' }, icon: '' },
-  { id: 'sakura', premium: true, name: { th: 'ซากุระ', en: 'Sakura' }, icon: '🌸' },
-  { id: 'deer', premium: true, name: { th: 'กวางแกะสลัก', en: 'Engraved deer' }, icon: '🦌' },
-  { id: 'stars', premium: true, name: { th: 'ดาวและจันทร์', en: 'Moon and stars' }, icon: '🌙' }
+  { id: 'none', premium: false, name: { th: 'ไม่มี', en: 'None' } },
+  { id: 'lotus', premium: true, name: { th: 'ลายบัวรอบรู', en: 'Lotus halo' } },
+  { id: 'sunburst', premium: true, name: { th: 'รัศมีตะวัน', en: 'Sunburst' } },
+  { id: 'waves', premium: true, name: { th: 'คลื่นเซไก', en: 'Waves' } },
+  { id: 'sakura', premium: true, name: { th: 'กิ่งซากุระ', en: 'Cherry branch' } },
+  { id: 'stars', premium: true, name: { th: 'กลุ่มดาวและจันทร์', en: 'Constellation' } }
+];
+
+// stickers on the tines (drawn by js/skin-art.js): a die-cut decal on every tine, a different one each time round the pack
+const STICKERS = [
+  { id: 'none', premium: false, name: { th: 'ไม่มี', en: 'None' } },
+  { id: 'flowers', premium: true, name: { th: 'ดอกไม้', en: 'Flowers' } },
+  { id: 'stars', premium: true, name: { th: 'ดาว', en: 'Stars' } },
+  { id: 'hearts', premium: true, name: { th: 'หัวใจ', en: 'Hearts' } },
+  { id: 'notes', premium: true, name: { th: 'โน้ตดนตรี', en: 'Music notes' } },
+  { id: 'animals', premium: true, name: { th: 'สัตว์น่ารัก', en: 'Cute animals' } },
+  { id: 'mix', premium: true, name: { th: 'รวมมิตร', en: 'Mix' } }
 ];
 
 const Skin = {
-  mat: 'teak', shape: 'board', keys: 'aurora', chain: 'none', art: 'none',
+  mat: 'teak', shape: 'board', keys: 'aurora', chain: 'none', art: 'none', sticker: 'none',
   tine: { L: [], R: [], C: '' },    // read live by tineColor() in app.js
   hand: { L: '', R: '', C: '' },    // read live by the falling-notes canvas
   sound: { decay: 1, partial: 1, ratio: 6.52, tone: 6500, body: null },   // read live by kalimbaVoice() in app.js
-  member() { if (window.Account && Account.hasAccess()) return true; try { return JSON.parse(localStorage.getItem('kt.member')) === true; } catch (e) { return false; } },   // signed-in member, the older device code, or the 7-day free trial (after it a premium choice falls back to the basic look)
+  member() { return !!(window.Account && Account.isPaid()); },   // a member of the signed-in Google account;   // signed-in member, the older device code, or the 7-day free trial (after it a premium choice falls back to the basic look)
   usable(o) { return !o.premium || this.member(); },
   pick(list, id) { return list.find(x => x.id === id) || list[0]; },
-  lists() { return { mat: MATERIALS, shape: SHAPES, keys: KEYSETS, chain: CHAINS, art: ARTS }; },
+  lists() { return { mat: MATERIALS, shape: SHAPES, keys: KEYSETS, chain: CHAINS, art: ARTS, sticker: STICKERS }; },
 
   // a fine wood grain drawn by the browser: streaks along the board plus a slow wave, in the species' dark and light tones
   woodURI(m) {
@@ -106,7 +118,7 @@ const Skin = {
   apply() {
     const m = this.pick(MATERIALS, this.mat), sh = this.pick(SHAPES, this.shape), k = this.pick(KEYSETS, this.keys);
     this.mat = m.id; this.shape = sh.id; this.keys = k.id;
-    this.chain = this.pick(CHAINS, this.chain).id; this.art = this.pick(ARTS, this.art).id;
+    this.chain = this.pick(CHAINS, this.chain).id; this.art = this.pick(ARTS, this.art).id; this.sticker = this.pick(STICKERS, this.sticker).id;
     const r = document.documentElement, st = r.style;
     st.setProperty('--kb-1', m.body[0]); st.setProperty('--kb-2', m.body[1]); st.setProperty('--kb-3', m.body[2]); st.setProperty('--kb-b', m.border);
     st.setProperty('--kb-ink', m.ink); st.setProperty('--hole-1', m.hole[0]); st.setProperty('--hole-2', m.hole[1]); st.setProperty('--hole-ink', m.holeInk);
@@ -126,7 +138,7 @@ const Skin = {
       return this.usable(this.pick(list, id)) ? id : fallback;
     };
     this.mat = get('kt.mat', MATERIALS, 'teak'); this.shape = get('kt.shape', SHAPES, 'board'); this.keys = get('kt.keys', KEYSETS, 'aurora');
-    this.chain = get('kt.chain', CHAINS, 'none'); this.art = get('kt.art', ARTS, 'none');
+    this.chain = get('kt.chain', CHAINS, 'none'); this.art = get('kt.art', ARTS, 'none'); this.sticker = get('kt.sticker', STICKERS, 'none');
     this.apply();
   },
   choose(kind, id) {
@@ -146,6 +158,7 @@ const Skin = {
     if (!w) return;
     const old = w.querySelector('.deco-chain');
     if (old) old.remove();
+    this.stickers(w);
     const c = this.pick(CHAINS, this.chain);
     if (c.id === 'none') return;
     const W = w.clientWidth, H = w.clientHeight;
@@ -171,47 +184,60 @@ const Skin = {
     w.appendChild(svg);
   },
 
-  /* ---- the pattern on the body: drawn behind the sound hole on the Play page ---- */
-  artSVG(id) {
-    const flower = (x, y, s, rot, f) => {
-      let p = '';
-      for (let i = 0; i < 5; i++) p += '<ellipse cx="0" cy="-9" rx="6" ry="9.5" fill="' + f + '" transform="rotate(' + i * 72 + ')"/>';
-      return '<g transform="translate(' + x + ' ' + y + ') rotate(' + rot + ') scale(' + s + ')">' + p + '<circle r="2.6" fill="#F7C95C"/></g>';
-    };
-    const petal = (x, y, s, rot, f) => '<ellipse cx="' + x + '" cy="' + y + '" rx="' + 5 * s + '" ry="' + 8 * s + '" fill="' + f + '" transform="rotate(' + rot + ' ' + x + ' ' + y + ')"/>';
-    const wrap = body => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 360" preserveAspectRatio="xMidYMax slice" width="100%" height="100%">' + body + '</svg>';
-    if (id === 'sakura') {
-      const F = ['#F9B9CB', '#FDE3EB', '#F58FAE', '#FFD1DE'];
-      let b = '';
-      [[48, 300, 1.5, 10, 0], [352, 312, 1.7, 40, 2], [130, 336, 1.1, 70, 1], [286, 338, 1.2, 20, 3], [200, 262, 0.9, 0, 1], [40, 215, 1.0, 30, 3], [362, 220, 1.0, 55, 0], [100, 250, 0.8, 15, 2], [310, 262, 0.8, 5, 1]]
-        .forEach(f => { b += flower(f[0], f[1], f[2], f[3], F[f[4]]); });
-      [[80, 190, 1, 30], [150, 215, 0.8, 70], [255, 205, 1, 10], [330, 175, 0.9, 50], [20, 262, 0.8, 80], [385, 270, 0.9, 25], [180, 345, 0.8, 60], [240, 322, 0.7, 5]]
-        .forEach((p, i) => { b += petal(p[0], p[1], p[2], p[3], F[i % 4]); });
-      return wrap('<g opacity=".92">' + b + '</g>');
-    }
-    if (id === 'deer') {
-      const stroke = (d, c, dx) => '<g transform="translate(' + dx + ' ' + dx + ')" fill="none" stroke="' + c + '" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">' + d + '</g>';
-      const antlers = 'M186 238 C170 210 160 184 132 160 M158 190 C140 186 126 172 112 150 M146 170 C150 150 144 132 130 116 M132 160 C118 152 104 150 92 138 M214 238 C230 210 240 184 268 160 M242 190 C260 186 274 172 288 150 M254 170 C250 150 256 132 270 116 M268 160 C282 152 296 150 308 138';
-      const face = 'M200 322 L172 250 Q200 232 228 250 Z M170 246 Q150 244 140 258 Q156 266 172 262 M230 246 Q250 244 260 258 Q244 266 228 262';
-      const leaves = 'M20 345 C60 300 90 292 130 296 M46 318 q-10 -16 -2 -28 M70 304 q-6 -16 6 -26 M380 345 C340 300 310 292 270 296 M354 318 q10 -16 2 -28 M330 304 q6 -16 -6 -26';
-      const eyes = '<circle cx="186" cy="268" r="2.6" fill="CC"/><circle cx="214" cy="268" r="2.6" fill="CC"/><circle cx="200" cy="312" r="3.4" fill="CC"/>';
-      return wrap('<g opacity=".62">' + stroke(antlers + face + leaves, 'rgba(255,255,255,.35)', 1.6) + stroke(antlers + face + leaves, 'rgba(18,8,3,.62)', 0) + eyes.replace(/CC/g, 'rgba(18,8,3,.7)') + '</g>');
-    }
-    if (id === 'stars') {
-      const star = (x, y, s, o) => { let p = ''; for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? 4 * s : 10 * s; p += (x + rr * Math.cos(a)).toFixed(1) + ',' + (y + rr * Math.sin(a)).toFixed(1) + ' '; } return '<polygon points="' + p + '" fill="#FFE9A8" opacity="' + o + '"/>'; };
-      let b = '<path d="M318 205 a44 44 0 1 0 30 78 a35 35 0 1 1 -30 -78z" fill="#FFE9A8" opacity=".92"/>';
-      [[60, 240, 1.2, .9], [120, 300, .8, .8], [190, 222, 1, .7], [250, 330, .9, .9], [40, 330, .7, .7], [300, 320, 1.1, .85], [150, 205, .6, .7], [370, 340, .8, .8]].forEach(s => { b += star(s[0], s[1], s[2], s[3]); });
-      return wrap('<g>' + b + '</g>');
-    }
-    return '';
+  /* ---- stickers: a decal near the bottom of every tine (above its number), staggered up and down so neighbours do not overlap ---- */
+  stickers(w) {
+    const old = w.querySelector('.deco-stickers');
+    if (old) old.remove();
+    if (this.sticker === 'none' || !window.SkinArt) return;
+    const wr = w.getBoundingClientRect(), W = Math.round(wr.width), H = Math.round(wr.height);
+    if (!W || !H) return;
+    let g = '', k = 0;
+    w.querySelectorAll('.kalimba-tine').forEach(t => {
+      const r = t.getBoundingClientRect();
+      if (!r.width) return;
+      const size = Math.max(15, Math.min(27, r.width * 1.25)), x = r.left + r.width / 2 - wr.left;
+      // above the number label and its octave dots (about the bottom 80px of the tine), the odd ones a little higher
+      const y = r.bottom - wr.top - 80 - size * 0.55 - (k % 2 ? size * 1.15 : 0);
+      if (y - size / 2 > r.top - wr.top + 4) g += SkinArt.sticker(this.sticker, k, x, y, size);
+      k++;
+    });
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'deco-stickers'); svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H); svg.setAttribute('aria-hidden', 'true');
+    svg.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:3';
+    svg.innerHTML = SkinArt.STICKER_DEFS + g;
+    w.appendChild(svg);
   },
+  // a small preview in Settings: a few stickers of the pack on pretend tines
+  stickerThumb(p, keys) {
+    if (p.id === 'none') return '—';
+    const L = keys.tine.L[0], R = keys.tine.R[0];
+    let s = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 40" width="100%" height="100%">' + SkinArt.STICKER_DEFS;
+    for (let i = 0; i < 5; i++) s += '<rect x="' + (14 + i * 22) + '" y="0" width="14" height="40" rx="5" fill="' + (i < 2 ? L : i === 2 ? keys.tine.C : R) + '"/>';
+    for (let i = 0; i < 5; i++) s += SkinArt.sticker(p.id, i, 21 + i * 22, 14 + (i % 2 ? 10 : 0), 17);
+    return s + '</svg>';
+  },
+
+  /* ---- the pattern on the body: engraved around the sound hole on the Play page (js/skin-art.js draws it in pixels) ---- */
+  inkOf(m) { const r = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(m.ink || ''); return r ? [+r[1], +r[2], +r[3]] : [255, 240, 220]; },
   art_() {
     const sec = document.getElementById('section-play');
     if (!sec) return;
     let el = sec.querySelector('.deco-art');
-    if (this.art === 'none') { if (el) el.remove(); return; }
+    if (this.art === 'none' || !window.SkinArt) { if (el) el.remove(); return; }
+    const hole = document.getElementById('play-hole');
+    const sr = sec.getBoundingClientRect(), hr = hole ? hole.getBoundingClientRect() : null;
+    if (!hr || !hr.width || !sr.width) return;   // the Play page is not showing: it is drawn when it appears (see wire)
     if (!el) { el = document.createElement('div'); el.className = 'deco-art'; el.setAttribute('aria-hidden', 'true'); sec.insertBefore(el, sec.firstChild); }
-    el.innerHTML = this.artSVG(this.art);
+    const W = Math.round(sr.width), H = Math.round(sr.height), o = { W, H, cx: hr.left + hr.width / 2 - sr.left, cy: hr.top + hr.height / 2 - sr.top, R: hr.width / 2, ink: this.inkOf(this.pick(MATERIALS, this.mat)) };
+    el.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '">' + SkinArt.draw(this.art, o) + '</svg>';
+  },
+  // the small preview in Settings: the same drawing on the chosen material, with a pretend sound hole
+  artThumb(a, m, bg) {
+    if (a.id === 'none') return '—';
+    const W = 120, H = 62, ink = this.inkOf(m);
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid slice" width="100%" height="100%">' +
+      '<rect width="' + W + '" height="' + H + '" fill="' + m.body[1] + '"/>' +
+      '<circle cx="60" cy="25" r="9.5" fill="' + m.hole[1] + '"/>' + SkinArt.draw(a.id, { W, H, cx: 60, cy: 25, R: 9.5, ink }) + '</svg>';
   },
 
   /* ---- the pickers in Settings ---- */
@@ -224,6 +250,7 @@ const Skin = {
     set('skin-keys-h', th ? 'สีก้าน' : 'Key colours');
     set('skin-chain-h', th ? 'สร้อย' : 'Necklace');
     set('skin-art-h', th ? 'ลายบนตัวเครื่อง' : 'Pattern on the body');
+    set('skin-sticker-h', th ? 'สติ๊กเกอร์บนก้าน' : 'Stickers on the tines');
     const btn = (kind, o, on, inner) => {
       const lock = o.premium && !member;
       return '<button type="button" data-kind="' + kind + '" data-id="' + o.id + '" aria-pressed="' + on + '" class="skin-btn' + (on ? ' on' : '') + (lock ? ' locked' : '') + '">' + inner +
@@ -239,7 +266,9 @@ const Skin = {
     grid('skin-keys', KEYSETS.map(k => btn('keys', k, k.id === this.keys,
       '<span class="skin-pv skin-kk">' + [k.tine.L[k.tine.L.length - 1], k.tine.L[0], k.tine.C, k.tine.R[0], k.tine.R[k.tine.R.length - 1]].map(c => '<i style="background:' + c + '"></i>').join('') + '</span>')).join(''));
     grid('skin-chains', CHAINS.map(c => btn('chain', c, c.id === this.chain, '<span class="skin-pv skin-ch">' + (c.id === 'none' ? '—' : ('<b style="background:radial-gradient(circle at 35% 30%,' + c.bead[0] + ',' + c.bead[1] + ' 55%,' + c.bead[2] + ')"></b>').repeat(6)) + '</span>')).join(''));
-    grid('skin-arts', ARTS.map(a => btn('art', a, a.id === this.art, '<span class="skin-pv skin-ar">' + (a.icon || '—') + '</span>')).join(''));
+    grid('skin-stickers', STICKERS.map(p => btn('sticker', p, p.id === this.sticker, '<span class="skin-pv skin-ar" style="background:rgb(var(--slate-800))">' + (window.SkinArt ? this.stickerThumb(p, this.pick(KEYSETS, this.keys)) : '—') + '</span>')).join(''));
+    const cur = this.pick(MATERIALS, this.mat);
+    grid('skin-arts', ARTS.map(a => btn('art', a, a.id === this.art, '<span class="skin-pv skin-ar">' + (window.SkinArt ? this.artThumb(a, cur) : '—') + '</span>')).join(''));
     set('skin-note', member ? (th ? 'ปลดล็อกครบแล้ว' : 'Everything is unlocked')
       : (th ? 'ตัวเลือกที่มี 🔒 สำหรับสมาชิก เข้าสู่ระบบสมาชิกด้านล่างเพื่อปลดล็อก' : 'Options with 🔒 are for members. Sign in below to unlock them.'));
   },
@@ -257,6 +286,8 @@ const Skin = {
     window.addEventListener('kt-member', () => this.render());
     const w = document.getElementById('kalimba-tines-wrapper');
     if (w && window.ResizeObserver) new ResizeObserver(() => { cancelAnimationFrame(this.raf); this.raf = requestAnimationFrame(() => this.decorate()); }).observe(w);
+    const sec = document.getElementById('section-play');
+    if (sec && window.ResizeObserver) new ResizeObserver(() => { cancelAnimationFrame(this.raf2); this.raf2 = requestAnimationFrame(() => this.art_()); }).observe(sec);
     this.art_();
     this.render();
   }

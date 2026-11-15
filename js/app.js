@@ -731,7 +731,7 @@ const DB = {
 /* ---- songs for the player: saved songs, the free catalog and the built-in samples ---- */
 const BUILTIN = state.library.slice();
 // an imported song (MIDI / photo) is locked while the person is not a member (it stays on the device)
-const lockedSong = s => !!(s && s.imp) && !((window.Account && Account.hasAccess()) || ls.get('member', false));
+const lockedSong = s => !!(s && s.imp) && !(window.Account && Account.isPaid());
 function syncPracticeLibrary() {
   state.library = S.songs.filter(s => !lockedSong(s)).map(s => ({ id: s.id, title: s.title, song: s }))
     .concat(freeList().map(x => ({ id: x.song.id, title: x.meta.title, song: x.song })), BUILTIN);
@@ -2013,7 +2013,6 @@ function initGrowth() {
 }
 
 /* ---- free catalog, library search, MIDI / karaoke import ---- */
-const MEMBER_CODE_SHA256 = ['eb74418202dbfcb44ceaec6018f8602d2865959293cdce1e657fb2190a283572'];   // SHA-256 of codes that unlock unlimited imports on a device
 const REQUEST_ENTRY = 'entry.593957736';   // "เพลงที่อยากเล่นบนคาลิมบา" on the waitlist form
 let freeCache = null;
 function freeList() {
@@ -2086,7 +2085,7 @@ function openGuide() {
 const Midi = {
   pending: null, bus: null,
   // importing songs (MIDI file or photo) is for members; the 7-day free trial comes with the first subscription (card first)
-  isPaid() { return !!(window.Account && Account.isPaid()) || !!ls.get('member', false); },   // signed-in member (server, trial included) or the older device member code
+  isPaid() { return !!(window.Account && Account.isPaid()); },   // a member of the signed-in Google account (server): paid, trial, or granted by us
   isMember() { return this.isPaid(); },
   refreshQuota() {
     byId('midi-quota').textContent = this.isPaid() ? 'สมาชิก · นำเข้าได้ไม่จำกัด' : '🔒 นำเข้าเพลงสำหรับสมาชิก';
@@ -2213,33 +2212,8 @@ function initMidi() {
     Sheet.open({ id: x.song.id, title: x.meta.title, song: x.song });
   });
   Midi.refreshQuota();
-  const showUnlock = () => {
-    byId('unlock-status').textContent = Midi.isPaid() ? '✅ เครื่องนี้ปลดล็อกแล้ว นำเข้าไฟล์ได้ไม่จำกัด' : 'ยังไม่ได้ปลดล็อก';
-  };
-  const tryUnlock = async (code, quiet) => {
-    if (!(await isMemberCode(code))) { if (!quiet) toast('รหัสไม่ถูกต้อง'); return false; }
-    ls.set('member', true);
-    window.dispatchEvent(new Event('kt-member'));   // the kalimba looks unlock too
-    Midi.refreshQuota(); showUnlock();
-    toast('ปลดล็อกแล้ว ✓ นำเข้าไฟล์ MIDI ได้ไม่จำกัด', 3000);
-    return true;
-  };
-  byId('btn-unlock').onclick = () => tryUnlock(byId('unlock-code').value.trim()).then(ok => { if (ok) byId('unlock-code').value = ''; });
-  showUnlock();
-  window.addEventListener('kt-member', () => { Midi.refreshQuota(); showUnlock(); syncPracticeLibrary(); if (state.currentView === 'add') renderLibrary(); });   // signing in or out changes the quota text
-  // a link with ?unlock=CODE unlocks the device it is opened on, then drops the code from the address bar
-  const q = new URLSearchParams(location.search), code = q.get('unlock');
-  if (code) {
-    q.delete('unlock');
-    history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : '') + location.hash);
-    tryUnlock(code.trim());
-  }
-}
-async function isMemberCode(code) {
-  if (!code || !(window.crypto && crypto.subtle)) return false;
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(code));
-  const hex = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
-  return MEMBER_CODE_SHA256.includes(hex);
+  // membership is the Google account (see js/account.js): signing in or out changes what is unlocked
+  window.addEventListener('kt-member', () => { Midi.refreshQuota(); syncPracticeLibrary(); if (state.currentView === 'add') renderLibrary(); });
 }
 
 /* ---- listen to a real kalimba through the microphone ---- */
@@ -2380,7 +2354,7 @@ const Tuner = {
     byId('tu-tines').innerHTML = profileKeys().map(k =>
       '<button class="flex flex-col items-center gap-1 flex-1 min-w-0" data-tu="' + k.pitch + '" aria-label="' + k.pitch + '">' +
       '<span class="tu-tine" style="width:min(100%,24px);height:' + Math.round(k.lengthPct * 0.55 + 16) + 'px"></span>' +
-      '<span class="text-[10px] text-slate-400 font-mono leading-none">' + pitchToNumber(k.pitch) + '</span></button>').join('');
+      '<span class="text-[10px] text-slate-400 leading-none">' + pitchToNumber(k.pitch) + '</span></button>').join('');
     this.paint();
     this.level(this.lastLv || null);
   },

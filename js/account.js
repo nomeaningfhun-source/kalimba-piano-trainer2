@@ -2,7 +2,7 @@
    - The session lives in localStorage kt.acct { token, user, member:{active,until,plan}, admin, checkedAt }.
    - isMember() is true while the last server answer said active and was fetched less than GRACE ago, so a member who is offline
      (the app is a PWA) keeps the benefits for a week; an expired or revoked membership is dropped as soon as a refresh gets through.
-   - Everything the app unlocks (MIDI import, kalimba looks) asks Account.isMember(); the old device member code still works next to it.
+   - Everything the app unlocks (MIDI import, kalimba looks) asks Account.isPaid(): membership belongs to the Google account (Gmail), there is no code.
    - The Google sign-in script is loaded only when the account card is opened, so the app starts and works offline without it. */
 const Account = (() => {
   const KEY = 'kt.acct', GRACE = 7 * 86400000, DAY = 86400000;
@@ -20,9 +20,8 @@ const Account = (() => {
     return Date.now() - (st.checkedAt || 0) < GRACE;
   }
   // The 7-day free trial now comes with the first subscription (card first, see functions/api/billing/checkout.js), not from the device.
-  function deviceCode() { try { return JSON.parse(localStorage.getItem('kt.member')) === true; } catch (e) { return false; } }
-  // paid or granted membership (server), or the older device code: what the app unlocks asks this
-  const isPaid = () => isMember() || deviceCode();
+  // what the app unlocks asks this: a membership of the signed-in Google account (paid, in its free trial, or granted by us)
+  const isPaid = () => isMember();
   const hasAccess = isPaid;
   function changed() {
     const now = isMember();
