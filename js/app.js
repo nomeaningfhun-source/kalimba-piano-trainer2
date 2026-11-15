@@ -467,6 +467,13 @@ $('btn-open-settings').onclick = () => {
   $('modal-settings').classList.remove('hidden');
 };
 $('btn-close-settings').onclick = () => $('modal-settings').classList.add('hidden');
+// the membership window: opened from the bar under the header, from Settings, and from the "members only" messages
+function openMember() { $('modal-settings').classList.add('hidden'); $('modal-member').classList.remove('hidden'); $('modal-member').scrollTop = 0; }
+$('member-bar').onclick = openMember;
+$('member-fab').onclick = openMember;
+$('btn-open-member2').onclick = openMember;
+$('btn-close-member').onclick = () => $('modal-member').classList.add('hidden');
+$('modal-member').addEventListener('click', e => { if (e.target === $('modal-member')) $('modal-member').classList.add('hidden'); });
 $('btn-save-settings').onclick = () => {
   const lang = document.querySelector('input[name="app-lang"]:checked');
   if (lang && lang.value !== LANG) setLang(lang.value);
@@ -723,7 +730,7 @@ const DB = {
 
 /* ---- songs for the player: saved songs, the free catalog and the built-in samples ---- */
 const BUILTIN = state.library.slice();
-// an imported song (MIDI / photo) is locked while the person is neither a member nor inside the free trial; it stays on the device
+// an imported song (MIDI / photo) is locked while the person is not a member (it stays on the device)
 const lockedSong = s => !!(s && s.imp) && !((window.Account && Account.hasAccess()) || ls.get('member', false));
 function syncPracticeLibrary() {
   state.library = S.songs.filter(s => !lockedSong(s)).map(s => ({ id: s.id, title: s.title, song: s }))
@@ -2078,14 +2085,11 @@ function openGuide() {
 
 const Midi = {
   pending: null, bus: null,
-  // importing songs (MIDI file or photo) is for members; everyone gets a 7-day free trial from the first time this device opens the app
-  isPaid() { return !!(window.Account && Account.isPaid()) || !!ls.get('member', false); },   // signed-in member (server) or the older device member code
-  isMember() { return this.isPaid() || !!(window.Account && Account.trialActive()); },       // may import: a member, or still inside the free trial
+  // importing songs (MIDI file or photo) is for members; the 7-day free trial comes with the first subscription (card first)
+  isPaid() { return !!(window.Account && Account.isPaid()) || !!ls.get('member', false); },   // signed-in member (server, trial included) or the older device member code
+  isMember() { return this.isPaid(); },
   refreshQuota() {
-    const trial = !this.isPaid() && this.isMember();
-    byId('midi-quota').textContent = this.isPaid() ? 'สมาชิก · นำเข้าได้ไม่จำกัด'
-      : trial ? 'ทดลองฟรี เหลือ ' + Account.trialDays() + ' วัน · นำเข้าได้ไม่จำกัด'
-      : '🔒 นำเข้าเพลงสำหรับสมาชิก';
+    byId('midi-quota').textContent = this.isPaid() ? 'สมาชิก · นำเข้าได้ไม่จำกัด' : '🔒 นำเข้าเพลงสำหรับสมาชิก';
   },
   pick() {
     if (!this.isMember()) { this.showLimit(); return; }
@@ -2154,19 +2158,18 @@ const Midi = {
     if (rp.snapped) notes.push({ level: 'warn', msg: rp.snapped + ' โน้ตไม่มีบนแป้น จึงปรับไปโน้ตที่ใกล้สุด เสียงอาจต่างจากต้นฉบับเล็กน้อย' });
     if (rp.lyrics) notes.push({ level: 'info', msg: 'ใส่เนื้อร้องจากไฟล์คาราโอเกะให้แล้ว' });
     notes.push({ level: 'info', msg: 'กด ▶ ฟัง แล้ว 💾 บันทึก เพื่อเก็บไว้ฝึกแบบออฟไลน์' });
-    r.song.imp = 'midi';   // an imported song: it is locked again when the free trial is over and the person is not a member
+    r.song.imp = 'midi';   // an imported song: it is locked while the person is not a member
     openReview(r.song, { from: 'import', isNew: true, notes });
   },
   showLimit() {
     this.open('🔒 นำเข้าเพลงสำหรับสมาชิก',
-      '<p class="text-xs text-slate-300">ช่วงทดลองฟรี 7 วันของเครื่องนี้สิ้นสุดแล้ว ผู้ใช้ฟรีนำเข้าเพลงเพิ่มไม่ได้ สมาชิกนำเข้าไฟล์ MIDI และรูปโน้ตได้ไม่จำกัด ถ้าเป็นสมาชิกแล้วให้เข้าสู่ระบบด้วย Google ในตั้งค่า ถ้ายัง ลงชื่อรอรุ่นสมาชิกไว้ก่อน เราจะแจ้งเมื่อเปิด</p>' +
-      '<button data-act="acct" class="w-full py-2.5 rounded-xl bg-amber-500 text-slate-950 font-bold">🔑 เข้าสู่ระบบสมาชิก</button>' +
-      (WAITLIST_URL ? '<button data-act="waitlist" class="w-full py-2.5 rounded-xl bg-emerald-500 text-slate-950 font-bold">⭐ ลงชื่อรอรุ่นสมาชิก</button>' : '') +
+      '<p class="text-xs text-slate-300">ผู้ใช้ฟรีนำเข้าเพลงไม่ได้ สมาชิกนำเข้าไฟล์ MIDI และรูปโน้ตได้ไม่จำกัด สมัครครั้งแรกทดลองฟรี 7 วัน (ผูกบัตรก่อน ยกเลิกได้ทุกเมื่อก่อนครบ 7 วันโดยไม่เสียเงิน) ถ้าเป็นสมาชิกแล้วให้เข้าสู่ระบบด้วย Google</p>' +
+      '<button data-act="acct" class="w-full py-2.5 rounded-xl bg-amber-500 text-slate-950 font-bold">⭐ ทดลองฟรี 7 วัน / สมัครสมาชิก</button>' +
       '<p class="text-[11px] text-slate-400">ระหว่างนี้ยังฝึกเพลงในคลังเพลงฟรี และวางโน้ตตัวเลขเองได้ไม่จำกัด</p>');
   },
   showLocked() {
     this.open('🔒 เพลงนี้ล็อกอยู่',
-      '<p class="text-xs text-slate-300">เพลงนี้นำเข้าไว้ตอนทดลองฟรี 7 วัน ซึ่งสิ้นสุดแล้ว เพลงยังอยู่ในเครื่องคุณครบ จะเปิดเล่นได้อีกเมื่อเป็นสมาชิก (ลบหรือสำรองเพลงได้ตามปกติ)</p>' +
+      '<p class="text-xs text-slate-300">เพลงนี้นำเข้าไว้ตอนเป็นสมาชิก เพลงยังอยู่ในเครื่องคุณครบ จะเปิดเล่นได้อีกเมื่อกลับมาเป็นสมาชิก (ลบหรือสำรองเพลงได้ตามปกติ)</p>' +
       '<button data-act="acct" class="w-full py-2.5 rounded-xl bg-amber-500 text-slate-950 font-bold">🔑 เข้าสู่ระบบสมาชิก</button>' +
       (WAITLIST_URL ? '<button data-act="waitlist" class="w-full py-2.5 rounded-xl bg-emerald-500 text-slate-950 font-bold">⭐ ลงชื่อรอรุ่นสมาชิก</button>' : ''));
   },
@@ -2200,7 +2203,7 @@ function initMidi() {
     else if (act === 'play') Midi.preview(v);
     else if (act === 'waitlist') window.open(WAITLIST_URL, '_blank', 'noopener');
     else if (act === 'guide') openGuide();
-    else if (act === 'acct') { Midi.close(); byId('btn-open-settings').click(); setTimeout(() => byId('acct-card').scrollIntoView({ block: 'center' }), 150); }
+    else if (act === 'acct') { Midi.close(); openMember(); }
   });
   byId('lib-free').addEventListener('click', e => {
     const b = e.target.closest('[data-lib="fplay"]');

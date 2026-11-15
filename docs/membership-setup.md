@@ -30,6 +30,7 @@ Sign in with an admin email → Settings → "Member account" → Admin: grant m
 ## Stripe (฿49 per month / ฿539 per year, card, auto-renew)
 Code: `functions/_lib/stripe.js`, `functions/api/billing/{checkout,portal}.js`, `functions/api/stripe/webhook.js`, UI in `js/account.js`. Amounts live in `PLANS` in `stripe.js` (satang: 4900 / 53900); no Products/Prices are needed in Stripe.
 Flow: signed-in person taps Monthly/Yearly → `/api/billing/checkout` makes a Stripe Checkout page → they pay → Stripe calls `/api/stripe/webhook` (signature-checked) → the server fetches the subscription from Stripe and writes the `members` row (until = period end + 1 day; past_due gets 3 days) → the app polls `/api/me` after returning.
+Free trial: a person's first subscription gets 7 free days (`trial_period_days`, card collected first, cancelled if no card at the end); `billing` rows make it once per email (a returning customer pays from day one). `/api/me` returns `member.trialEligible` for the button wording. The old no-card device trial was removed.
 Cancelling happens in Stripe's billing portal (`/api/billing/portal`); access continues to the end of the paid period.
 
 ### Setup (Fun, in Test mode first)

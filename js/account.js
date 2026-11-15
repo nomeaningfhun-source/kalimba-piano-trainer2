@@ -5,7 +5,7 @@
    - Everything the app unlocks (MIDI import, kalimba looks) asks Account.isMember(); the old device member code still works next to it.
    - The Google sign-in script is loaded only when the account card is opened, so the app starts and works offline without it. */
 const Account = (() => {
-  const KEY = 'kt.acct', GRACE = 7 * 86400000, DAY = 86400000, TRIAL_KEY = 'kt.trial', TRIAL_DAYS = 7;
+  const KEY = 'kt.acct', GRACE = 7 * 86400000, DAY = 86400000;
   const T = (th, en) => (typeof LANG !== 'undefined' && LANG === 'en' ? en : th);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   let st = read(), cfg = null, gis = null, wasMember = null, busy = '', adminList = null, adminMsg = '', waitlist = null;
@@ -19,23 +19,11 @@ const Account = (() => {
     if (m.until != null && m.until <= Date.now()) return false;
     return Date.now() - (st.checkedAt || 0) < GRACE;
   }
-  // Everyone gets TRIAL_DAYS of the member features from the first time this device opens the app (kept on the device, no sign-in needed).
-  // After that the free limits apply again: no song imports, the basic kalimba look. Imported songs stay on the device, locked.
-  function trialStart() {
-    try {
-      let t = Number(localStorage.getItem(TRIAL_KEY));
-      if (!t || t > Date.now() + DAY) { t = Date.now(); localStorage.setItem(TRIAL_KEY, String(t)); }   // first run (or a date from the future): start now
-      return t;
-    } catch (e) { return Date.now(); }   // storage blocked: treat as just started so a private window is not locked out
-  }
-  const trialMs = () => trialStart() + TRIAL_DAYS * DAY - Date.now();
-  const trialActive = () => trialMs() > 0;
-  const trialDays = () => Math.max(0, Math.ceil(trialMs() / DAY));
+  // The 7-day free trial now comes with the first subscription (card first, see functions/api/billing/checkout.js), not from the device.
   function deviceCode() { try { return JSON.parse(localStorage.getItem('kt.member')) === true; } catch (e) { return false; } }
-  // paid or granted membership (server), or the older device code, or the free trial: what the app unlocks asks this
-  const hasAccess = () => isMember() || deviceCode() || trialActive();
+  // paid or granted membership (server), or the older device code: what the app unlocks asks this
   const isPaid = () => isMember() || deviceCode();
-  trialStart();
+  const hasAccess = isPaid;
   function changed() {
     const now = isMember();
     if (wasMember !== null && now !== wasMember) window.dispatchEvent(new Event('kt-member'));
@@ -140,7 +128,20 @@ const Account = (() => {
 
   /* ---------- the card in Settings ---------- */
   const btn = (a, label, cls) => '<button type="button" data-a="' + a + '" class="' + (cls || 'px-3 py-1.5 rounded-lg bg-slate-700 text-slate-100') + '">' + label + '</button>';
+  // the bar under the app header: for anyone who is not a member yet, the way in to the free trial / subscription
+  function updateBar() {
+    const bar = document.getElementById('member-bar'), txt = document.getElementById('member-bar-text');
+    const fab = document.getElementById('member-fab'), ftxt = document.getElementById('member-fab-text');   // the same entry on the full-screen Play page, where the header is hidden
+    if (!bar || !txt) return;
+    const c = cfg, off = isPaid() || !(c && c.enabled), noTrial = st.member && st.member.trialEligible === false;
+    bar.classList.toggle('hidden', off);
+    txt.textContent = !c || !c.billing ? T('สมาชิก · ดูรายละเอียด', 'Membership · details')
+      : noTrial ? T('สมัครสมาชิก ฿49/เดือน', 'Become a member · ฿49/month')
+      : T('ทดลองฟรี 7 วัน · สมัครสมาชิก', 'Free 7-day trial · become a member');
+    if (fab && ftxt) { fab.classList.toggle('hidden', off); ftxt.textContent = !c || !c.billing ? T('สมาชิก', 'Membership') : noTrial ? T('สมัครสมาชิก', 'Become a member') : T('ทดลองฟรี 7 วัน', 'Free 7-day trial'); }
+  }
   function render() {
+    updateBar();
     const box = document.getElementById('acct-card');
     if (!box) return;
     const c = cfg, lines = [];
@@ -154,7 +155,6 @@ const Account = (() => {
       lines.push('<div id="acct-gbtn" class="min-h-[44px] flex items-center">' + (busy === 'login' ? T('กำลังเข้าสู่ระบบ…', 'Signing in…') : '') + '</div>');
     } else {
       const m = st.member || {}, mem = isMember();
-      if (!mem && trialActive()) lines.push('<div class="text-[12px] text-amber-200">🎁 ' + T('ทดลองใช้ฟรี เหลือ ' + trialDays() + ' วัน', 'Free trial: ' + trialDays() + ' days left') + '</div>');
       lines.push('<div class="text-[12px] text-slate-200 break-all">' + esc(st.user && st.user.email) + '</div>');
       if (mem) {
         lines.push('<div class="text-[12px] text-emerald-300">⭐ ' + T('สมาชิก', 'Member') + ' · ' + (m.until == null ? T('ตลอดชีพ', 'lifetime') : T('ถึง ', 'until ') + fmtDate(m.until)) + '</div>');
@@ -164,10 +164,13 @@ const Account = (() => {
         lines.push('<div class="text-[12px] text-slate-300">' + (m.active ? T('ต้องเชื่อมต่ออินเทอร์เน็ตเพื่อยืนยันสมาชิกอีกครั้ง', 'Connect to the internet to confirm your membership again')
           : (m.plan || m.until ? T('สมาชิกหมดอายุแล้ว', 'Your membership has ended') : T('ยังไม่ได้เป็นสมาชิก', 'Not a member yet'))) + '</div>');
         if (!mem && cfg && cfg.billing) {
+          const trial = m.trialEligible !== false;   // a first subscription gets 7 free days (card first); someone who has had one pays from the start
           lines.push('<div class="grid grid-cols-2 gap-2">' +
-            '<button type="button" data-a="checkout" data-plan="monthly" class="rounded-xl bg-amber-500 text-slate-950 font-bold py-2 leading-tight"' + (busy ? ' disabled' : '') + '>' + T('สมัครรายเดือน', 'Monthly') + '<br><span class="text-[13px]">฿49 / ' + T('เดือน', 'month') + '</span></button>' +
-            '<button type="button" data-a="checkout" data-plan="yearly" class="rounded-xl bg-emerald-500 text-slate-950 font-bold py-2 leading-tight"' + (busy ? ' disabled' : '') + '>' + T('สมัครรายปี', 'Yearly') + '<br><span class="text-[13px]">฿539 / ' + T('ปี · ฟรี 1 เดือน', 'year · 1 month free') + '</span></button></div>');
-          lines.push('<div class="text-[11px] text-slate-400">' + (busy === 'pay' ? T('กำลังเปิดหน้าชำระเงิน…', 'Opening the payment page…') : T('ชำระผ่าน Stripe (บัตร) · ต่ออายุอัตโนมัติ ยกเลิกได้ทุกเมื่อ', 'Paid through Stripe (card) · renews automatically, cancel any time')) + '</div>');
+            '<button type="button" data-a="checkout" data-plan="monthly" class="rounded-xl bg-amber-500 text-slate-950 font-bold py-2 leading-tight"' + (busy ? ' disabled' : '') + '>' + (trial ? T('ทดลองฟรี 7 วัน', 'Free 7-day trial') : T('สมัครรายเดือน', 'Monthly')) + '<br><span class="text-[13px]">' + (trial ? T('แล้ว ', 'then ') : '') + '฿49 / ' + T('เดือน', 'month') + '</span></button>' +
+            '<button type="button" data-a="checkout" data-plan="yearly" class="rounded-xl bg-emerald-500 text-slate-950 font-bold py-2 leading-tight"' + (busy ? ' disabled' : '') + '>' + (trial ? T('ทดลองฟรี 7 วัน', 'Free 7-day trial') : T('สมัครรายปี', 'Yearly')) + '<br><span class="text-[13px]">' + (trial ? T('แล้ว ', 'then ') : '') + '฿539 / ' + T('ปี · ฟรี 1 เดือน', 'year · 1 month free') + '</span></button></div>');
+          lines.push('<div class="text-[11px] text-slate-400">' + (busy === 'pay' ? T('กำลังเปิดหน้าชำระเงิน…', 'Opening the payment page…')
+            : trial ? T('ผูกบัตรก่อน ไม่ถูกเรียกเก็บใน 7 วันแรก ยกเลิกได้ทุกเมื่อก่อนครบ 7 วันโดยไม่เสียเงิน หลังจากนั้นเรียกเก็บและต่ออายุอัตโนมัติ · ชำระผ่าน Stripe (บัตร)', 'Add a card first. You are not charged for the first 7 days and can cancel any time before they end at no cost. After that it is charged and renews automatically · paid through Stripe (card)')
+            : T('ชำระผ่าน Stripe (บัตร) · ต่ออายุอัตโนมัติ ยกเลิกได้ทุกเมื่อ', 'Paid through Stripe (card) · renews automatically, cancel any time')) + '</div>');
           if (m.managed) lines.push('<div>' + btn('portal', '💳 ' + T('จัดการการชำระเงิน', 'Manage billing')) + '</div>');
         } else if (!m.active && waitlist) lines.push('<div>' + btn('waitlist', '⭐ ' + T('ลงชื่อรอรุ่นสมาชิก', 'Join the member waitlist'), 'px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-semibold') + '</div>');
       }
@@ -241,8 +244,10 @@ const Account = (() => {
       else if (a === 'revoke') { if (email() && confirm(T('ถอนสิทธิ์สมาชิกของ ', 'Remove membership of ') + email() + '?')) grant(email(), { revoke: true }); }
     });
     // opening Settings is when the account card matters: show it, fetch config, and re-check the membership
-    const open = document.getElementById('btn-open-settings');
-    if (open) open.addEventListener('click', () => { config().then(() => render()); refresh(); });
+    ['btn-open-settings', 'member-bar', 'member-fab', 'btn-open-member2'].forEach(id => {
+      const open = document.getElementById(id);
+      if (open) open.addEventListener('click', () => { config().then(() => render()); refresh(); });
+    });
   }
 
   function init(opts) {
@@ -256,6 +261,6 @@ const Account = (() => {
     window.addEventListener('online', () => { if (st.token) refresh(); });
   }
 
-  return { init, isMember, isPaid, hasAccess, trialActive, trialDays, refresh, render, signOut, get user() { return st.user || null; }, get state() { return st; } };
+  return { init, isMember, isPaid, hasAccess, refresh, render, signOut, get user() { return st.user || null; }, get state() { return st; } };
 })();
 window.Account = Account;

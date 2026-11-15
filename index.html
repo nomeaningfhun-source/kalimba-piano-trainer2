@@ -74,6 +74,9 @@
         <button id="btn-open-settings" class="w-9 h-9 flex items-center justify-center rounded-full border border-slate-700 text-slate-300" data-i18n-aria="settings"><i data-icon="settings" class="w-5 h-5"></i></button>
       </div>
     </div>
+    <button id="member-bar" class="hidden max-w-xl mx-auto mt-1.5 w-full h-9 rounded-full bg-amber-500/15 border border-amber-500/60 text-amber-200 text-[12px] font-semibold flex items-center justify-center gap-1.5">
+      <span>⭐</span><span id="member-bar-text">ทดลองฟรี 7 วัน · สมัครสมาชิก</span><span aria-hidden="true">›</span>
+    </button>
   </header>
 
   <!-- Play: a full-screen kalimba. Left tines are warm, right tines cool, the middle one cream; the sound hole
@@ -125,6 +128,7 @@
       <div id="two-hand-badge" class="hidden text-[11px] font-medium text-[#CBD4C2] mt-1"><span data-i18n="twohand">สองมือพร้อมกัน</span> <span id="two-hand-ms"></span></div>
     </div>
     <button id="play-menu" class="play-fab right-4" aria-haspopup="dialog" data-i18n-aria="play.menu"><span class="fab-lines"><i></i><i></i><i></i></span></button>
+    <button id="member-fab" class="hidden play-pill left-4"><span>⭐</span><span id="member-fab-text">ทดลองฟรี 7 วัน</span></button>
   </div>
 
   <!-- kalimba options for the Play page -->
@@ -726,15 +730,29 @@
           </div>
           <div id="skin-note" class="text-[11px] text-slate-400"></div>
         </div>
+        <button id="btn-open-member2" class="w-full h-11 rounded-xl bg-amber-500 text-slate-950 font-bold" data-i18n="mem.open">⭐ สมาชิก · ทดลองฟรี 7 วัน</button>
+      </div>
+      <button id="btn-save-settings" class="w-full h-11 rounded-full bg-amber-500 text-slate-950 font-semibold" data-i18n="set.save">บันทึก</button>
+    </div>
+  </div>
+
+  <!-- Membership: opened from the bar under the header (and from Settings): account card, what members get, price, code -->
+  <div id="modal-member" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl max-h-[92dvh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="text-base font-semibold text-slate-100" data-i18n="mem.title">⭐ สมาชิก</h3>
+        <button id="btn-close-member" class="text-slate-400 hover:text-white text-lg" aria-label="ปิด">✕</button>
+      </div>
+      <div class="space-y-3 text-xs">
         <div id="acct-card" class="bg-slate-800/60 p-3 rounded-xl border border-slate-700 space-y-2"></div>
         <p class="text-xs text-slate-400 text-center"><a href="terms.html" target="_blank" rel="noopener" class="underline">ข้อกำหนด / Terms</a> · <a href="privacy.html" target="_blank" rel="noopener" class="underline">ความเป็นส่วนตัว / Privacy</a></p>
-        <details id="member-info" class="bg-slate-800/60 p-3 rounded-xl border border-slate-700">
+        <details id="member-info" open class="bg-slate-800/60 p-3 rounded-xl border border-slate-700">
           <summary class="font-medium text-slate-200 cursor-pointer">⭐ สมาชิกได้อะไรบ้าง · ราคา (แตะเพื่ออ่าน)</summary>
           <div class="mt-2 space-y-2 text-[12px] leading-relaxed text-slate-300">
             <div><b class="text-slate-100">ใช้ฟรีตลอด</b><br>เพลงในคลังฟรี · ฝึกโน้ตตก · บทเรียน · เครื่องตั้งเสียง · วางโน้ตตัวเลขเอง · หน้าตาคาลิมบาแบบพื้นฐาน (นำเข้าไฟล์ MIDI หรือรูปโน้ตไม่ได้)</div>
-            <div><b class="text-slate-100">🎁 ทดลองฟรี 7 วัน</b><br>ทุกคนใช้ฟีเจอร์สมาชิกได้ฟรี 7 วัน นับจากเปิดแอปครั้งแรกบนเครื่องนี้ ครบแล้วทุกอย่างกลับเป็นแบบฟรี: นำเข้าเพลงไม่ได้ หน้าตาคาลิมบากลับเป็นแบบพื้นฐาน เพลงที่นำเข้าไว้จะถูกล็อก (ยังอยู่ในเครื่อง) จนกว่าจะเป็นสมาชิก</div>
+            <div><b class="text-slate-100">🎁 ทดลองฟรี 7 วัน</b><br>สมัครสมาชิกครั้งแรกทดลองฟรี 7 วัน โดยผูกบัตรก่อน ไม่ถูกเรียกเก็บใน 7 วันแรก ยกเลิกได้ทุกเมื่อก่อนครบ 7 วันโดยไม่เสียเงิน ถ้าไม่ยกเลิก ระบบเรียกเก็บและต่ออายุอัตโนมัติตามแพ็กที่เลือก ทดลองได้ครั้งเดียวต่ออีเมล ถ้าไม่ได้เป็นสมาชิก เพลงที่นำเข้าไว้จะถูกล็อก (ยังอยู่ในเครื่อง) และหน้าตาคาลิมบากลับเป็นแบบพื้นฐาน</div>
             <div><b class="text-amber-200">สมาชิก</b><br>นำเข้าไฟล์ MIDI และรูปโน้ตได้ไม่จำกัด · หน้าตาและเสียงคาลิมบาพรีเมียมทุกแบบ · ใช้สิทธิ์ได้ทุกเครื่องที่เข้าสู่ระบบด้วย Google เดียวกัน</div>
-            <div><b class="text-slate-100">ราคา</b><br>฿49 ต่อเดือน หรือ ฿539 ต่อปี (จ่าย 11 เดือน ฟรี 1 เดือน) · ยกเลิกได้ทุกเมื่อ (เปิดให้สมัครเร็วๆ นี้)</div>
+            <div><b class="text-slate-100">ราคา</b><br>฿49 ต่อเดือน หรือ ฿539 ต่อปี (จ่าย 11 เดือน ฟรี 1 เดือน) · ยกเลิกได้ทุกเมื่อ</div>
             <div><b class="text-slate-100">วิธีเป็นสมาชิก</b><br>เข้าสู่ระบบด้วย Google ที่กล่อง "Member account" ด้านบน แล้วสมัครจากกล่องนั้น</div>
           </div>
         </details>
@@ -749,7 +767,6 @@
           <div id="unlock-status" class="text-[11px] text-slate-400"></div>
         </div>
       </div>
-      <button id="btn-save-settings" class="w-full h-11 rounded-full bg-amber-500 text-slate-950 font-semibold" data-i18n="set.save">บันทึก</button>
     </div>
   </div>
 

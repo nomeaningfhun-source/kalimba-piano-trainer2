@@ -70,6 +70,9 @@ body.on-play header.app-header { display: none; }
 #active-note-display .an-name { font-size: 13px; color: #E9D9C6; margin-top: 4px; }
 .play-fab { position: absolute; z-index: 3; bottom: 16px; width: 56px; height: 56px; border-radius: 50%; background: #F2EDE2; color: #3A402F;
   display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0, 0, 0, .25); font-weight: 700; font-size: 18px; line-height: 1; }
+.play-pill { position: absolute; z-index: 3; bottom: 24px; height: 40px; padding: 0 16px; border-radius: 20px; background: #E6B94F; color: #3A2A06; display: flex; align-items: center; gap: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .28); font-weight: 700; font-size: 13px; line-height: 1; }
+.play-pill.hidden { display: none; }
 .play-fab small { font-size: 9px; font-weight: 600; margin-top: 2px; }
 .fab-lines { display: flex; flex-direction: column; gap: 4px; } .fab-lines i { display: block; width: 22px; height: 3px; border-radius: 2px; background: #3A402F; }
 

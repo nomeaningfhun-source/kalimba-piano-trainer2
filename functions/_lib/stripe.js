@@ -7,6 +7,7 @@ export const PLANS = {
   monthly: { amount: 4900, interval: 'month', name: 'ครูฝึกคาลิมบา · สมาชิกรายเดือน (Kalimba Coach monthly)' },     // THB 49 (amounts are in satang)
   yearly: { amount: 53900, interval: 'year', name: 'ครูฝึกคาลิมบา · สมาชิกรายปี (Kalimba Coach yearly)' }          // THB 539 = 11 months
 };
+export const TRIAL_DAYS = 7;   // free days for a first subscription; the card is collected up front and charged when they end unless cancelled
 const CUSHION = DAY, PAST_DUE_GRACE = 3 * DAY;   // renewals reach us a little after the period ends; a failed card is retried for days
 
 export const stripeEnabled = env => !!(env.STRIPE_SECRET_KEY && env.STRIPE_WEBHOOK_SECRET && env.DB);

@@ -162,6 +162,9 @@ ok((await call(checkout, req('POST', '/api/billing/checkout', { plan: 'weekly' }
 ok(s === 200 && b.url === 'https://checkout.stripe.test/c/abc', 'checkout returns the Stripe page url');
 const c0 = calls[calls.length - 1];
 ok(c0.auth === 'Bearer sk_test_x' && c0.body.includes('mode=subscription') && c0.body.includes('unit_amount]=53900') && c0.body.includes('currency]=thb') && c0.body.includes('interval]=year'), 'yearly checkout is THB 539 per year');
+ok(c0.body.includes('trial_period_days]=7') && c0.body.includes('payment_method_collection=always') && c0.body.includes('missing_payment_method]=cancel'), 'first checkout: 7 free days, card collected first, cancelled if no card at the end');
+[s, b] = await call(me, req('GET', '/api/me', null, payToken), senv);
+ok(b.member.trialEligible === true, '/api/me: a person who never subscribed is trial-eligible');
 ok(c0.body.includes('customer_email=pay@example.com') && c0.body.includes('client_reference_id=pay@example.com') && c0.body.includes('metadata][email]=pay@example.com'), 'checkout is tied to the signed-in email');
 await call(checkout, req('POST', '/api/billing/checkout', { plan: 'monthly' }, payToken), senv);
 ok(calls[calls.length - 1].body.includes('unit_amount]=4900') && calls[calls.length - 1].body.includes('interval]=month'), 'monthly checkout is THB 49 per month');
@@ -218,6 +221,12 @@ subs.sub_1 = mkSub({ status: 'canceled', current_period_end: Math.floor(NOW / 10
 await hook('customer.subscription.deleted', mkSub({ status: 'canceled' }));
 row = sq.prepare('SELECT * FROM members WHERE email = ?').get('pay@example.com');
 ok(row.until === null && row.source === 'admin', 'a lifetime grant from us survives a Stripe cancellation');
+
+// the trial is once per email: after a first subscription (even a cancelled one) checkout has no trial days
+await call(checkout, req('POST', '/api/billing/checkout', { plan: 'monthly' }, payToken), senv);
+ok(!calls[calls.length - 1].body.includes('trial_period_days'), 'a returning customer is charged from day one (no second trial)');
+[s, b] = await call(me, req('GET', '/api/me', null, payToken), senv);
+ok(b.member.trialEligible === false, '/api/me: trial no longer offered after a first subscription');
 
 // the portal
 [s, b] = await call(portal, req('POST', '/api/billing/portal', null, payToken), senv);
