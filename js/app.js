@@ -546,19 +546,14 @@ const ls = {
 // a small tap on the phone when a key is pressed: Android vibrates; iPhone (Safari 17.4+) answers a toggled <input switch> with a haptic tick.
 // iOS only does it for a click made while the finger gesture is still being handled, on a switch made fresh each time and hidden with
 // display:none (the recipe the ios-haptics library uses) — an off-screen, transparent, long-lived switch gave no tick on Fun's iPhone.
+// A light tap on key presses. Only where the browser can vibrate (Android Chrome and the like): iPhone Safari has no vibration API, and the
+// switch-control trick that sometimes buzzes there was unreliable, so on an iPhone the feature and its setting are simply not offered.
 const Haptic = {
+  supported: typeof navigator.vibrate === 'function',
   on: ls.get('haptic', true),
   tick() {
-    if (!this.on) return;
-    try { if (navigator.vibrate && navigator.vibrate(8)) return; } catch (e) { /* no vibration here */ }
-    try {
-      const l = document.createElement('label'), c = document.createElement('input');
-      l.setAttribute('aria-hidden', 'true'); l.style.display = 'none';
-      c.type = 'checkbox'; c.setAttribute('switch', ''); l.appendChild(c);
-      document.head.appendChild(l);
-      l.click();
-      l.remove();
-    } catch (e) { /* no haptics here */ }
+    if (!this.supported || !this.on) return;
+    try { navigator.vibrate(8); } catch (e) { /* no vibration here */ }
   }
 };
 
@@ -579,6 +574,7 @@ byId('set-micsens').addEventListener('click', e => {
   ls.set('micSens', +b.dataset.sens); micSensUI();
   if (Mic.on && Mic.gain) Mic.gain.gain.value = Mic.sens();
 });
+if (!Haptic.supported) { const row = byId('set-haptic').closest('label'); if (row) row.classList.add('hidden'); }   // nothing to switch on this device
 byId('set-haptic').addEventListener('change', e => { Haptic.on = e.target.checked; ls.set('haptic', Haptic.on); Haptic.tick(); });
 window.Haptic = Haptic;   // the settings page (outside this closure) reads it
 window.KTMicSensUI = () => micSensUI();

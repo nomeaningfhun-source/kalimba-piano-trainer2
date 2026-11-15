@@ -201,7 +201,9 @@ const Account = (() => {
     busy = 'pay'; render();
     try {
       const r = await api(path, { method: 'POST', body });
-      if (r.status === 200 && r.data && r.data.url) { location.href = r.data.url; return; }
+      // go to Stripe. The page may stay alive behind it (Back button, an installed app's in-app browser), so the busy state must not be left on:
+      // it is cleared again after a few seconds and whenever the page shows again (see idle() below)
+      if (r.status === 200 && r.data && r.data.url) { setTimeout(idle, 4000); location.href = r.data.url; return; }
       const msg = r.status === 409 ? T('คุณสมัครสมาชิกอยู่แล้ว ใช้ปุ่ม "จัดการการชำระเงิน" เพื่อเปลี่ยนหรือยกเลิก', 'You already have a subscription. Use "Manage billing" to change or cancel it.')
         : r.status === 401 ? T('เข้าสู่ระบบก่อน', 'Please sign in first')
         : T('เปิดหน้าชำระเงินไม่ได้ ลองใหม่อีกครั้ง', 'Could not open the payment page. Please try again.');
@@ -212,6 +214,8 @@ const Account = (() => {
     }
     busy = ''; render();
   }
+  // the buttons work again (they were disabled while a Stripe page was being opened)
+  function idle() { if (busy === 'pay') { busy = ''; render(); } }
   // back from Stripe (?billing=success): the webhook may need a few seconds, so ask the server a few times
   function afterCheckout() {
     const q = new URLSearchParams(location.search), v = q.get('billing');
@@ -256,7 +260,8 @@ const Account = (() => {
     config().then(render);
     refresh();
     afterCheckout();
-    document.addEventListener('visibilitychange', () => { if (!document.hidden && st.token) refresh(); });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) { idle(); if (st.token) refresh(); } });
+    window.addEventListener('pageshow', e => { if (e.persisted) { idle(); if (st.token) refresh(); } });   // Back from Stripe restores this page exactly as it was left
     window.addEventListener('online', () => { if (st.token) refresh(); });
   }
 
