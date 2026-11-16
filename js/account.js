@@ -150,7 +150,7 @@ const Account = (() => {
     } else if (!c.enabled) {
       lines.push('<div class="text-[11px] text-slate-400">' + (c.offline ? T('ต้องต่ออินเทอร์เน็ตเพื่อเข้าสู่ระบบ', 'Connect to the internet to sign in') : T('ระบบสมาชิกยังไม่เปิดใช้งาน', 'Membership is not open yet')) + '</div>');
     } else if (!st.token) {
-      lines.push('<div class="text-[11px] text-slate-400">' + T('เข้าสู่ระบบด้วยบัญชี Google เพื่อใช้สิทธิ์สมาชิกบนทุกเครื่อง (นำเข้าเพลงไม่จำกัด หน้าตาคาลิมบาพรีเมียม)', 'Sign in with Google to use your membership on every device (unlimited imports, premium kalimba looks).') + '</div>');
+      lines.push('<div class="text-[11px] text-slate-400">' + T('เข้าสู่ระบบด้วยบัญชี Google เพื่อใช้สิทธิ์สมาชิกบนทุกเครื่อง (เพิ่มเพลงเองได้ไม่จำกัด เลือกหน้าตาคาลิมบาได้ทุกแบบ)', 'Sign in with Google to use your membership on every device (add your own songs without limit, every kalimba look).') + '</div>');
       lines.push('<div id="acct-gbtn" class="min-h-[44px] flex items-center">' + (busy === 'login' ? T('กำลังเข้าสู่ระบบ…', 'Signing in…') : '') + '</div>');
     } else {
       const m = st.member || {}, mem = isMember();
@@ -168,7 +168,7 @@ const Account = (() => {
             '<button type="button" data-a="checkout" data-plan="monthly" class="rounded-xl bg-amber-500 text-slate-950 font-bold py-2 leading-tight"' + (busy ? ' disabled' : '') + '>' + (trial ? T('ทดลองฟรี 7 วัน', 'Free 7-day trial') : T('สมัครรายเดือน', 'Monthly')) + '<br><span class="text-[13px]">' + (trial ? T('แล้ว ', 'then ') : '') + '฿49 / ' + T('เดือน', 'month') + '</span></button>' +
             '<button type="button" data-a="checkout" data-plan="yearly" class="rounded-xl bg-emerald-500 text-slate-950 font-bold py-2 leading-tight"' + (busy ? ' disabled' : '') + '>' + (trial ? T('ทดลองฟรี 7 วัน', 'Free 7-day trial') : T('สมัครรายปี', 'Yearly')) + '<br><span class="text-[13px]">' + (trial ? T('แล้ว ', 'then ') : '') + '฿539 / ' + T('ปี · ฟรี 1 เดือน', 'year · 1 month free') + '</span></button></div>');
           lines.push('<div class="text-[11px] text-slate-400">' + (busy === 'pay' ? T('กำลังเปิดหน้าชำระเงิน…', 'Opening the payment page…')
-            : trial ? T('ผูกบัตรก่อน ไม่ถูกเรียกเก็บใน 7 วันแรก ยกเลิกได้ทุกเมื่อก่อนครบ 7 วันโดยไม่เสียเงิน หลังจากนั้นเรียกเก็บและต่ออายุอัตโนมัติ · ชำระผ่าน Stripe (บัตร)', 'Add a card first. You are not charged for the first 7 days and can cancel any time before they end at no cost. After that it is charged and renews automatically · paid through Stripe (card)')
+            : trial ? T('ใส่บัตรไว้ก่อน แต่ยังไม่เก็บเงินใน 7 วันแรก · ยกเลิกก่อนครบ 7 วันไม่เสียเงิน · หลังจากนั้นต่ออายุให้เอง · จ่ายด้วยบัตรเครดิตหรือเดบิต', 'Add a card first, but nothing is charged for 7 days · cancel before day 7 and you pay nothing · then it renews on its own · pay by credit or debit card')
             : T('ชำระผ่าน Stripe (บัตร) · ต่ออายุอัตโนมัติ ยกเลิกได้ทุกเมื่อ', 'Paid through Stripe (card) · renews automatically, cancel any time')) + '</div>');
           if (m.managed) lines.push('<div>' + btn('portal', '💳 ' + T('จัดการการชำระเงิน', 'Manage billing')) + '</div>');
         } else if (!m.active && waitlist) lines.push('<div>' + btn('waitlist', '⭐ ' + T('ลงชื่อรอรุ่นสมาชิก', 'Join the member waitlist'), 'px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-semibold') + '</div>');

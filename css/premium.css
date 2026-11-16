@@ -170,3 +170,12 @@ body.on-play::after { display: none; }
   background: linear-gradient(90deg, rgba(255, 255, 255, .5) 0%, rgba(255, 255, 255, .08) 22%, rgba(255, 255, 255, 0) 45%, rgba(0, 0, 0, .06) 70%, rgba(0, 0, 0, .22) 100%); }
 .deco-art svg { filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .5)); }
 html[data-glassy="1"] .deco-art svg { filter: none; }
+
+/* membership box: short sections with tick lists */
+.mi-sec { padding: 10px 0; border-top: 1px solid var(--c-line); }
+.mi-sec:first-child { border-top: 0; padding-top: 2px; }
+.mi-h { font-size: 14px; font-weight: 700; margin-bottom: 5px; color: rgb(var(--slate-100)); }
+.mi-li { display: flex; gap: 8px; font-size: 13px; line-height: 1.65; color: rgb(var(--slate-300)); }
+.mi-li::before { content: '✓'; flex: none; font-weight: 700; color: var(--c-hit); }
+.mi-price { font-size: 15px; font-weight: 600; line-height: 1.6; color: rgb(var(--slate-100)); }
+.mi-note { font-size: 12px; line-height: 1.6; color: var(--c-ink2); margin-top: 4px; }
