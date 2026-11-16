@@ -34,12 +34,13 @@ const Wood = (() => {
 
   // per species: colours light / mid / dark, how many rings across the tile, how strong they are, fibre, pores, ribbon figure, flecks
   const SPECIES = {
-    teak:     { light: [206, 138, 66], mid: [150, 90, 34], dark: [84, 44, 14],  rings: 36, contrast: 0.58, drift: 1.1, swing: 0.08, arch: 0.38, axis: 0.30, fibre: 0.55, pores: 0.55, ribbon: 0.00, fleck: 0.00, seed: 5 },
-    walnut:   { light: [156, 112, 84], mid: [108, 74, 54], dark: [50, 32, 22],  rings: 26, contrast: 0.72, drift: 1.2, swing: 0.10, arch: 0.30, axis: 0.62, fibre: 0.50, pores: 0.45, ribbon: 0.10, fleck: 0.00, seed: 3 },
-    mahogany: { light: [198, 108, 74], mid: [138, 68, 46], dark: [68, 28, 20],  rings: 30, contrast: 0.58, drift: 1.0, swing: 0.10, arch: 0.12, axis: 0.40, fibre: 0.45, pores: 0.40, ribbon: 0.34, fleck: 0.00, seed: 8 },
-    maple:    { light: [248, 230, 192], mid: [224, 188, 138], dark: [176, 132, 88], rings: 48, contrast: 0.40, drift: 0.9, swing: 0.06, arch: 0.22, axis: 0.35, fibre: 0.35, pores: 0.12, ribbon: 0.12, fleck: 0.50, seed: 12 },
-    ebony:    { light: [86, 76, 68], mid: [48, 43, 39], dark: [18, 16, 15],      rings: 52, contrast: 0.46, drift: 1.0, swing: 0.06, arch: 0.18, axis: 0.55, fibre: 0.60, pores: 0.30, ribbon: 0.00, fleck: 0.00, seed: 21 }
+    teak:     { light: [214, 150, 78], mid: [156, 96, 38], dark: [92, 50, 18],  rings: 62, contrast: 0.50, drift: 2.4, swing: 0.10, arch: 0.10, axis: 0.30, fibre: 0.62, pores: 0.50, ribbon: 0.00, fleck: 0.00, seed: 5 },
+    walnut:   { light: [160, 116, 88], mid: [108, 74, 54], dark: [50, 32, 22],  rings: 52, contrast: 0.62, drift: 2.8, swing: 0.12, arch: 0.12, axis: 0.62, fibre: 0.55, pores: 0.45, ribbon: 0.12, fleck: 0.00, seed: 3 },
+    mahogany: { light: [204, 114, 80], mid: [140, 70, 48], dark: [68, 28, 20],  rings: 58, contrast: 0.50, drift: 2.2, swing: 0.08, arch: 0.05, axis: 0.40, fibre: 0.50, pores: 0.40, ribbon: 0.34, fleck: 0.00, seed: 8 },
+    maple:    { light: [250, 234, 198], mid: [226, 190, 140], dark: [178, 134, 90], rings: 80, contrast: 0.36, drift: 2.0, swing: 0.06, arch: 0.06, axis: 0.35, fibre: 0.40, pores: 0.12, ribbon: 0.12, fleck: 0.50, seed: 12 },
+    ebony:    { light: [90, 80, 72], mid: [48, 43, 39], dark: [18, 16, 15],      rings: 90, contrast: 0.42, drift: 2.0, swing: 0.05, arch: 0.04, axis: 0.55, fibre: 0.62, pores: 0.30, ribbon: 0.00, fleck: 0.00, seed: 21 }
   };
+
 
   function draw(species, W, H) {
     const P = SPECIES[species] || SPECIES.teak, S = P.seed;

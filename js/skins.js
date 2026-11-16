@@ -195,9 +195,9 @@ const Skin = {
     w.querySelectorAll('.kalimba-tine').forEach(t => {
       const r = t.getBoundingClientRect();
       if (!r.width) return;
-      const size = Math.max(15, Math.min(27, r.width * 1.25)), x = r.left + r.width / 2 - wr.left;
-      // above the number label and its octave dots (about the bottom 80px of the tine), the odd ones a little higher
-      const y = r.bottom - wr.top - 80 - size * 0.55 - (k % 2 ? size * 1.15 : 0);
+      // one sticker per tine, all the same size and just above the number label and its octave dots (about the bottom 80px of the tine)
+      const size = Math.max(14, Math.min(24, r.width * 0.92)), x = r.left + r.width / 2 - wr.left;
+      const y = r.bottom - wr.top - 84 - size * 0.55;
       if (y - size / 2 > r.top - wr.top + 4) g += SkinArt.sticker(this.sticker, k, x, y, size);
       k++;
     });
