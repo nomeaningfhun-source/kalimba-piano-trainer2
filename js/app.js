@@ -2157,9 +2157,12 @@ const Midi = {
     openReview(r.song, { from: 'import', isNew: true, notes });
   },
   showLimit() {
+    const beta = !!(window.Account && Account.isBeta && Account.isBeta());   // beta: sign-ups are not open yet, so no trial to offer
     this.open('🔒 นำเข้าเพลงสำหรับสมาชิก',
-      '<p class="text-xs text-slate-300">ผู้ใช้ฟรีนำเข้าเพลงไม่ได้ สมาชิกนำเข้าไฟล์ MIDI และรูปโน้ตได้ไม่จำกัด สมัครครั้งแรกทดลองฟรี 7 วัน (ผูกบัตรก่อน ยกเลิกได้ทุกเมื่อก่อนครบ 7 วันโดยไม่เสียเงิน) ถ้าเป็นสมาชิกแล้วให้เข้าสู่ระบบด้วย Google</p>' +
-      '<button data-act="acct" class="w-full py-2.5 rounded-xl bg-amber-500 text-slate-950 font-bold">⭐ ทดลองฟรี 7 วัน / สมัครสมาชิก</button>' +
+      (beta ? '<p class="text-xs text-slate-300">ผู้ใช้ฟรีนำเข้าเพลงไม่ได้ สมาชิกนำเข้าไฟล์ MIDI และรูปโน้ตได้ไม่จำกัด ตอนนี้เป็นช่วงเบต้า ยังไม่เปิดรับสมัครสมาชิก ถ้าได้รับสิทธิ์สมาชิกจากเราแล้วให้เข้าสู่ระบบด้วย Google</p>' +
+        '<button data-act="acct" class="w-full py-2.5 rounded-xl bg-amber-500 text-slate-950 font-bold">⭐ สมาชิก · ดูรายละเอียด</button>'
+      : '<p class="text-xs text-slate-300">ผู้ใช้ฟรีนำเข้าเพลงไม่ได้ สมาชิกนำเข้าไฟล์ MIDI และรูปโน้ตได้ไม่จำกัด สมัครครั้งแรกทดลองฟรี 7 วัน (ผูกบัตรก่อน ยกเลิกได้ทุกเมื่อก่อนครบ 7 วันโดยไม่เสียเงิน) ถ้าเป็นสมาชิกแล้วให้เข้าสู่ระบบด้วย Google</p>' +
+        '<button data-act="acct" class="w-full py-2.5 rounded-xl bg-amber-500 text-slate-950 font-bold">⭐ ทดลองฟรี 7 วัน / สมัครสมาชิก</button>') +
       '<p class="text-[11px] text-slate-400">ระหว่างนี้ยังฝึกเพลงในคลังเพลงฟรี และวางโน้ตตัวเลขเองได้ไม่จำกัด</p>');
   },
   showLocked() {

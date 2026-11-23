@@ -1,8 +1,9 @@
 import { json, fail, getSession } from '../../_lib/auth.js';
-import { stripeEnabled, stripeApi, ensureBilling, PLANS, TRIAL_DAYS } from '../../_lib/stripe.js';
+import { stripeEnabled, billingOpen, stripeApi, ensureBilling, PLANS, TRIAL_DAYS } from '../../_lib/stripe.js';
 // POST { plan: 'monthly' | 'yearly' } (signed in) -> { url } of a Stripe Checkout page for a subscription in Thai baht.
 export async function onRequestPost({ request, env }) {
   if (!stripeEnabled(env)) return fail(503, 'not_configured');
+  if (!billingOpen(env)) return fail(503, 'not_open');   // beta: sign-ups are closed
   const s = await getSession(env, request);
   if (!s) return fail(401, 'unauthorized');
   let b;

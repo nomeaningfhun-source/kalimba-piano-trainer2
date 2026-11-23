@@ -134,13 +134,18 @@ const Account = (() => {
     if (!bar || !txt) return;
     const c = cfg, off = isPaid() || !(c && c.enabled), noTrial = st.member && st.member.trialEligible === false;
     bar.classList.toggle('hidden', off);
-    txt.textContent = !c || !c.billing ? T('สมาชิก · ดูรายละเอียด', 'Membership · details')
+    txt.textContent = c && c.beta ? T('ช่วงเบต้า ใช้ฟรี · สมาชิกเปิดเร็วๆ นี้', 'Free beta · membership opens soon')
+      : !c || !c.billing ? T('สมาชิก · ดูรายละเอียด', 'Membership · details')
       : noTrial ? T('สมัครสมาชิก ฿49/เดือน', 'Become a member · ฿49/month')
       : T('ทดลองฟรี 7 วัน · สมัครสมาชิก', 'Free 7-day trial · become a member');
-    if (fab && ftxt) { fab.classList.toggle('hidden', off); ftxt.textContent = !c || !c.billing ? T('สมาชิก', 'Membership') : noTrial ? T('สมัครสมาชิก', 'Become a member') : T('ทดลองฟรี 7 วัน', 'Free 7-day trial'); }
+    if (fab && ftxt) { fab.classList.toggle('hidden', off); ftxt.textContent = c && c.beta ? T('เบต้า', 'Beta') : !c || !c.billing ? T('สมาชิก', 'Membership') : noTrial ? T('สมัครสมาชิก', 'Become a member') : T('ทดลองฟรี 7 วัน', 'Free 7-day trial'); }
   }
   function render() {
     updateBar();
+    // beta (sign-ups not open): a notice in the membership window, and the free-trial section is hidden because there is no trial to start yet
+    const beta = !!(cfg && cfg.beta), bn = document.getElementById('mem-beta'), tr = document.getElementById('mi-trial');
+    if (bn) bn.classList.toggle('hidden', !beta);
+    if (tr) tr.classList.toggle('hidden', beta);
     const box = document.getElementById('acct-card');
     if (!box) return;
     const c = cfg, lines = [];
@@ -265,6 +270,6 @@ const Account = (() => {
     window.addEventListener('online', () => { if (st.token) refresh(); });
   }
 
-  return { init, isMember, isPaid, hasAccess, refresh, render, signOut, get user() { return st.user || null; }, get state() { return st; } };
+  return { init, isMember, isPaid, hasAccess, refresh, render, signOut, isBeta: () => !!(cfg && cfg.beta), get user() { return st.user || null; }, get state() { return st; } };
 })();
 window.Account = Account;

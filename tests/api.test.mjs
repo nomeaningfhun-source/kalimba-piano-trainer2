@@ -122,8 +122,10 @@ import { onRequestPost as portal } from '../functions/api/billing/portal.js';
 import { onRequestPost as webhook } from '../functions/api/stripe/webhook.js';
 import { verifyStripeSignature, formEncode, resetBillingFlag } from '../functions/_lib/stripe.js';
 sq.exec('DELETE FROM sessions; DELETE FROM members;');
-const senv = Object.assign({}, env, { STRIPE_SECRET_KEY: 'sk_test_x', STRIPE_WEBHOOK_SECRET: 'whsec_test' });
+const senv = Object.assign({}, env, { STRIPE_SECRET_KEY: 'sk_test_x', STRIPE_WEBHOOK_SECRET: 'whsec_test', BILLING_OPEN: '1' });
+const betaEnv = Object.assign({}, senv, { BILLING_OPEN: '' });   // Stripe keys set but sign-ups not opened yet
 ok((await call(config, req('GET', '/api/config'), senv))[1].billing === true && (await call(config, req('GET', '/api/config')))[1].billing === false, 'config says billing is on only with the Stripe keys');
+{ const c = (await call(config, req('GET', '/api/config'), betaEnv))[1]; ok(c.billing === false && c.beta === true, 'beta: Stripe keys alone do not open sign-ups (needs BILLING_OPEN=1)'); }
 ok(formEncode({ a: { 0: { b: 1 } }, c: 'x y' }).join('&') === 'a%5B0%5D%5Bb%5D=1&c=x%20y', 'nested params are form-encoded the Stripe way');
 
 const hmac = async (secret, text) => Array.from(new Uint8Array(await crypto.subtle.sign('HMAC', await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']), new TextEncoder().encode(text)))).map(x => x.toString(16).padStart(2, '0')).join('');
@@ -156,6 +158,7 @@ const hook = async (type, obj, sig) => { const body = JSON.stringify({ id: 'evt_
 [s, b] = await call(login, req('POST', '/api/auth/google', { credential: await idToken({ sub: '700', email: 'Pay@Example.com', name: 'Pay' }) }));
 const payToken = b.token;
 ok((await call(checkout, req('POST', '/api/billing/checkout', { plan: 'monthly' }, payToken)))[0] === 503, 'checkout refuses when Stripe is not configured');
+ok((await call(checkout, req('POST', '/api/billing/checkout', { plan: 'monthly' }, payToken), betaEnv))[0] === 503, 'beta: checkout is closed until BILLING_OPEN=1');
 ok((await call(checkout, req('POST', '/api/billing/checkout', { plan: 'monthly' }), senv))[0] === 401, 'checkout needs sign-in');
 ok((await call(checkout, req('POST', '/api/billing/checkout', { plan: 'weekly' }, payToken), senv))[0] === 400, 'checkout rejects an unknown plan');
 [s, b] = await call(checkout, req('POST', '/api/billing/checkout', { plan: 'yearly' }, payToken), senv);

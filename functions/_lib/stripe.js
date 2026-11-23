@@ -11,6 +11,9 @@ export const TRIAL_DAYS = 7;   // free days for a first subscription; the card i
 const CUSHION = DAY, PAST_DUE_GRACE = 3 * DAY;   // renewals reach us a little after the period ends; a failed card is retried for days
 
 export const stripeEnabled = env => !!(env.STRIPE_SECRET_KEY && env.STRIPE_WEBHOOK_SECRET && env.DB);
+// Beta: new subscriptions stay closed until the plain variable BILLING_OPEN = 1 is set in Cloudflare Pages (after the Stripe account is verified and live keys are in).
+// Existing subscribers can still reach the billing portal, and the webhook keeps working.
+export const billingOpen = env => stripeEnabled(env) && String(env.BILLING_OPEN || '') === '1';
 
 let billingReady = false;
 export async function ensureBilling(env) {

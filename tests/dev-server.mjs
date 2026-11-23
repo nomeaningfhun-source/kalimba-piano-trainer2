@@ -13,7 +13,7 @@ const sq = new DatabaseSync(':memory:');
 sq.exec(readFileSync(join(root, 'schema.sql'), 'utf8'));
 const DB = { prepare(sql) { const st = sq.prepare(sql); const mk = a => ({ first: async () => st.get(...a) || null, run: async () => { st.run(...a); return {}; }, all: async () => ({ results: st.all(...a) }) }); return Object.assign(mk([]), { bind: (...a) => mk(a) }); } };
 const CLIENT = 'dev-client';
-const env = { DB, GOOGLE_CLIENT_ID: CLIENT, ADMIN_EMAILS: 'boss@example.com', STRIPE_SECRET_KEY: 'sk_test_dev', STRIPE_WEBHOOK_SECRET: 'whsec_dev' };   // fake Stripe: see __fake_stripe below
+const env = { DB, GOOGLE_CLIENT_ID: CLIENT, ADMIN_EMAILS: 'boss@example.com', STRIPE_SECRET_KEY: 'sk_test_dev', STRIPE_WEBHOOK_SECRET: 'whsec_dev', BILLING_OPEN: process.env.BILLING_OPEN || '' };   // fake Stripe: see __fake_stripe below; BILLING_OPEN=1 node … tries it with sign-ups open (default = beta)
 const kp = await crypto.subtle.generateKey({ name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' }, true, ['sign', 'verify']);
 const jwk = Object.assign(await crypto.subtle.exportKey('jwk', kp.publicKey), { kid: 'k1', alg: 'RS256' });
 const realFetch = globalThis.fetch;
