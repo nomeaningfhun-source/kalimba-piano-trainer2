@@ -8,7 +8,7 @@ const Account = (() => {
   const KEY = 'kt.acct', GRACE = 7 * 86400000, DAY = 86400000;
   const T = (th, en) => (typeof LANG !== 'undefined' && LANG === 'en' ? en : th);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  let st = read(), cfg = null, gis = null, wasMember = null, busy = '', adminList = null, adminMsg = '', waitlist = null;
+  let st = read(), cfg = null, gis = null, wasMember = null, busy = '', adminList = null, adminMsg = '', waitlist = null, stats = null, fbList = null;
 
   function read() { try { const v = JSON.parse(localStorage.getItem(KEY)); return v && typeof v === 'object' ? v : {}; } catch (e) { return {}; } }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* storage blocked */ } }
@@ -107,7 +107,7 @@ const Account = (() => {
   async function signOut() {
     try { if (st.token) await api('/api/auth/logout', { method: 'POST' }); } catch (e) { /* offline: the server session just expires */ }
     try { if (window.google && google.accounts && google.accounts.id) google.accounts.id.disableAutoSelect(); } catch (e) { /* none */ }
-    st = {}; save(); adminList = null; changed();
+    st = {}; save(); adminList = null; stats = null; fbList = null; changed();
   }
 
   /* ---------- admin: give or take away membership by email ---------- */
@@ -115,6 +115,17 @@ const Account = (() => {
     const r = await api('/api/admin/members');
     adminList = r.status === 200 && r.data ? r.data.members : [];
     render();
+  }
+  // admin: usage numbers and the feedback inbox
+  async function loadStats() {
+    const [a, b] = await Promise.all([api('/api/admin/stats'), api('/api/admin/feedback')]);
+    stats = a.status === 200 && a.data ? a.data : { error: a.status };
+    fbList = b.status === 200 && b.data ? b.data.feedback : [];
+    render();
+  }
+  async function fbAction(body) {
+    await api('/api/admin/feedback', { method: 'POST', body });
+    await loadStats();
   }
   async function grant(email, body) {
     adminMsg = '';
@@ -184,6 +195,7 @@ const Account = (() => {
     box.innerHTML = lines.join('');
     if (c && c.enabled && !st.token) mountButton();
     if (st.admin && adminList === null) loadAdmin();
+    if (st.admin && stats === null) { stats = {}; loadStats(); }
   }
   function adminHtml() {
     const rows = (adminList || []).map(r =>
@@ -197,7 +209,52 @@ const Account = (() => {
       '<div class="grid grid-cols-4 gap-1.5 text-[11px]">' + ['30:30 ' + T('วัน', 'days'), '90:90 ' + T('วัน', 'days'), '365:1 ' + T('ปี', 'yr'), 'life:' + T('ตลอดชีพ', 'Lifetime')]
         .map(x => { const i = x.indexOf(':'); return '<button type="button" data-a="grant" data-d="' + x.slice(0, i) + '" class="h-9 rounded-lg bg-slate-700 text-slate-100">' + x.slice(i + 1) + '</button>'; }).join('') + '</div>' +
       '<div>' + btn('revoke', T('ถอนสิทธิ์', 'Remove'), 'px-3 py-1.5 rounded-lg border border-red-400/60 text-red-300 text-[11px]') + ' <span class="text-[11px] text-sky-300">' + esc(adminMsg) + '</span></div>' +
-      '<div class="space-y-1">' + (rows || '<div class="text-[11px] text-slate-400">' + T('ยังไม่มีสมาชิก', 'No members yet') + '</div>') + '</div></div></details>';
+      '<div class="space-y-1">' + (rows || '<div class="text-[11px] text-slate-400">' + T('ยังไม่มีสมาชิก', 'No members yet') + '</div>') + '</div></div></details>' +
+      statsHtml() + feedbackHtml();
+  }
+  function statsHtml() {
+    const s = stats || {};
+    const head = '<details class="rounded-lg border border-slate-700 p-2"' + (s.days ? ' open' : '') + '><summary class="text-[12px] text-amber-200 cursor-pointer">📊 ' + T('สถิติการใช้งาน', 'Usage stats') + '</summary><div class="space-y-3 pt-2 text-[11px] text-slate-300">';
+    if (!s.days) return head + '<div>' + (s.error ? T('โหลดไม่ได้ ', 'Could not load ') + esc(s.error) : T('กำลังโหลด…', 'Loading…')) + '</div></div></details>';
+    const today = s.days[s.days.length - 1], week = s.days.slice(-7).reduce((a, d) => a + d.devices, 0), max = Math.max(1, ...s.days.map(d => d.devices));
+    const tile = (n, label) => '<div class="rounded-lg bg-slate-900 border border-slate-700 p-2 text-center"><div class="text-lg font-bold text-slate-100">' + n + '</div><div class="text-[10px] text-slate-400 leading-tight">' + label + '</div></div>';
+    const paying = (s.billing || []).filter(b => ['active', 'trialing', 'past_due'].includes(b.status)).reduce((a, b) => a + b.n, 0);
+    const trial = (s.billing || []).filter(b => b.status === 'trialing').reduce((a, b) => a + b.n, 0);
+    const bars = s.days.map(d => {
+      const h = Math.round(d.devices / max * 56), hn = Math.round(d.fresh / max * 56);
+      return '<div class="flex-1 flex flex-col items-center gap-0.5" title="' + esc(d.day) + ': ' + d.devices + ' (' + T('ใหม่ ', 'new ') + d.fresh + ')">' +
+        '<div class="text-[9px] text-slate-400 h-3">' + (d.devices || '') + '</div>' +
+        '<div class="w-full flex flex-col justify-end" style="height:56px"><div class="w-full rounded-t bg-slate-500 relative" style="height:' + h + 'px"><div class="absolute bottom-0 inset-x-0 bg-amber-500 rounded-t" style="height:' + hn + 'px"></div></div></div>' +
+        '<div class="text-[9px] text-slate-500">' + esc(d.day.slice(8)) + '</div></div>';
+    }).join('');
+    const list = (rows, names) => (rows && rows.length ? rows.map(r => '<div class="flex justify-between gap-2"><span class="truncate">' + esc(names[r.k] || r.k) + '</span><span class="text-slate-100 font-semibold">' + r.n + '</span></div>').join('') : '<div class="text-slate-500">—</div>');
+    const srcNames = { direct: T('พิมพ์ลิงก์เอง / แอปที่ติดตั้ง', 'Typed link / installed app'), facebook: 'Facebook', instagram: 'Instagram', line: 'LINE', google: 'Google', youtube: 'YouTube', tiktok: 'TikTok' };
+    const devNames = { mobile: T('มือถือ', 'Phone'), tablet: T('แท็บเล็ต', 'Tablet'), desktop: T('คอม', 'Computer'), other: T('อื่นๆ', 'Other'), installed: T('เปิดจากแอปที่ติดตั้ง', 'Installed app'), browser: T('เปิดในเบราว์เซอร์', 'In a browser') };
+    return head +
+      '<div class="grid grid-cols-4 gap-1.5">' + tile(today.devices, T('เครื่องที่เข้าวันนี้', 'devices today')) + tile(week, T('เข้า 7 วัน (เครื่อง·วัน)', 'device-days, 7 d')) +
+        tile(s.users.total, T('ล็อกอิน Google', 'signed up') + (s.users.new7 ? ' (+' + s.users.new7 + ')' : '')) + tile(paying, T('สมาชิกจ่ายเงิน', 'paying') + (trial ? ' · ' + T('ทดลอง ', 'trial ') + trial : '')) + '</div>' +
+      '<div><div class="text-slate-400 mb-1">' + T('เครื่องที่เข้าใช้ 14 วัน (สีส้ม = เข้าครั้งแรก)', 'Devices per day, 14 days (orange = first visit)') + '</div><div class="flex items-end gap-0.5">' + bars + '</div></div>' +
+      '<div class="grid grid-cols-2 gap-3"><div><div class="text-slate-400 mb-1">' + T('มาจากไหน (30 วัน)', 'Where from (30 d)') + '</div>' + list(s.sources, srcNames) + '</div>' +
+        '<div><div class="text-slate-400 mb-1">' + T('อุปกรณ์ (30 วัน)', 'Devices (30 d)') + '</div>' + list(s.devices, devNames) + '<div class="h-1"></div>' + list(s.apps, devNames) + '</div></div>' +
+      '<div class="text-[10px] text-slate-500">' + T('นับเครื่องละครั้งต่อวัน ไม่เก็บตัวตนผู้ใช้ · สมาชิกที่ให้สิทธิ์เอง ', 'One count per device per day, no personal data · members granted by you ') + s.members + '</div>' +
+      '<button type="button" data-a="stats" class="px-3 py-1.5 rounded-lg bg-slate-700 text-slate-100">' + T('รีเฟรชตัวเลข', 'Refresh') + '</button>' +
+      '</div></details>';
+  }
+  function feedbackHtml() {
+    const s = stats || {}, f = s.feedback || { total: 0, unseen: 0 }, items = fbList || [];
+    const stars = n => n ? '<span class="text-amber-400">' + '★'.repeat(n) + '</span><span class="text-slate-600">' + '★'.repeat(5 - n) + '</span>' : '';
+    const when = ms => new Date(ms).toLocaleString(T('th-TH', 'en-GB'), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    const rows = items.map(x =>
+      '<div class="rounded-lg border ' + (x.seen ? 'border-slate-700' : 'border-amber-500/70 bg-amber-500/5') + ' p-2 space-y-1">' +
+        '<div class="flex items-center gap-2 text-[10px] text-slate-400"><span>' + stars(x.rating) + '</span><span>' + when(x.created_at) + '</span>' + (x.src ? '<span>· ' + esc(x.src) + '</span>' : '') + (x.seen ? '' : '<span class="text-amber-300 font-semibold">' + T('ใหม่', 'new') + '</span>') + '</div>' +
+        '<div class="text-[12px] text-slate-100 whitespace-pre-wrap break-words">' + esc(x.message) + '</div>' +
+        ((x.contact || x.email) ? '<div class="text-[10px] text-sky-300 break-all">' + esc([x.contact, x.email].filter(Boolean).join(' · ')) + '</div>' : '') +
+        '<div class="flex gap-2">' + (x.seen ? '' : btn('fb-seen" data-id="' + x.id, T('อ่านแล้ว', 'Mark read'), 'px-2 py-1 rounded bg-slate-700 text-slate-100 text-[10px]')) +
+          btn('fb-del" data-id="' + x.id, T('ลบ', 'Delete'), 'px-2 py-1 rounded border border-red-400/60 text-red-300 text-[10px]') + '</div>' +
+      '</div>').join('');
+    return '<details class="rounded-lg border border-slate-700 p-2"' + (f.unseen ? ' open' : '') + '><summary class="text-[12px] text-amber-200 cursor-pointer">💬 ' + T('ความคิดเห็นจากผู้ใช้', 'Feedback from users') + ' (' + f.total + (f.unseen ? ' · ' + T('ใหม่ ', 'new ') + f.unseen : '') + ')' + (f.avg ? ' · ★ ' + f.avg : '') + '</summary>' +
+      '<div class="space-y-2 pt-2">' + (rows || '<div class="text-[11px] text-slate-400">' + T('ยังไม่มีข้อความ', 'No messages yet') + '</div>') +
+      (f.unseen ? btn('fb-allseen', T('อ่านทั้งหมดแล้ว', 'Mark all read'), 'px-3 py-1.5 rounded-lg bg-slate-700 text-slate-100 text-[11px]') : '') + '</div></details>';
   }
 
   // Stripe pages: the server makes a Checkout / billing-portal session and we go there; membership itself comes back through the webhook
@@ -249,6 +306,10 @@ const Account = (() => {
       else if (a === 'portal') pay('/api/billing/portal', {});
       else if (a === 'fill') { const f = document.getElementById('acct-email'); if (f) f.value = b.dataset.email; }
       else if (a === 'grant') grant(email(), b.dataset.d === 'life' ? { lifetime: true, plan: 'lifetime' } : { days: +b.dataset.d, plan: 'manual' });
+      else if (a === 'stats') { stats = {}; render(); loadStats(); }
+      else if (a === 'fb-seen') fbAction({ id: +b.dataset.id, seen: true });
+      else if (a === 'fb-del') { if (confirm(T('ลบข้อความนี้?', 'Delete this message?'))) fbAction({ id: +b.dataset.id, remove: true }); }
+      else if (a === 'fb-allseen') fbAction({ allSeen: true });
       else if (a === 'revoke') { if (email() && confirm(T('ถอนสิทธิ์สมาชิกของ ', 'Remove membership of ') + email() + '?')) grant(email(), { revoke: true }); }
     });
     // opening Settings is when the account card matters: show it, fetch config, and re-check the membership

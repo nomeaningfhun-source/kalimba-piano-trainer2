@@ -3539,6 +3539,7 @@ initM2();
 initLessons();
 initGrowth();
 initMidi();
+if (window.Feedback) Feedback.init();
 Account.init({ waitlist: () => { if (WAITLIST_URL) window.open(WAITLIST_URL, '_blank', 'noopener'); } });
 initPlayer();
 initMoved();

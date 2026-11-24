@@ -35,7 +35,7 @@ async function idToken(email, sub, name) {
   const h = b64u(JSON.stringify({ alg: 'RS256', kid: 'k1' })), p = b64u(JSON.stringify({ iss: 'accounts.google.com', aud: CLIENT, sub, email, email_verified: true, name, exp: Math.floor(Date.now() / 1000) + 3600 }));
   return h + '.' + p + '.' + b64u(new Uint8Array(await crypto.subtle.sign('RSASSA-PKCS1-v1_5', kp.privateKey, new TextEncoder().encode(h + '.' + p))));
 }
-const routes = { '/api/config': 'config.js', '/api/me': 'me.js', '/api/auth/google': 'auth/google.js', '/api/auth/logout': 'auth/logout.js', '/api/admin/members': 'admin/members.js', '/api/billing/checkout': 'billing/checkout.js', '/api/billing/portal': 'billing/portal.js', '/api/stripe/webhook': 'stripe/webhook.js' };
+const routes = { '/api/config': 'config.js', '/api/me': 'me.js', '/api/auth/google': 'auth/google.js', '/api/auth/logout': 'auth/logout.js', '/api/admin/members': 'admin/members.js', '/api/admin/stats': 'admin/stats.js', '/api/admin/feedback': 'admin/feedback.js', '/api/hit': 'hit.js', '/api/feedback': 'feedback.js', '/api/billing/checkout': 'billing/checkout.js', '/api/billing/portal': 'billing/portal.js', '/api/stripe/webhook': 'stripe/webhook.js' };
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
 http.createServer(async (rq, rs) => {
   const url = new URL(rq.url, 'http://localhost:' + port);

@@ -414,6 +414,9 @@
         <h3 class="text-[13px] font-semibold text-slate-100"><span data-i18n="lib.free">คลังเพลงฟรี (เพลงหมดลิขสิทธิ์)</span> · <span id="free-count" class="text-slate-400 font-normal"></span></h3>
         <div id="lib-free" class="space-y-2"></div>
       </div>
+      <button type="button" data-open-feedback="songs" class="w-full p-3 rounded-2xl bg-slate-900 border border-amber-500/50 text-left flex items-center gap-3">
+        <span class="text-2xl">💬</span><span class="flex-1"><span class="block text-[13px] font-semibold text-slate-100" data-i18n="fb.songs">อยากได้เพลงไหน บอกเราได้</span><span class="block text-[11px] text-slate-400" data-i18n="fb.songs.sub">แนะนำเพลง ติชมแอป เราอ่านทุกข้อความ</span></span><span class="text-slate-400">›</span>
+      </button>
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2">
         <h3 class="text-[13px] font-semibold text-slate-100" data-i18n="lib.builtin">เพลงตัวอย่างในแอป</h3>
         <div id="lib-builtin" class="space-y-2"></div>
@@ -685,6 +688,7 @@
         <button id="btn-close-settings" class="text-slate-400 hover:text-white text-lg">✕</button>
       </div>
       <div class="space-y-3 text-xs">
+        <button type="button" data-open-feedback="settings" class="w-full h-11 rounded-xl border border-amber-500/60 text-amber-200 font-semibold" data-i18n="fb.open">💬 ติชม · แนะนำเพลง</button>
         <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700 space-y-2">
           <span class="block font-medium text-slate-200" data-i18n="set.lang">ภาษา</span>
           <div class="grid grid-cols-2 gap-2">
@@ -767,6 +771,7 @@
   <script src="js/icons.js"></script>
   <script src="js/core.js"></script>
   <script src="js/account.js"></script>
+  <script src="js/feedback.js"></script>
   <script src="js/wood.js"></script>
   <script src="js/skin-art.js"></script>
   <script src="js/skins.js"></script>

@@ -9,6 +9,11 @@ import { onRequestPost as logout } from '../functions/api/auth/logout.js';
 import { onRequestPost as loginRedirect } from '../functions/api/auth/google-redirect.js';
 import { onRequestGet as me } from '../functions/api/me.js';
 import { onRequestGet as listMembers, onRequestPost as setMember } from '../functions/api/admin/members.js';
+import { onRequestPost as hit } from '../functions/api/hit.js';
+import { onRequestPost as sendFeedback } from '../functions/api/feedback.js';
+import { onRequestGet as adminStats } from '../functions/api/admin/stats.js';
+import { onRequestGet as adminFeedback, onRequestPost as adminFeedbackSet } from '../functions/api/admin/feedback.js';
+import { sourceLabel } from '../functions/_lib/insights.js';
 
 let failed = 0;
 const ok = (c, m) => { if (!c) { failed++; console.log('FAIL ' + m); } else console.log('ok ' + m); };
@@ -238,5 +243,34 @@ const nobody = (await call(login, req('POST', '/api/auth/google', { credential: 
 ok((await call(portal, req('POST', '/api/billing/portal', null, nobody), senv))[0] === 404, 'portal: someone who never subscribed -> 404');
 globalThis.fetch = realFetch;
 
+
+// --- usage counts, feedback, admin stats
+{
+  ok(sourceLabel('https://m.facebook.com/') === 'facebook' && sourceLabel('l.facebook.com') === 'facebook' && sourceLabel('https://www.google.co.th/search') === 'google' && sourceLabel('') === 'direct' && sourceLabel('utm:FB group!') === 'utm:fbgroup', 'visit sources folded into short labels');
+  ok((await call(hit, req('POST', '/api/hit', { src: 'https://m.facebook.com/', dev: 'mobile', app: 'browser', fresh: true })))[0] === 200, 'hit counted');
+  await call(hit, req('POST', '/api/hit', { src: '', dev: 'desktop', app: 'installed' }));
+  await call(hit, req('POST', '/api/hit', { src: 'x', dev: '<script>', app: 'weird' }));
+  ok((await call(sendFeedback, req('POST', '/api/feedback', { message: ' ' })))[0] === 400, 'empty feedback rejected');
+  const fbReq = body => new Request('https://x.test/api/feedback', { method: 'POST', headers: { 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.9' }, body: JSON.stringify(body) });
+  ok((await call(sendFeedback, fbReq({ message: 'อยากได้เพลงลอยกระทง', rating: 5, contact: 'line: abc' })))[0] === 200, 'feedback saved without sign-in');
+  for (let i = 0; i < 4; i++) await call(sendFeedback, fbReq({ message: 'again ' + i, rating: 9 }));
+  ok((await call(sendFeedback, fbReq({ message: 'sixth' })))[0] === 429, 'feedback limited to 5 a day per connection');
+  const adm = (await call(login, req('POST', '/api/auth/google', { credential: await idToken({ sub: '9001', email: 'boss@example.com', name: 'Boss' }) })))[1].token;
+  const usr = (await call(login, req('POST', '/api/auth/google', { credential: await idToken({ sub: '9002', email: 'user9@example.com', name: 'U' }) })))[1].token;
+  ok((await call(adminStats, req('GET', '/api/admin/stats', null, usr)))[0] === 403, 'stats: non-admin refused');
+  ok((await call(adminFeedback, req('GET', '/api/admin/feedback')))[0] === 403, 'feedback list: signed-out refused');
+  const [ss, st] = await call(adminStats, req('GET', '/api/admin/stats', null, adm));
+  const today = st.days[st.days.length - 1];
+  ok(ss === 200 && st.days.length === 14 && today.devices === 3 && today.fresh === 1, 'stats: 14 days, today 3 devices / 1 new');
+  ok(st.sources.find(r => r.k === 'facebook').n === 1 && st.sources.find(r => r.k === 'direct').n === 1 && st.devices.find(r => r.k === 'other').n === 1, 'stats: sources and devices');
+  ok(st.feedback.total === 5 && st.feedback.unseen === 5 && st.feedback.avg === 5, 'stats: feedback count, unread, average (bad ratings ignored)');
+  ok(st.users.total >= 2 && typeof st.members === 'number', 'stats: users and members');
+  const [fs, fl] = await call(adminFeedback, req('GET', '/api/admin/feedback', null, adm));
+  ok(fs === 200 && fl.feedback[fl.feedback.length - 1].message === 'อยากได้เพลงลอยกระทง' && fl.feedback[0].ip_hash === undefined, 'feedback list newest first, no ip hash exposed');
+  await call(adminFeedbackSet, req('POST', '/api/admin/feedback', { id: fl.feedback[0].id, remove: true }, adm));
+  await call(adminFeedbackSet, req('POST', '/api/admin/feedback', { allSeen: true }, adm));
+  const st2 = (await call(adminStats, req('GET', '/api/admin/stats', null, adm)))[1];
+  ok(st2.feedback.total === 4 && st2.feedback.unseen === 0, 'feedback delete + mark all read');
+}
 console.log(failed ? failed + ' FAILED' : 'all api tests passed');
 process.exit(failed ? 1 : 0);

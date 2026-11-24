@@ -56,6 +56,8 @@
   <li><b>รูปถ่ายโน้ต</b> ถูกอ่านด้วย OCR ที่ทำงานในเบราว์เซอร์ (ไฟล์ OCR มาจากเซิร์ฟเวอร์เราเอง) รูปไม่ถูกอัปโหลด</li>
   <li><b>ไมโครโฟน</b> ใช้ฟังเสียงเพื่อตั้งสายและตรวจโน้ตแบบเรียลไทม์ ในเครื่องเท่านั้น ไม่มีการบันทึกหรือส่งออก เบราว์เซอร์จะขออนุญาตก่อนทุกครั้ง และคุณเพิกถอนได้ในการตั้งค่าเบราว์เซอร์</li>
   <li><b>เซสชันเข้าสู่ระบบ</b> (โทเค็น) เก็บใน localStorage ของอุปกรณ์ ออกจากระบบแล้วจะถูกลบ</li>
+  <li><b>สถิติการใช้งานแบบไม่ระบุตัวตน</b> วันละครั้งต่อเครื่อง แอปส่งเพียงว่ามาจากที่ใด (เช่น Facebook, Google หรือพิมพ์ลิงก์เอง) ประเภทอุปกรณ์ (มือถือ/คอม) และเปิดจากแอปที่ติดตั้งหรือไม่ เราเก็บเป็นตัวเลขรวมรายวันเท่านั้น ไม่เก็บ IP ไม่มีรหัสประจำตัวหรือคุกกี้ วันที่ส่งล่าสุดถูกจำไว้ในเครื่องคุณ (kt.hit) และเว็บใช้ Cloudflare Web Analytics ซึ่งไม่ใช้คุกกี้</li>
+  <li><b>ข้อความติชม</b> ที่คุณพิมพ์ในช่อง “ติชม · แนะนำเพลง” (คะแนนดาว ข้อความ และช่องทางติดต่อหากคุณใส่) เก็บในฐานข้อมูลของเรา อ่านได้เฉพาะผู้ดูแล หากล็อกอินอยู่จะแนบอีเมลบัญชีไว้ด้วย เพื่อกันสแปมเราเก็บค่าแฮชของ IP รวมกับวันที่ (ย้อนกลับเป็น IP ไม่ได้) ขอให้ลบข้อความได้ทางอีเมลด้านล่าง</li>
 </ul>
 
 <h2>3. บริการของบุคคลที่สามที่เกี่ยวข้อง</h2>
@@ -112,6 +114,8 @@
   <li><b>Sheet photos</b> are read by OCR running in your browser (the OCR files are served from our own site). Photos are not uploaded.</li>
   <li><b>Microphone</b> is used for live tuning and note detection on-device only, with no recording or upload. Your browser asks permission first; you can revoke it in browser settings.</li>
   <li><b>The sign-in session token</b> is kept in the device’s localStorage and removed on sign-out.</li>
+  <li><b>Anonymous usage counts</b>: once a day per device the app sends only where you came from (for example Facebook, Google or a typed link), the device kind (phone/computer) and whether it runs as an installed app. We keep daily totals only: no IP, no identifier, no cookie. The last day sent is remembered on your device (kt.hit). The site also uses Cloudflare Web Analytics, which sets no cookies.</li>
+  <li><b>Feedback</b> you type in the “Feedback · song requests” box (star rating, message, and a contact if you add one) is stored in our database and read only by our admins; if you are signed in, your account email is attached. To limit spam we keep a hash of your IP combined with the date, which cannot be turned back into the IP. Ask us by email to delete a message.</li>
 </ul>
 
 <h2>3. Third-party services</h2>
